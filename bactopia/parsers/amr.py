@@ -2,7 +2,8 @@
 Parsers for Antimicrobial Resistance related results.
 """
 from .generic import get_file_type, parse_table
-RESULT_TYPE = 'antimicrobial-resistance'
+
+RESULT_TYPE = "antimicrobial-resistance"
 ACCEPTED_FILES = ["gene-report.txt", "protein-report.txt"]
 
 
@@ -46,24 +47,27 @@ def get_parsable_list(path: str, name: str) -> list:
         list: information about the status of parsable files
     """
     import os
+
     parsable_results = []
     for result in ACCEPTED_FILES:
         result_name = None
         optional = False
         filename = None
 
-        if result.endswith('gene-report.txt'):
-            result_name = 'gene-report'
+        if result.endswith("gene-report.txt"):
+            result_name = "gene-report"
             filename = f"{path}/{name}/{RESULT_TYPE}/{name}-{result}"
-        elif result.endswith('protein-report.txt'):
-            result_name = 'protein-report'
+        elif result.endswith("protein-report.txt"):
+            result_name = "protein-report"
             filename = f"{path}/{name}/{RESULT_TYPE}/{name}-{result}"
 
-        parsable_results.append({
-            'result_name': result_name,
-            'files': [filename],
-            'optional': optional,
-            'missing': False if os.path.exists(filename) else True
-        })
+        parsable_results.append(
+            {
+                "result_name": result_name,
+                "files": [filename],
+                "optional": optional,
+                "missing": False if os.path.exists(filename) else True,
+            }
+        )
 
     return parsable_results

@@ -2,8 +2,10 @@
 Parsers for QC (FASTQ) related results.
 """
 import os
+
 from .generic import get_file_type, parse_json
-RESULT_TYPE = 'quality-control'
+
+RESULT_TYPE = "quality-control"
 ACCEPTED_FILES = ["final.json", "original.json"]
 
 
@@ -28,7 +30,9 @@ def parse(r1: str, r2: str = None) -> dict:
 
     if r1.endswith(".json"):
         if r2 and filetype != filetype2:
-            raise ValueError(f"Original and Final QC files were mixed. R1: {filetype}, R2: {filetype2}")
+            raise ValueError(
+                f"Original and Final QC files were mixed. R1: {filetype}, R2: {filetype2}"
+            )
         return _merge_qc_stats(parse_json(r1), parse_json(r2)) if r2 else parse_json(r1)
 
 
@@ -44,19 +48,26 @@ def _merge_qc_stats(r1: dict, r2: dict) -> dict:
         dict: the merged FASTQ metrics
     """
     from statistics import mean
+
     merged = {
-        'qc_stats': {},
-        'r1_per_base_quality': r1['per_base_quality'],
-        'r2_per_base_quality': r2['per_base_quality'],
-        'r1_read_lengths': r1['read_lengths'],
-        'r2_read_lengths': r2['read_lengths']
+        "qc_stats": {},
+        "r1_per_base_quality": r1["per_base_quality"],
+        "r2_per_base_quality": r2["per_base_quality"],
+        "r1_read_lengths": r1["read_lengths"],
+        "r2_read_lengths": r2["read_lengths"],
     }
-    for key in r1['qc_stats']:
-        if key in ['total_bp', 'coverage', 'read_total']:
-            merged['qc_stats'][key] = r1['qc_stats'][key] + r2['qc_stats'][key] if r2 else r1['qc_stats'][key]
+    for key in r1["qc_stats"]:
+        if key in ["total_bp", "coverage", "read_total"]:
+            merged["qc_stats"][key] = (
+                r1["qc_stats"][key] + r2["qc_stats"][key] if r2 else r1["qc_stats"][key]
+            )
         else:
-            val = mean([r1['qc_stats'][key], r2['qc_stats'][key]]) if r2 else r1['qc_stats'][key]
-            merged['qc_stats'][key] = f'{val:.4f}' if isinstance(val, float) else val
+            val = (
+                mean([r1["qc_stats"][key], r2["qc_stats"][key]])
+                if r2
+                else r1["qc_stats"][key]
+            )
+            merged["qc_stats"][key] = f"{val:.4f}" if isinstance(val, float) else val
 
     return merged
 
@@ -83,8 +94,10 @@ def is_paired(path: str, name: str) -> bool:
     elif os.path.exists(se):
         return False
     else:
-        raise ValueError(f"Processed FASTQs not found in {path}/{name}/quality-control/")
- 
+        raise ValueError(
+            f"Processed FASTQs not found in {path}/{name}/quality-control/"
+        )
+
 
 def get_parsable_list(path: str, name: str) -> list:
     """
@@ -98,6 +111,7 @@ def get_parsable_list(path: str, name: str) -> list:
         list: information about the status of parsable files
     """
     import os
+
     parsable_results = []
     for result in ACCEPTED_FILES:
         result_name = None
@@ -106,34 +120,38 @@ def get_parsable_list(path: str, name: str) -> list:
         r2 = None
         se = None
 
-        if result.endswith('original.json'):
-            result_name = 'original'
+        if result.endswith("original.json"):
+            result_name = "original"
             r1 = f"{path}/{name}/{RESULT_TYPE}/summary-original/{name}_R1-{result}"
             r2 = f"{path}/{name}/{RESULT_TYPE}/summary-original/{name}_R2-{result}"
             se = f"{path}/{name}/{RESULT_TYPE}/summary-original/{name}-{result}"
-        elif result.endswith('final.json'):
-            result_name = 'final'
+        elif result.endswith("final.json"):
+            result_name = "final"
             r1 = f"{path}/{name}/{RESULT_TYPE}/summary-final/{name}_R1-{result}"
             r2 = f"{path}/{name}/{RESULT_TYPE}/summary-final/{name}_R2-{result}"
             se = f"{path}/{name}/{RESULT_TYPE}/summary-final/{name}-{result}"
 
-        if (se):
+        if se:
             if os.path.exists(se):
-                parsable_results.append({
-                    'result_name': result_name,
-                    'files': [se],
-                    'optional': False,
-                    'missing': False
-                })
+                parsable_results.append(
+                    {
+                        "result_name": result_name,
+                        "files": [se],
+                        "optional": False,
+                        "missing": False,
+                    }
+                )
             else:
                 missing = True
                 if os.path.exists(r1) and os.path.exists(r2):
                     missing = False
-                parsable_results.append({
-                    'result_name': result_name,
-                    'files': [r1, r2],
-                    'optional': False,
-                    'missing': missing
-                })
+                parsable_results.append(
+                    {
+                        "result_name": result_name,
+                        "files": [r1, r2],
+                        "optional": False,
+                        "missing": missing,
+                    }
+                )
 
     return parsable_results

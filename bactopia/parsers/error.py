@@ -2,6 +2,7 @@
 Parsers for Error related results.
 """
 from .generic import get_file_type, parse_json, parse_table
+
 ACCEPTED_FILES = ["error.txt"]
 ERROR_TYPES = [
     "assembly",
@@ -34,13 +35,24 @@ def parse(filename: str) -> dict:
     elif error.endswith("low-sequence-depth-error.txt"):
         return _format_error(["low-sequence-depth-error", "Low depth of sequencing"])
     elif error.endswith("paired-end-error.txt"):
-        return _format_error(["paired-end-error", "Paired-end reads were not in acceptable format"])
+        return _format_error(
+            ["paired-end-error", "Paired-end reads were not in acceptable format"]
+        )
     elif error.endswith("different-read-count-error.txt"):
-        return _format_error(["different-read-count-error", "Paired-end read count mismatch"])
+        return _format_error(
+            ["different-read-count-error", "Paired-end read count mismatch"]
+        )
     elif error.endswith("low-basepair-proportion-error.txt"):
-        return _format_error(["low-basepair-proportion-error", "Paired-end basepair counts are out of accesptable proportions"])
+        return _format_error(
+            [
+                "low-basepair-proportion-error",
+                "Paired-end basepair counts are out of accesptable proportions",
+            ]
+        )
     elif error.endswith("assembly-error.txt"):
-        return _format_error(["assembly-error", "Assembled size was not withing an acceptable range"])
+        return _format_error(
+            ["assembly-error", "Assembled size was not withing an acceptable range"]
+        )
     return _format_error(["unknown-error", "Unknown Error"])
 
 
@@ -53,4 +65,4 @@ def _format_error(error: list) -> dict:
     Returns:
         dict: explicit names for the list elements
     """
-    return {'error_type': error[0], 'description': error[1]}
+    return {"error_type": error[0], "description": error[1]}

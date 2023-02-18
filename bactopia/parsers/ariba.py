@@ -2,7 +2,8 @@
 Parsers for Ariba related results.
 """
 from .generic import get_file_type, parse_json, parse_table
-RESULT_TYPE = 'ariba'
+
+RESULT_TYPE = "ariba"
 ACCEPTED_FILES = ["report.tsv", "summary.csv"]
 
 
@@ -38,11 +39,11 @@ def _parse_ariba(report_file: str, summary_file: str) -> dict:
     hits = {}
     for row in parse_table(summary_file, delimiter=","):
         for key, val in row.items():
-            if key != 'name':
-                cluster, field = key.split('.')
+            if key != "name":
+                cluster, field = key.split(".")
                 if cluster not in hits:
                     hits[cluster] = {
-                        'cluster': cluster,
+                        "cluster": cluster,
                     }
                 hits[cluster][field] = val
 
@@ -50,7 +51,7 @@ def _parse_ariba(report_file: str, summary_file: str) -> dict:
     for cluster, vals in sorted(hits.items()):
         summary.append(vals)
 
-    return {'report': parse_table(report_file), 'summary': summary}
+    return {"report": parse_table(report_file), "summary": summary}
 
 
 def get_parsable_list(path: str, name: str) -> list:
@@ -65,8 +66,9 @@ def get_parsable_list(path: str, name: str) -> list:
         list: information about the status of parsable files
     """
     import os
+
     parsable_results = []
-    
+
     ariba_dir = f"{path}/{name}/{RESULT_TYPE}"
     if os.path.exists(ariba_dir):
         with os.scandir(ariba_dir) as dirs:
@@ -77,11 +79,13 @@ def get_parsable_list(path: str, name: str) -> list:
                 if os.path.exists(report) and os.path.exists(summary):
                     missing = False
 
-                parsable_results.append({
-                    'result_name': ariba_db.name,
-                    'files': [report, summary],
-                    'optional': True,
-                    'missing': missing
-                })
+                parsable_results.append(
+                    {
+                        "result_name": ariba_db.name,
+                        "files": [report, summary],
+                        "optional": True,
+                        "missing": missing,
+                    }
+                )
 
     return parsable_results

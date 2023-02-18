@@ -2,7 +2,8 @@
 Parsers for Mapping related results.
 """
 from .generic import get_file_type
-RESULT_TYPE = 'mapping'
+
+RESULT_TYPE = "mapping"
 ACCEPTED_FILES = [".txt"]
 
 
@@ -24,7 +25,7 @@ def parse(filename: str) -> list:
 def _parse_mapping(filename: str) -> list:
     """
     Parse per-base mapping summary text file.
-    
+
     Example Format:
         ##total=1
         ##contig=<ID=lcl|NC_000907.1_cds_NP_438599.1_404,length=507>
@@ -41,7 +42,7 @@ def _parse_mapping(filename: str) -> list:
         list: the per-base coverage results per reference
     """
     results = []
-    with open(filename, 'rt') as fh:
+    with open(filename, "rt") as fh:
         per_base_coverage = []
         name = None
         current_results = {}
@@ -53,10 +54,12 @@ def _parse_mapping(filename: str) -> list:
                 elif line.startswith("##contig"):
                     if name:
                         # This is not the first time
-                        results.append({"name": name, "per_base_coverage": per_base_coverage})
+                        results.append(
+                            {"name": name, "per_base_coverage": per_base_coverage}
+                        )
                         per_base_coverage.clear()
                         name = None
-                    name = line.replace("##", '')
+                    name = line.replace("##", "")
                 else:
                     per_base_coverage.append(int(line))
             else:
@@ -78,17 +81,20 @@ def get_parsable_list(path: str, name: str) -> list:
     """
     import glob
     import os
+
     parsable_results = []
 
     mapping_dir = f"{path}/{name}/{RESULT_TYPE}"
     if os.path.exists(mapping_dir):
-        for mapping_stats in glob.glob(f'{mapping_dir}/*.txt'):
+        for mapping_stats in glob.glob(f"{mapping_dir}/*.txt"):
             result_name = f"{os.path.basename(mapping_stats)}"
-            parsable_results.append({
-                'result_name': result_name,
-                'files': [mapping_stats],
-                'optional': True,
-                'missing': False
-            })
+            parsable_results.append(
+                {
+                    "result_name": result_name,
+                    "files": [mapping_stats],
+                    "optional": True,
+                    "missing": False,
+                }
+            )
 
     return parsable_results

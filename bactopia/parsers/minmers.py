@@ -2,8 +2,15 @@
 Parsers for Minmer related results.
 """
 from .generic import get_file_type, parse_table
-RESULT_TYPE = 'minmers'
-ACCEPTED_FILES = ["refseq-k21.txt", "plsdb-k21.txt", "genbank-k21.txt", "genbank-k31.txt", "genbank-k51.txt"]
+
+RESULT_TYPE = "minmers"
+ACCEPTED_FILES = [
+    "refseq-k21.txt",
+    "plsdb-k21.txt",
+    "genbank-k21.txt",
+    "genbank-k31.txt",
+    "genbank-k51.txt",
+]
 
 
 def parse(filename: str) -> dict:
@@ -26,7 +33,7 @@ def parse(filename: str) -> dict:
 def _parse_sourmash(filename: str) -> dict:
     """
     Parse Sourmash output.
-    
+
     Example Format:
         overlap     p_query p_match
         ---------   ------- --------
@@ -46,8 +53,9 @@ def _parse_sourmash(filename: str) -> dict:
         dict: the parsed Sourmash results
     """
     import re
+
     re_sourmash = re.compile(
-        r'(?P<overlap>[0-9]+.[0-9]+ [A-Za-z]+)\s+(?P<p_query>[0-9]+.[0-9]+%)\s+(?P<p_match>[0-9]+.[0-9]+%)\s+(?P<match>.*)'
+        r"(?P<overlap>[0-9]+.[0-9]+ [A-Za-z]+)\s+(?P<p_query>[0-9]+.[0-9]+%)\s+(?P<p_match>[0-9]+.[0-9]+%)\s+(?P<match>.*)"
     )
     count = 0
     data = {"matches": [], "no_assignment": ""}
@@ -61,12 +69,14 @@ def _parse_sourmash(filename: str) -> dict:
             elif parse_row:
                 if line:
                     re_match = re_sourmash.match(line)
-                    data['matches'].append({
-                        'overlap': re_match.group('overlap'),
-                        'p_query': re_match.group('p_query'),
-                        'p_match': re_match.group('p_match'),
-                        'match': re_match.group('match')
-                    })
+                    data["matches"].append(
+                        {
+                            "overlap": re_match.group("overlap"),
+                            "p_query": re_match.group("p_query"),
+                            "p_match": re_match.group("p_match"),
+                            "match": re_match.group("match"),
+                        }
+                    )
                     count += 1
                 else:
                     parse_no_assignment = True
@@ -87,21 +97,24 @@ def get_parsable_list(path: str, name: str) -> list:
         list: information about the status of parsable files
     """
     import os
+
     parsable_results = []
     for result in ACCEPTED_FILES:
         result_name = None
         optional = False
         filename = None
 
-        if result.endswith('.txt'):
-            result_name = result.replace('.txt', '')
+        if result.endswith(".txt"):
+            result_name = result.replace(".txt", "")
             filename = f"{path}/{name}/{RESULT_TYPE}/{name}-{result}"
 
-        parsable_results.append({
-            'result_name': result_name,
-            'files': [filename],
-            'optional': True,
-            'missing': False if os.path.exists(filename) else True
-        })
+        parsable_results.append(
+            {
+                "result_name": result_name,
+                "files": [filename],
+                "optional": True,
+                "missing": False if os.path.exists(filename) else True,
+            }
+        )
 
     return parsable_results

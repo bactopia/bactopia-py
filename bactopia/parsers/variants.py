@@ -2,7 +2,8 @@
 Parsers for Variant related results.
 """
 from .generic import get_file_type
-RESULT_TYPE = 'variants'
+
+RESULT_TYPE = "variants"
 ACCEPTED_FILES = ["txt"]
 
 
@@ -32,14 +33,15 @@ def _parse_variants(filename: str) -> dict:
         dict: parsed Snippy summary file
     """
     from os.path import basename
+
     results = {}
-    with open(filename, 'rt') as fh:
+    with open(filename, "rt") as fh:
         for line in fh:
             line = line.rstrip()
             if not line.startswith("ReadFiles"):
                 key, val = line.split("\t")
                 if key == "Reference":
-                    results[key] = basename(val).split('-')[-1].split(".")[0]
+                    results[key] = basename(val).split("-")[-1].split(".")[0]
                 else:
                     results[key] = val.lstrip()
     return results
@@ -57,8 +59,9 @@ def get_parsable_list(path: str, name: str) -> list:
         list: information about the status of parsable files
     """
     import os
+
     parsable_results = []
-    for variant_source in ['auto', 'user']:
+    for variant_source in ["auto", "user"]:
         variant_dir = f"{path}/{name}/{RESULT_TYPE}/{variant_source}"
         if os.path.exists(variant_dir):
             with os.scandir(variant_dir) as dirs:
@@ -69,15 +72,17 @@ def get_parsable_list(path: str, name: str) -> list:
                         optional = True
                         filename = None
 
-                        if result.endswith('txt'):
-                            result_name = 'stats'
+                        if result.endswith("txt"):
+                            result_name = "stats"
                             filename = f"{reference_dir}/{name}.{result}"
 
-                        parsable_results.append({
-                            'result_name': result_name,
-                            'files': [filename],
-                            'optional': optional,
-                            'missing': False if os.path.exists(filename) else True
-                        })
+                        parsable_results.append(
+                            {
+                                "result_name": result_name,
+                                "files": [filename],
+                                "optional": optional,
+                                "missing": False if os.path.exists(filename) else True,
+                            }
+                        )
 
     return parsable_results

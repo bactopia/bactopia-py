@@ -22,10 +22,14 @@ def get_file_type(extensions: list, filename: str) -> str:
         if filename.endswith(ext):
             return ext
 
-    raise ValueError(f"'{filename}' is not an accepted result file. Accepted extensions: {', '.join(extensions)}")
+    raise ValueError(
+        f"'{filename}' is not an accepted result file. Accepted extensions: {', '.join(extensions)}"
+    )
 
 
-def parse_table(csvfile: str, delimiter: str = '\t', has_header: bool = True) -> Union[list, dict]:
+def parse_table(
+    csvfile: str, delimiter: str = "\t", has_header: bool = True
+) -> Union[list, dict]:
     """
     Parse a delimited file.
 
@@ -38,9 +42,14 @@ def parse_table(csvfile: str, delimiter: str = '\t', has_header: bool = True) ->
         Union[list, dict]: A dict is returned if a header is present, otherwise a list is returned
     """
     import csv
+
     data = []
-    with open(csvfile, 'rt') as fh:
-        for row in csv.DictReader(fh, delimiter=delimiter) if has_header else csv.reader(fh, delimiter=delimiter):
+    with open(csvfile, "rt") as fh:
+        for row in (
+            csv.DictReader(fh, delimiter=delimiter)
+            if has_header
+            else csv.reader(fh, delimiter=delimiter)
+        ):
             data.append(row)
     return data
 
@@ -56,5 +65,6 @@ def parse_json(jsonfile: str) -> Union[list, dict]:
         Union[list, dict]: the values oarsed from the JSON file
     """
     import json
-    with open(jsonfile, 'rt') as fh:
+
+    with open(jsonfile, "rt") as fh:
         return json.load(fh)

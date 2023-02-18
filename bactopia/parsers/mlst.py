@@ -2,7 +2,8 @@
 Parsers for MLST related results.
 """
 from .generic import get_file_type, parse_json, parse_table
-RESULT_TYPE = 'mlst'
+
+RESULT_TYPE = "mlst"
 ACCEPTED_FILES = ["blast.json", "mlst_report.tsv"]
 
 
@@ -35,6 +36,7 @@ def get_parsable_list(path: str, name: str) -> list:
         list: information about the status of parsable files
     """
     import os
+
     parsable_results = []
     mlst_dir = f"{path}/{name}/{RESULT_TYPE}"
     if os.path.exists(mlst_dir):
@@ -43,19 +45,23 @@ def get_parsable_list(path: str, name: str) -> list:
                 schema = schema_dir.name
                 missing = True
                 blast = f"{mlst_dir}/{schema}/blast/{name}-blast.json"
-                parsable_results.append({
-                    'result_name': f"{schema}-blast",
-                    'files': [blast],
-                    'optional': True,
-                    'missing': False if os.path.exists(blast) else True
-                })
+                parsable_results.append(
+                    {
+                        "result_name": f"{schema}-blast",
+                        "files": [blast],
+                        "optional": True,
+                        "missing": False if os.path.exists(blast) else True,
+                    }
+                )
 
                 ariba = f"{mlst_dir}/{schema}/ariba/mlst_report.tsv"
-                parsable_results.append({
-                    'result_name': f"{schema}-ariba",
-                    'files': [ariba],
-                    'optional': True,
-                    'missing': False if os.path.exists(ariba) else True
-                })
+                parsable_results.append(
+                    {
+                        "result_name": f"{schema}-ariba",
+                        "files": [ariba],
+                        "optional": True,
+                        "missing": False if os.path.exists(ariba) else True,
+                    }
+                )
 
     return parsable_results

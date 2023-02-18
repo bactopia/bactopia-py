@@ -2,7 +2,8 @@
 Parsers for Annotation related results.
 """
 from .generic import get_file_type
-RESULT_TYPE = 'annotation'
+
+RESULT_TYPE = "annotation"
 ACCEPTED_FILES = ["txt"]
 
 
@@ -32,7 +33,7 @@ def _parse_annotation(filename: str) -> dict:
         dict: the parsed Prokka summary
     """
     results = {}
-    with open(filename, 'rt') as fh:
+    with open(filename, "rt") as fh:
         for line in fh:
             line = line.rstrip()
             key, val = line.split(":")
@@ -52,21 +53,24 @@ def get_parsable_list(path: str, name: str) -> list:
         list: information about the status of parsable files
     """
     import os
+
     parsable_results = []
     for result in ACCEPTED_FILES:
         result_name = None
         optional = False
         filename = None
 
-        if result.endswith('txt'):
-            result_name = 'stats'
+        if result.endswith("txt"):
+            result_name = "stats"
             filename = f"{path}/{name}/{RESULT_TYPE}/{name}.{result}"
 
-        parsable_results.append({
-            'result_name': result_name,
-            'files': [filename],
-            'optional': optional,
-            'missing': False if os.path.exists(filename) else True
-        })
+        parsable_results.append(
+            {
+                "result_name": result_name,
+                "files": [filename],
+                "optional": optional,
+                "missing": False if os.path.exists(filename) else True,
+            }
+        )
 
     return parsable_results

@@ -15,7 +15,7 @@ RESULT_TYPES = [
     "minmers",
     "mlst",
     "qc",
-    "variants"
+    "variants",
 ]
 
-IGNORE_LIST = ['.nextflow', '.nextflow.log', 'bactopia-info', 'work', 'bactopia-tools']
+IGNORE_LIST = [".nextflow", ".nextflow.log", "bactopia-info", "work", "bactopia-tools"]
