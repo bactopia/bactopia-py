@@ -1,4 +1,4 @@
-PROJECT := "fastq-dl"
+PROJECT := "bactopia"
 OPEN := if os() == "macos" { "open" } else { "xdg-open" }
 VERSION := `poetry version -s`
 
