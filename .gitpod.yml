@@ -6,7 +6,7 @@ tasks:
       . /opt/conda/etc/profile.d/conda.sh
       conda activate base
       sleep 5
-      mamba env create --name fastq-dl --file /workspace/bactopia-py/environment.yml
+      mamba env create --name bactopia-py --file /workspace/bactopia-py/environment.yml
       conda activate bactopia-py
       mamba install -y -c conda-forge -c bioconda just pre-commit
       mkdir -p .vscode
