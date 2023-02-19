@@ -1,30 +1,11 @@
 """
 Shared functions used by parsers.
 """
+import csv
+import json
 from typing import Union
 
-
-def get_file_type(extensions: list, filename: str) -> str:
-    """
-    Checks if the extension of a given file matches a set of expected extensions.
-
-    Args:
-        extensions (list): a set of expected file extensions
-        filename (str): a file name to test is extension is expected
-
-    Raises:
-        ValueError: given file does not match an expected extension
-
-    Returns:
-        str: the matched extension
-    """
-    for ext in extensions:
-        if filename.endswith(ext):
-            return ext
-
-    raise ValueError(
-        f"'{filename}' is not an accepted result file. Accepted extensions: {', '.join(extensions)}"
-    )
+import yaml
 
 
 def parse_table(
@@ -41,8 +22,6 @@ def parse_table(
     Returns:
         Union[list, dict]: A dict is returned if a header is present, otherwise a list is returned
     """
-    import csv
-
     data = []
     with open(csvfile, "rt") as fh:
         for row in (
@@ -62,9 +41,21 @@ def parse_json(jsonfile: str) -> Union[list, dict]:
         jsonfile (str): input JSON file to be read
 
     Returns:
-        Union[list, dict]: the values oarsed from the JSON file
+        Union[list, dict]: the values parsed from the JSON file
     """
-    import json
-
     with open(jsonfile, "rt") as fh:
         return json.load(fh)
+
+
+def parse_yaml(yamlfile: str) -> Union[list, dict]:
+    """
+    Parse a YAML file.
+
+    Args:
+        yamlfile (str): input YAML file to be read
+
+    Returns:
+        Union[list, dict]: the values parsed from the YAML file
+    """
+    with open(yamlfile, "rt") as fh:
+        return yaml.safe_load(fh)

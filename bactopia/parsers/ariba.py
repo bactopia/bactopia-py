@@ -1,3 +1,4 @@
+'''
 """
 Parsers for Ariba related results.
 """
@@ -89,3 +90,4 @@ def get_parsable_list(path: str, name: str) -> list:
                 )
 
     return parsable_results
+'''

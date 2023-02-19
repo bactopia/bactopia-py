@@ -11,7 +11,6 @@ from rich.markdown import Markdown
 import bactopia
 from bactopia.utils import validate_file
 
-
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
 rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
@@ -40,7 +39,10 @@ def parse_citations(yml: str) -> list:
 @click.command()
 @click.version_option(bactopia.__version__, "--version", "-V")
 @click.option(
-    "--bactopia", "-b", required=True, help="Directory where Bactopia repository is stored"
+    "--bactopia",
+    "-b",
+    required=True,
+    help="Directory where Bactopia repository is stored",
 )
 @click.option("--name", "-n", help="Only print citation matching a given name")
 @click.option("--plain_text", "-p", is_flag=True, help="Disable rich formatting")

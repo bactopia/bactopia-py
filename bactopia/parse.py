@@ -6,10 +6,82 @@ Example: bactopia.parse(result_type, filename)
 import errno
 import os
 from collections import OrderedDict
+from pathlib import Path
 from typing import Union
 
 from . import parsers
-from .const import IGNORE_LIST, RESULT_TYPES
+
+# from .parsers.parsables import RESULT_TYPES
+
+IGNORE_LIST = [
+    ".nextflow",
+    ".nextflow.log",
+    "nf-reports",
+    "work",
+]
+
+
+def parse_bactopia_directory(path: str) -> list:
+    """
+    Scan a Bactopia directory and return parsed results.
+
+    Args:
+        path (str):  a path to expected Bactopia results
+
+    Returns:
+        list: Parsed results for all samples in a Bactopia directory
+    """
+    results = []
+    for directory in Path(f"{path}/bactopia-samples").iterdir():
+        if directory.is_dir():
+            if directory.name not in IGNORE_LIST:
+                results.append(
+                    {
+                        "id": directory.name,
+                        "path": directory.absolute(),
+                        "is_bactopia": _is_bactopia_dir(
+                            directory.absolute(), directory.name
+                        ),
+                    }
+                )
+
+    return results
+
+
+def _is_bactopia_dir(path: str, name: str) -> bool:
+    """
+    Check if a directory contains Bactopia output and any errors.
+
+    Args:
+        path (str): a path to expected Bactopia results
+        name (str): the name of sample to test
+
+    Returns:
+        bool: path looks like Bactopia (True) or not (False)
+    """
+    return Path(f"{path}/bactopia-main/gather/{name}-meta.tsv").exists()
+
+
+def check_for_errors(path: str, name: str) -> list:
+    """
+    _summary_
+
+    Args:
+        path (str): _description_
+        name (str): _description_
+
+    Returns:
+        list: _description_
+    """
+    from .parsers.error import ERROR_TYPES
+
+    errors = []
+    for error_type in ERROR_TYPES:
+        filename = f"{path}/{name}-{error_type}-error.txt"
+        if os.path.exists(filename):
+            is_bactopia = True
+            errors.append(parsers.error.parse(filename))
+    return errors
 
 
 def parse(result_type: str, *files: str) -> Union[list, dict]:
@@ -27,6 +99,7 @@ def parse(result_type: str, *files: str) -> Union[list, dict]:
     Returns:
         Union[list, dict]: The results parsed for a given input.
     """
+    """
     if result_type in RESULT_TYPES:
         for f in files:
             if not os.path.exists(f):
@@ -37,47 +110,11 @@ def parse(result_type: str, *files: str) -> Union[list, dict]:
         raise ValueError(
             f"'{result_type}' is not an accepted result type. Accepted types: {', '.join(RESULT_TYPES)}"
         )
-
-
-def parse_genome_size(gs_file: str) -> int:
     """
-    Parse genome size from input file
-
-    Args:
-        gs_file (str): File containing the genome size of the sample
-
-    Returns:
-        int: genome size
-    """
-    with open(gs_file, "rt") as gs_fh:
-        return int(gs_fh.readline().rstrip())
+    return None
 
 
-def _is_bactopia_dir(path: str, name: str) -> list:
-    """
-    Check if a directory contains Bactopia output and any errors.
-
-    Args:
-        path (str): a path to expected Bactopia results
-        name (str): the name of sample to test
-
-    Returns:
-        list: 0 (bool): path looks like Bactopia, 1 (list): any errors found
-    """
-    from .parsers.error import ERROR_TYPES
-
-    errors = []
-    is_bactopia = os.path.exists(f"{path}/{name}/{name}-genome-size.txt")
-
-    for error_type in ERROR_TYPES:
-        filename = f"{path}/{name}/{name}-{error_type}-error.txt"
-        if os.path.exists(filename):
-            is_bactopia = True
-            errors.append(parsers.error.parse(filename))
-
-    return [is_bactopia, errors]
-
-
+'''
 def get_bactopia_files(path: str, name: str) -> dict:
     """
     Build a list of all parsable Bactopia files.
@@ -126,6 +163,7 @@ def get_bactopia_files(path: str, name: str) -> dict:
             ] = f"'{path}/{name}' is on the Bactopia ignore list."
 
     return bactopia_files
+'''
 
 
 def parse_bactopia_files(path: str, name: str) -> dict:
@@ -185,24 +223,3 @@ def parse_bactopia_files(path: str, name: str) -> dict:
                     ] = parse(result_key, *result["files"])
 
     return bactopia_results
-
-
-def parse_bactopia_directory(path: str) -> list:
-    """
-    Scan a Bactopia directory and return parsed results.
-
-    Args:
-        path (str):  a path to expected Bactopia results
-
-    Returns:
-        list: Parsed results for all samples in a Bactopia directory
-    """
-    results = []
-
-    with os.scandir(path) as dirs:
-        for directory in dirs:
-            if directory.name not in IGNORE_LIST:
-                sample = directory.name
-                results.append(parse_bactopia_files(path, sample))
-
-    return results

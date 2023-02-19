@@ -1,24 +1,93 @@
 import logging
-import os
+import sys
+import textwrap
 from collections import defaultdict
+from pathlib import Path
+
+import pandas as pd
+import rich
+import rich.console
+import rich.traceback
+import rich_click as click
+from rich.logging import RichHandler
 
 import bactopia
-from bactopia.const import IGNORE_LIST
-from bactopia.parse import parse_bactopia_files
-from bactopia.summary import gather_results, get_rank, print_cutoffs, print_failed
+import bactopia.parsers as parsers
+from bactopia.parse import parse_bactopia_directory
+from bactopia.parsers.error import parse_errors
+from bactopia.parsers.parsables import EXCLUDE_COLUMNS, get_parsable_files
+from bactopia.parsers.versions import parse_versions
+from bactopia.summary import get_rank, print_cutoffs, print_failed
 
-PROGRAM = "bactopia summary"
-VERSION = bactopia.__version__
+# Set up Rich
+stderr = rich.console.Console(stderr=True)
+rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
+click.rich_click.USE_RICH_MARKUP = True
+click.rich_click.OPTION_GROUPS = {
+    "bactopia-summary": [
+        {"name": "Required Options", "options": ["--bactopia"]},
+        {
+            "name": "Gold Cutoffs",
+            "options": [
+                "--gold_coverage",
+                "--gold_quality",
+                "--gold_read_length",
+                "--gold_contigs",
+            ],
+        },
+        {
+            "name": "Silver Cutoffs",
+            "options": [
+                "--silver_coverage",
+                "--silver_quality",
+                "--silver_read_length",
+                "--silver_contigs",
+            ],
+        },
+        {
+            "name": "Fail Cutoffs",
+            "options": [
+                "--min_coverage",
+                "--min_quality",
+                "--min_read_length",
+                "--max_contigs",
+                "--min_assembled_size",
+                "--max_assembled_size",
+            ],
+        },
+        {
+            "name": "Additional Options",
+            "options": [
+                "--outdir",
+                "--prefix",
+                "--force",
+                "--depends",
+                "--verbose",
+                "--silent",
+                "--version",
+                "--help",
+            ],
+        },
+    ]
+}
 COUNTS = defaultdict(int)
 FAILED = defaultdict(list)
 CATEGORIES = defaultdict(list)
-STDOUT = 11
-STDERR = 12
-logging.addLevelName(STDOUT, "STDOUT")
-logging.addLevelName(STDERR, "STDERR")
 
 
-def process_errors(name: str, errors: dict):
+def increment_and_append(key: str, name: str) -> None:
+    """
+    Increment COUNTS and append to CATEGORIES.
+
+    Args:
+        key (str): The key value to use
+        name (str): The value to append
+    """
+    COUNTS[key] += 1
+    CATEGORIES[key].append(name)
+
+
+def process_errors(name: str, errors: dict) -> None:
     """
     Process a set of errors.
 
@@ -34,327 +103,337 @@ def process_errors(name: str, errors: dict):
     COUNTS["total-excluded"] += 1
     COUNTS["qc-failure"] += 1
     CATEGORIES["failed"].append([name, f"Not processed, reason: {';'.join(error_msg)}"])
-    logging.debug(f"\t{name}: Not processed, reason: {';'.join(error_msg)}")
+    logging.debug(f"\t{name}: Not processed, reason: {'; '.join(error_msg)}")
     return None
 
 
-def increment_and_append(key: str, name: str) -> None:
-    """
-    Increment COUNTS and append to CATEGORIES.
-
-    Args:
-        key (str): The key value to use
-        name (str): The value to append
-    """
-    COUNTS[key] += 1
-    CATEGORIES[key].append(name)
-
-
-def process_sample(sample: dict, rank_cutoff: dict) -> dict:
+def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     """
     Process the results of a sample.
 
     Args:
-        sample (dict): all the parsed results associated with a sample
+        sample (pd.DataFrame): all the parsed results associated with a sample
         rank_cutoff (dict): the set of cutoffs for each rank
 
     Returns:
-        list: 0: the sample rank, [description]
+        list: 0: the sample rank, 1: reason for rank
     """
-    qc = sample["results"]["quality-control"]["final"]["qc_stats"]
-    assembly = sample["results"]["assembly"]["stats"]
     rank, reason = get_rank(
         rank_cutoff,
-        qc["coverage"],
-        qc["qual_mean"],
-        qc["read_mean"],
-        assembly["total_contig"],
-        sample["genome_size"],
-        sample["is_paired"],
+        df["qc_final_coverage"].iloc[0],
+        df["qc_final_qual_mean"].iloc[0],
+        df["qc_final_read_mean"].iloc[0],
+        df["assembler_total_contig"].iloc[0],
+        df["genome_size"].iloc[0],
+        df["qc_final_is_paired"].iloc[0],
     )
-    increment_and_append("processed", sample["sample"])
-    increment_and_append(rank, sample["sample"])
+    increment_and_append("processed", df["sample"].iloc[0])
+    increment_and_append(rank, df["sample"].iloc[0])
 
     if rank == "exclude":
         COUNTS["total-excluded"] += 1
-        FAILED["failed-cutoff"].append(sample["sample"])
+        FAILED["failed-cutoff"].append(df["sample"].iloc[0])
         CATEGORIES["failed"].append(
-            [sample["sample"], f"Failed to pass minimum cutoffs, reason: {reason}"]
+            [df["sample"].iloc[0], f"Failed to pass minimum cutoffs, reason: {reason}"]
         )
     else:
         COUNTS["pass"] += 1
 
-    return gather_results(sample, rank, reason)
+    return [rank, reason]
 
 
-def main():
-    import argparse as ap
-    import csv
-    import json
-    import sys
-    import textwrap
-
-    parser = ap.ArgumentParser(
-        prog=PROGRAM,
-        conflict_handler="resolve",
-        description=f"{PROGRAM} (v{VERSION}) - Create a summary of Bactopia outputs",
-        formatter_class=ap.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent(
-            f"""
-            example usage:
-              {PROGRAM} BACTOPIA_DIRECTORY
-        """
-        ),
-    )
-
-    parser.add_argument(
-        "bactopia",
-        metavar="BACTOPIA_DIRECTORY",
-        type=str,
-        help="Directory containing Bactopia output.",
-    )
-
-    group1 = parser.add_argument_group("Gold Cutoffs")
-    group1.add_argument(
-        "--gold_coverage",
-        metavar="FLOAT",
-        type=float,
-        default=100,
-        help="Minimum amount of coverage required for Gold status (Default: 100x)",
-    )
-    group1.add_argument(
-        "--gold_quality",
-        metavar="INT",
-        type=int,
-        default=30,
-        help="Minimum per-read mean quality score required for Gold status (Default: Q30)",
-    )
-
-    group1.add_argument(
-        "--gold_read_length",
-        metavar="INT",
-        type=int,
-        default=95,
-        help="Minimum mean read length required for Gold status (Default: 95bp)",
-    )
-
-    group1.add_argument(
-        "--gold_contigs",
-        metavar="INT",
-        type=int,
-        default=100,
-        help="Maximum contig count required for Gold status (Default: 100)",
-    )
-
-    group2 = parser.add_argument_group("Silver Cutoffs")
-    group2.add_argument(
-        "--silver_coverage",
-        metavar="FLOAT",
-        type=float,
-        default=50,
-        help="Minimum amount of coverage required for Silver status (Default: 50x)",
-    )
-    group2.add_argument(
-        "--silver_quality",
-        metavar="INT",
-        type=int,
-        default=20,
-        help="Minimum per-read mean quality score required for Silver status (Default: Q20)",
-    )
-
-    group2.add_argument(
-        "--silver_read_length",
-        metavar="INT",
-        type=int,
-        default=75,
-        help="Minimum mean read length required for Silver status (Default: 75bp)",
-    )
-
-    group2.add_argument(
-        "--silver_contigs",
-        metavar="INT",
-        type=int,
-        default=200,
-        help="Maximum contig count required for Silver status (Default: 200)",
-    )
-
-    group3 = parser.add_argument_group("Fail Cutoffs")
-    group3.add_argument(
-        "--min_coverage",
-        metavar="FLOAT",
-        type=float,
-        default=20,
-        help="Minimum amount of coverage required to pass (Default: 20x)",
-    )
-    group3.add_argument(
-        "--min_quality",
-        metavar="INT",
-        type=int,
-        default=12,
-        help="Minimum per-read mean quality score required to pass (Default: Q12)",
-    )
-
-    group3.add_argument(
-        "--min_read_length",
-        metavar="INT",
-        type=int,
-        default=49,
-        help="Minimum mean read length required to pass (Default: 49bp)",
-    )
-
-    group3.add_argument(
-        "--max_contigs",
-        metavar="INT",
-        type=int,
-        default=500,
-        help="Maximum contig count required to pass (Default: 500)",
-    )
-
-    group3.add_argument(
-        "--min_assembled_size",
-        metavar="FLOAT",
-        type=float,
-        help="Minimum assembled genome size.",
-    )
-
-    group3.add_argument(
-        "--max_assembled_size",
-        metavar="FLOAT",
-        type=float,
-        help="Maximum assembled genome size.",
-    )
-
-    group5 = parser.add_argument_group("Helpers")
-    group5.add_argument(
-        "--outdir",
-        metavar="OUTPUT_DIRECTORY",
-        type=str,
-        default="./",
-        help="Directory to write output. (Default: ./)",
-    )
-
-    group5.add_argument(
-        "--prefix",
-        metavar="STR",
-        type=str,
-        default="bactopia",
-        help="Prefix to use for output files. (Default: bactopia)",
-    )
-    group5.add_argument(
-        "--force", action="store_true", help="Overwrite existing reports."
-    )
-    group5.add_argument(
-        "--depends", action="store_true", help="Verify dependencies are installed."
-    )
-    group5.add_argument("--version", action="version", version=f"{PROGRAM} {VERSION}")
-    group5.add_argument(
-        "--verbose", action="store_true", help="Increase the verbosity of output."
-    )
-    group5.add_argument(
-        "--silent", action="store_true", help="Only critical errors will be printed."
-    )
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(0)
-
-    args = parser.parse_args()
-
-    if os.path.exists(f"{args.outdir}/{args.prefix}-exclude.txt") and not args.force:
-        print(
-            f"Existing reports found in {args.outdir}. Will not overwirte unless --force is used. Exiting.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
+@click.command()
+@click.version_option(bactopia.__version__, "--version", "-V")
+@click.option(
+    "--bactopia",
+    "-b",
+    required=True,
+    help="Directory where Bactopia results are stored",
+)
+@click.option(
+    "--gold_coverage",
+    "-gcov",
+    type=int,
+    default=100,
+    show_default=True,
+    help="Minimum amount of coverage required for Gold status",
+)
+@click.option(
+    "--gold_quality",
+    "-gqual",
+    type=int,
+    default=30,
+    show_default=True,
+    help="Minimum per-read mean quality score required for Gold status",
+)
+@click.option(
+    "--gold_read_length",
+    "-glen",
+    type=int,
+    default=95,
+    show_default=True,
+    help="Minimum mean read length required for Gold status",
+)
+@click.option(
+    "--gold_contigs",
+    "-gcontigs",
+    type=int,
+    default=100,
+    show_default=True,
+    help="Maximum contig count required for Gold status",
+)
+@click.option(
+    "--silver_coverage",
+    "-scov",
+    type=int,
+    default=50,
+    show_default=True,
+    help="Minimum amount of coverage required for Silver status",
+)
+@click.option(
+    "--silver_quality",
+    "-squal",
+    type=int,
+    default=20,
+    show_default=True,
+    help="Minimum per-read mean quality score required for Silver status",
+)
+@click.option(
+    "--silver_read_length",
+    "-slen",
+    type=int,
+    default=75,
+    show_default=True,
+    help="Minimum mean read length required for Silver status",
+)
+@click.option(
+    "--silver_contigs",
+    "-scontigs",
+    type=int,
+    default=200,
+    show_default=True,
+    help="Maximum contig count required for Silver status",
+)
+@click.option(
+    "--min_coverage",
+    "-mincov",
+    type=int,
+    default=20,
+    show_default=True,
+    help="Minimum amount of coverage required to pass",
+)
+@click.option(
+    "--min_quality",
+    "-minqual",
+    type=int,
+    default=12,
+    show_default=True,
+    help="Minimum per-read mean quality score required to pass",
+)
+@click.option(
+    "--min_read_length",
+    "-minlen",
+    type=int,
+    default=49,
+    show_default=True,
+    help="Minimum mean read length required to pass",
+)
+@click.option(
+    "--max_contigs",
+    type=int,
+    default=500,
+    show_default=True,
+    help="Maximum contig count required to pass",
+)
+@click.option(
+    "--min_assembled_size",
+    type=int,
+    help="Minimum assembled genome size",
+)
+@click.option(
+    "--max_assembled_size",
+    type=int,
+    help="Maximum assembled genome size",
+)
+@click.option(
+    "--outdir",
+    "-o",
+    type=click.Path(exists=False),
+    default="./",
+    show_default=True,
+    help="Directory to write output",
+)
+@click.option(
+    "--prefix",
+    "-p",
+    type=str,
+    default="bactopia",
+    show_default=True,
+    help="Prefix to use for output files",
+)
+@click.option("--force", is_flag=True, help="Overwrite existing reports")
+@click.option("--depends", is_flag=True, help="Verify dependencies are installed")
+@click.option("--verbose", is_flag=True, help="Increase the verbosity of output")
+@click.option("--silent", is_flag=True, help="Only critical errors will be printed")
+def summary(
+    bactopia,
+    gold_coverage,
+    gold_quality,
+    gold_read_length,
+    gold_contigs,
+    silver_coverage,
+    silver_quality,
+    silver_read_length,
+    silver_contigs,
+    min_coverage,
+    min_quality,
+    min_read_length,
+    max_contigs,
+    min_assembled_size,
+    max_assembled_size,
+    outdir,
+    prefix,
+    force,
+    depends,
+    verbose,
+    silent,
+):
+    """Generate a summary report of Bactopia results."""
     # Setup logs
-    FORMAT = "%(asctime)s:%(name)s:%(levelname)s - %(message)s"
     logging.basicConfig(
-        format=FORMAT,
+        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
+        handlers=[
+            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
+        ],
     )
     logging.getLogger().setLevel(
-        logging.ERROR
-        if args.silent
-        else logging.DEBUG
-        if args.verbose
-        else logging.INFO
+        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
     )
+
+    # Set rank cutoffs defaults
     RANK_CUTOFF = {
         "gold": {
-            "coverage": args.gold_coverage,
-            "quality": args.gold_quality,
-            "length": args.gold_read_length,
-            "contigs": args.gold_contigs,
+            "coverage": gold_coverage,
+            "quality": gold_quality,
+            "length": gold_read_length,
+            "contigs": gold_contigs,
         },
         "silver": {
-            "coverage": args.silver_coverage,
-            "quality": args.silver_quality,
-            "length": args.silver_read_length,
-            "contigs": args.silver_contigs,
+            "coverage": silver_coverage,
+            "quality": silver_quality,
+            "length": silver_read_length,
+            "contigs": silver_contigs,
         },
         "bronze": {
-            "coverage": args.min_coverage,
-            "quality": args.min_quality,
-            "length": args.min_read_length,
-            "contigs": args.max_contigs,
+            "coverage": min_coverage,
+            "quality": min_quality,
+            "length": min_read_length,
+            "contigs": max_contigs,
         },
-        "min-assembled-size": args.min_assembled_size,
-        "max-assembled-size": args.max_assembled_size,
+        "min-assembled-size": min_assembled_size,
+        "max-assembled-size": max_assembled_size,
     }
 
-    processed_samples = {}
-    fields = []
-    results = []
-    logging.debug(f"Working on {args.bactopia}...")
-    with os.scandir(args.bactopia) as dirs:
-        for i, directory in enumerate(dirs):
-            if directory.name not in IGNORE_LIST:
-                logging.debug(f"Working on {directory.name} ({i+1})")
-                sample = parse_bactopia_files(args.bactopia, directory.name)
-                if sample["ignored"]:
-                    logging.debug(
-                        f"\t{sample['sample']} is not a Bactopia directory, ignoring..."
-                    )
-                    increment_and_append("ignore-unknown", sample["sample"])
-                else:
-                    COUNTS["total"] += 1
-                    if sample["has_errors"]:
-                        process_errors(sample["sample"], sample["errors"])
-                    else:
-                        processed = process_sample(sample, RANK_CUTOFF)
-                        fields = list(dict.fromkeys(fields + list(processed.keys())))
-                        results.append(processed)
-                        processed_samples[sample["sample"]] = True
+    # Output files
+    txt_report = f"{outdir}/{prefix}-report.tsv".replace("//", "/")
+    exclusion_report = f"{outdir}/{prefix}-exclude.tsv".replace("//", "/")
+    summary_report = f"{outdir}/{prefix}-summary.txt".replace("//", "/")
 
-    # Write outputs
-    outdir = args.outdir
-    os.makedirs(outdir, exist_ok=True)
+    if Path(txt_report).exists() and not force:
+        logging.error(f"Report already exists! Use --force to overwrite: {txt_report}")
+        sys.exit(1)
+    else:
+        logging.debug(f"Creating output directory: {outdir}")
+        Path(outdir).mkdir(parents=True, exist_ok=True)
+
+    processed_samples = {}
+    versions = []
+    dfs = []
+    samples = parse_bactopia_directory(bactopia)
+    logging.info(f"Found {len(samples)} samples in {bactopia} to process")
+    if samples:
+        for sample in samples:
+            if sample["is_bactopia"]:
+                COUNTS["total"] += 1
+                logging.debug(f"Processing {sample['id']} ({sample['path']})")
+
+                # Get the versions files to parse
+                versions += parse_versions(
+                    [file for file in sample["path"].rglob("versions.yml")],
+                    sample["id"],
+                )
+
+                # Check if has errors
+                errors = parse_errors(sample["path"], sample["id"])
+                if errors:
+                    # Sample has errors, skip parsing
+                    process_errors(sample["id"], errors)
+                else:
+                    # Get list of files to parse
+                    df = pd.DataFrame()
+                    for path, parser in get_parsable_files(
+                        sample["path"], sample["id"]
+                    ).items():
+                        if Path(path).exists() or parser == "qc":
+                            logging.debug(f"\tParsing {path} ({parser})")
+                            if df.empty:
+                                df = pd.DataFrame(
+                                    [getattr(parsers, parser).parse(path, sample["id"])]
+                                )
+                            else:
+                                df = pd.merge(
+                                    df,
+                                    pd.DataFrame(
+                                        [
+                                            getattr(parsers, parser).parse(
+                                                path, sample["id"]
+                                            )
+                                        ]
+                                    ),
+                                    on="sample",
+                                    how="inner",
+                                )
+                    rank, reason = process_sample(df, RANK_CUTOFF)
+                    processed_samples[sample["id"]] = True
+                    df["rank"] = rank
+                    df["reason"] = reason
+                    dfs.append(df)
+                    logging.debug(f"\tRank: {rank} ({reason})")
+
+            else:
+                logging.debug(
+                    f"Skipping {sample['id']} ({sample['path']}), incomplete or not a Bactopia directory"
+                )
+                increment_and_append("ignore-unknown", sample["id"])
+    final_df = pd.concat(dfs)
+    for col in EXCLUDE_COLUMNS:
+        if col in final_df.columns:
+            final_df.drop(col, axis=1, inplace=True)
+
+    # Reorder the columns
+    col_order = [
+        "sample",
+        "rank",
+        "reason",
+        "genome_size",
+        "species",
+        "runtype",
+        "original_runtype",
+        "mlst_scheme",
+        "mlst_st",
+    ]
+    for col in final_df.columns:
+        if col not in col_order:
+            col_order.append(col)
+    final_df = final_df[col_order]
 
     # Tab-delimited report
-    txt_report = f"{outdir}/{args.prefix}-report.txt"
-    with open(txt_report, "w") as txt_fh:
-        outputs = []
-        for result in results:
-            output = {}
-            for field in fields:
-                if field in result:
-                    if isinstance(result[field], float):
-                        output[field] = f"{result[field]:.3f}"
-                    else:
-                        output[field] = result[field]
-                else:
-                    output[field] = ""
-            outputs.append(output)
-        if outputs:
-            writer = csv.DictWriter(
-                txt_fh, fieldnames=outputs[0].keys(), delimiter="\t"
-            )
-            writer.writeheader()
-            for row in outputs:
-                writer.writerow(row)
+    logging.info(f"Writing report: {txt_report}")
+    final_df.to_csv(txt_report, sep="\t", index=False)
 
     # Exclusion report
-    exclusion_report = f"{outdir}/{args.prefix}-exclude.txt"
+    logging.info(f"Writing exclusion report: {exclusion_report}")
     cutoff_counts = defaultdict(int)
     with open(exclusion_report, "w") as exclude_fh:
         exclude_fh.write("sample\tstatus\treason\n")
@@ -370,7 +449,7 @@ def main():
                 exclude_fh.write(f"{name}\tqc-fail\t{reason}\n")
 
     # Screen report
-    summary_report = f"{outdir}/{args.prefix}-summary.txt"
+    logging.info(f"Writing summary report: {summary_report}")
     with open(summary_report, "w") as summary_fh:
         summary_fh.write("Bactopia Summary Report\n")
         summary_fh.write(
@@ -387,9 +466,9 @@ def main():
                 Failed Cutoff: {COUNTS["exclude"]}\n"""
             )
         )
-        summary_fh.write(print_cutoffs(cutoff_counts))
+        summary_fh.write(f"{print_cutoffs(cutoff_counts)}\n")
         summary_fh.write(f'    QC Failure: {COUNTS["qc-failure"]}\n')
-        summary_fh.write(print_failed(FAILED))
+        summary_fh.write(f"{print_failed(FAILED)}\n")
         summary_fh.write(
             textwrap.dedent(
                 f"""
@@ -421,6 +500,13 @@ def main():
         """
             )
         )
+
+
+def main():
+    if len(sys.argv) == 1:
+        summary.main(["--help"])
+    else:
+        summary()
 
 
 if __name__ == "__main__":

@@ -1,4 +1,7 @@
 .vscode/
+bactopia-exclude.tsv
+bactopia-report.tsv
+bactopia-summary.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

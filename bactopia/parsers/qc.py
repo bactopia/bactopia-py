@@ -1,21 +1,18 @@
 """
 Parsers for QC (FASTQ) related results.
 """
-import os
+from pathlib import Path
 
-from .generic import get_file_type, parse_json
-
-RESULT_TYPE = "quality-control"
-ACCEPTED_FILES = ["final.json", "original.json"]
+from bactopia.parsers.generic import parse_json
 
 
-def parse(r1: str, r2: str = None) -> dict:
+def parse(path: str, name: str) -> dict:
     """
     Check input file is an accepted file, then select the appropriate parsing method.
 
     Args:
-        r1 (str): input file associated with R1 or SE FASTQ
-        r2 (str, optional): input file associated with R2 FASTQ. Defaults to None.
+        path (str): input file to be parsed
+        name (str): the name of the sample
 
     Raises:
         ValueError: summary results to not have a matching origin (e.g. original vs final FASTQ)
@@ -23,17 +20,48 @@ def parse(r1: str, r2: str = None) -> dict:
     Returns:
         dict: parsed results
     """
-    filetype = get_file_type(ACCEPTED_FILES, r1)
-    filetype2 = filetype
-    if r2:
-        filetype2 = get_file_type(ACCEPTED_FILES, r2)
+    r1 = None
+    r2 = None
 
-    if r1.endswith(".json"):
-        if r2 and filetype != filetype2:
-            raise ValueError(
-                f"Original and Final QC files were mixed. R1: {filetype}, R2: {filetype2}"
-            )
-        return _merge_qc_stats(parse_json(r1), parse_json(r2)) if r2 else parse_json(r1)
+    if Path(path).exists():
+        # Single end
+        r1 = Path(path)
+    else:
+        r1_path = None
+        r2_path = None
+        if "original" in path:
+            r1_path = path.replace("-original.json", "_R1-original.json")
+            r2_path = path.replace("-original.json", "_R2-original.json")
+        else:
+            r1_path = path.replace("-final.json", "_R1-final.json")
+            r2_path = path.replace("-final.json", "_R2-final.json")
+
+        if Path(r1_path).exists() and Path(r2_path).exists():
+            r1 = Path(r1_path)
+            r2 = Path(r2_path)
+
+    final_results = {"sample": name}
+    if r1:
+        which_step = "original" if "original" in str(r1) else "final"
+        final_results[f"qc_{which_step}_is_paired"] = True if r2 else False
+        if r1 and r2:
+            # Paired End
+            results = _merge_qc_stats(parse_json(r1), parse_json(r2))
+        elif r1:
+            # Single End
+            results = parse_json(r1)
+
+        for key, val in results.items():
+            if key != "sample":
+                if key == "qc_stats":
+                    for qc_key, qc_val in val.items():
+                        final_results[f"qc_{which_step}_{qc_key}"] = qc_val
+                else:
+                    # Add prefix to key name
+                    final_results[f"qc_{which_step}_{key}"] = val
+            else:
+                final_results[key] = val
+    return final_results
 
 
 def _merge_qc_stats(r1: dict, r2: dict) -> dict:
@@ -70,88 +98,3 @@ def _merge_qc_stats(r1: dict, r2: dict) -> dict:
             merged["qc_stats"][key] = f"{val:.4f}" if isinstance(val, float) else val
 
     return merged
-
-
-def is_paired(path: str, name: str) -> bool:
-    """
-    Check if in input sample had paired-end or single-end reads
-
-    Args:
-        path (str): a path to expected Bactopia results
-        name (str): the name of sample to test
-
-    Raises:
-        ValueError: Processed FASTQ(s) could not be found.
-
-    Returns:
-        bool: True: reads are paired, False: reads are single-end
-    """
-    r1 = f"{path}/{name}/quality-control/{name}_R1.fastq.gz"
-    r2 = f"{path}/{name}/quality-control/{name}_R2.fastq.gz"
-    se = f"{path}/{name}/quality-control/{name}.fastq.gz"
-    if os.path.exists(r1) and os.path.exists(r2):
-        return True
-    elif os.path.exists(se):
-        return False
-    else:
-        raise ValueError(
-            f"Processed FASTQs not found in {path}/{name}/quality-control/"
-        )
-
-
-def get_parsable_list(path: str, name: str) -> list:
-    """
-    Generate a list of parsable files.
-
-    Args:
-        path (str): a path to expected Bactopia results
-        name (str): the name of sample to test
-
-    Returns:
-        list: information about the status of parsable files
-    """
-    import os
-
-    parsable_results = []
-    for result in ACCEPTED_FILES:
-        result_name = None
-        filename = None
-        r1 = None
-        r2 = None
-        se = None
-
-        if result.endswith("original.json"):
-            result_name = "original"
-            r1 = f"{path}/{name}/{RESULT_TYPE}/summary-original/{name}_R1-{result}"
-            r2 = f"{path}/{name}/{RESULT_TYPE}/summary-original/{name}_R2-{result}"
-            se = f"{path}/{name}/{RESULT_TYPE}/summary-original/{name}-{result}"
-        elif result.endswith("final.json"):
-            result_name = "final"
-            r1 = f"{path}/{name}/{RESULT_TYPE}/summary-final/{name}_R1-{result}"
-            r2 = f"{path}/{name}/{RESULT_TYPE}/summary-final/{name}_R2-{result}"
-            se = f"{path}/{name}/{RESULT_TYPE}/summary-final/{name}-{result}"
-
-        if se:
-            if os.path.exists(se):
-                parsable_results.append(
-                    {
-                        "result_name": result_name,
-                        "files": [se],
-                        "optional": False,
-                        "missing": False,
-                    }
-                )
-            else:
-                missing = True
-                if os.path.exists(r1) and os.path.exists(r2):
-                    missing = False
-                parsable_results.append(
-                    {
-                        "result_name": result_name,
-                        "files": [r1, r2],
-                        "optional": False,
-                        "missing": missing,
-                    }
-                )
-
-    return parsable_results

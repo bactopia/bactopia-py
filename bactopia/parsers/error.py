@@ -1,68 +1,43 @@
 """
 Parsers for Error related results.
 """
-from .generic import get_file_type, parse_json, parse_table
-
-ACCEPTED_FILES = ["error.txt"]
-ERROR_TYPES = [
-    "assembly",
-    "different-read-count",
-    "genome-size",
-    "low-read-count",
-    "low-sequence-depth",
-    "low-basepair-proportion",
-    "paired-end",
-]
+ERROR_TYPES = {
+    "assembly": "Assembled size was not withing an acceptable range",
+    "different-read-count": "Paired-end read count mismatch",
+    "genome-size": "Poor estimate of genome size",
+    "low-read-count": "Low number of reads",
+    "low-sequence-depth": "Low depth of sequencing",
+    "low-basepair-proportion": "Paired-end base pair counts are out of acceptable proportions",
+    "paired-end": "Paired-end reads were not in acceptable format",
+}
 
 
-def parse(filename: str) -> dict:
+def parse_errors(path: str, name: str) -> dict:
     """
-    Check input file is an accepted file, then select the appropriate parsing method.
+    Check is a sample processed by Bactopia has any errors.
 
     Args:
-        filename (str): input file to be parsed
+        path (str): input directory to be checked
+        name (str): the name of the sample
 
     Returns:
         list: observed error and a brief description
     """
-    filetype = get_file_type(ACCEPTED_FILES, filename)
-    error = filename
-
-    if error.endswith("genome-size-error.txt"):
-        return _format_error(["genome-size-error", "Poor estimate of genome size"])
-    elif error.endswith("low-read-count-error.txt"):
-        return _format_error(["low-read-count-error", "Low number of reads"])
-    elif error.endswith("low-sequence-depth-error.txt"):
-        return _format_error(["low-sequence-depth-error", "Low depth of sequencing"])
-    elif error.endswith("paired-end-error.txt"):
-        return _format_error(
-            ["paired-end-error", "Paired-end reads were not in acceptable format"]
-        )
-    elif error.endswith("different-read-count-error.txt"):
-        return _format_error(
-            ["different-read-count-error", "Paired-end read count mismatch"]
-        )
-    elif error.endswith("low-basepair-proportion-error.txt"):
-        return _format_error(
-            [
-                "low-basepair-proportion-error",
-                "Paired-end basepair counts are out of accesptable proportions",
-            ]
-        )
-    elif error.endswith("assembly-error.txt"):
-        return _format_error(
-            ["assembly-error", "Assembled size was not withing an acceptable range"]
-        )
-    return _format_error(["unknown-error", "Unknown Error"])
-
-
-def _format_error(error: list) -> dict:
-    """
-    Convert the error type list to a dict.
-    Args:
-        error (list): a two element list with the error type and description
-
-    Returns:
-        dict: explicit names for the list elements
-    """
-    return {"error_type": error[0], "description": error[1]}
+    errors = []
+    for e in path.rglob("*-error.txt"):
+        error = e.name.split("-error.txt")[0].split("-", 1)[-1]
+        if error in ERROR_TYPES:
+            errors.append(
+                {
+                    "error_type": error,
+                    "description": ERROR_TYPES[error],
+                }
+            )
+        else:
+            errors.append(
+                {
+                    "error_type": error,
+                    "description": "Undocumented error, please submit a bug report.",
+                }
+            )
+    return errors
