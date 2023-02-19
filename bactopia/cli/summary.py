@@ -29,30 +29,30 @@ click.rich_click.OPTION_GROUPS = {
         {
             "name": "Gold Cutoffs",
             "options": [
-                "--gold_coverage",
-                "--gold_quality",
-                "--gold_read_length",
-                "--gold_contigs",
+                "--gold-coverage",
+                "--gold-quality",
+                "--gold-read-length",
+                "--gold-contigs",
             ],
         },
         {
             "name": "Silver Cutoffs",
             "options": [
-                "--silver_coverage",
-                "--silver_quality",
-                "--silver_read_length",
-                "--silver_contigs",
+                "--silver-coverage",
+                "--silver-quality",
+                "--silver-read-length",
+                "--silver-contigs",
             ],
         },
         {
             "name": "Fail Cutoffs",
             "options": [
-                "--min_coverage",
-                "--min_quality",
-                "--min_read_length",
-                "--max_contigs",
-                "--min_assembled_size",
-                "--max_assembled_size",
+                "--min-coverage",
+                "--min-quality",
+                "--min-read-length",
+                "--max-contigs",
+                "--min-assembled-size",
+                "--max-assembled-size",
             ],
         },
         {
@@ -61,7 +61,6 @@ click.rich_click.OPTION_GROUPS = {
                 "--outdir",
                 "--prefix",
                 "--force",
-                "--depends",
                 "--verbose",
                 "--silent",
                 "--version",
@@ -151,7 +150,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Directory where Bactopia results are stored",
 )
 @click.option(
-    "--gold_coverage",
+    "--gold-coverage",
     "-gcov",
     type=int,
     default=100,
@@ -159,7 +158,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Minimum amount of coverage required for Gold status",
 )
 @click.option(
-    "--gold_quality",
+    "--gold-quality",
     "-gqual",
     type=int,
     default=30,
@@ -167,7 +166,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Minimum per-read mean quality score required for Gold status",
 )
 @click.option(
-    "--gold_read_length",
+    "--gold-read-length",
     "-glen",
     type=int,
     default=95,
@@ -175,7 +174,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Minimum mean read length required for Gold status",
 )
 @click.option(
-    "--gold_contigs",
+    "--gold-contigs",
     "-gcontigs",
     type=int,
     default=100,
@@ -183,7 +182,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Maximum contig count required for Gold status",
 )
 @click.option(
-    "--silver_coverage",
+    "--silver-coverage",
     "-scov",
     type=int,
     default=50,
@@ -191,7 +190,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Minimum amount of coverage required for Silver status",
 )
 @click.option(
-    "--silver_quality",
+    "--silver-quality",
     "-squal",
     type=int,
     default=20,
@@ -199,7 +198,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Minimum per-read mean quality score required for Silver status",
 )
 @click.option(
-    "--silver_read_length",
+    "--silver-read-length",
     "-slen",
     type=int,
     default=75,
@@ -207,7 +206,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Minimum mean read length required for Silver status",
 )
 @click.option(
-    "--silver_contigs",
+    "--silver-contigs",
     "-scontigs",
     type=int,
     default=200,
@@ -215,7 +214,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Maximum contig count required for Silver status",
 )
 @click.option(
-    "--min_coverage",
+    "--min-coverage",
     "-mincov",
     type=int,
     default=20,
@@ -223,7 +222,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Minimum amount of coverage required to pass",
 )
 @click.option(
-    "--min_quality",
+    "--min-quality",
     "-minqual",
     type=int,
     default=12,
@@ -231,7 +230,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Minimum per-read mean quality score required to pass",
 )
 @click.option(
-    "--min_read_length",
+    "--min-read-length",
     "-minlen",
     type=int,
     default=49,
@@ -239,19 +238,19 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Minimum mean read length required to pass",
 )
 @click.option(
-    "--max_contigs",
+    "--max-contigs",
     type=int,
     default=500,
     show_default=True,
     help="Maximum contig count required to pass",
 )
 @click.option(
-    "--min_assembled_size",
+    "--min-assembled-size",
     type=int,
     help="Minimum assembled genome size",
 )
 @click.option(
-    "--max_assembled_size",
+    "--max-assembled-size",
     type=int,
     help="Maximum assembled genome size",
 )
@@ -272,7 +271,6 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Prefix to use for output files",
 )
 @click.option("--force", is_flag=True, help="Overwrite existing reports")
-@click.option("--depends", is_flag=True, help="Verify dependencies are installed")
 @click.option("--verbose", is_flag=True, help="Increase the verbosity of output")
 @click.option("--silent", is_flag=True, help="Only critical errors will be printed")
 def summary(
@@ -294,7 +292,6 @@ def summary(
     outdir,
     prefix,
     force,
-    depends,
     verbose,
     silent,
 ):

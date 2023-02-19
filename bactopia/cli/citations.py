@@ -45,7 +45,7 @@ def parse_citations(yml: str) -> list:
     help="Directory where Bactopia repository is stored",
 )
 @click.option("--name", "-n", help="Only print citation matching a given name")
-@click.option("--plain_text", "-p", is_flag=True, help="Disable rich formatting")
+@click.option("--plain-text", "-p", is_flag=True, help="Disable rich formatting")
 def citations(bactopia: str, name: str, plain_text: bool) -> None:
     """Print out a table of tools and their citations used by Bactopia"""
 

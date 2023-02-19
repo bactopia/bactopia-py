@@ -77,3 +77,58 @@ def _parse_sourmash(filename: str) -> dict:
             elif line.startswith("----"):
                 parse_row = True
     return data
+
+
+def add_minmers(minmers: dict) -> dict:
+    """
+    Read through minmer results and create column for top hit.
+
+    Args:
+        minmers (dict): Mash and Sourmash results against RefSeq and GenBank
+
+    Returns:
+        dict: Top hit description for each set of databases
+    """
+    results = OrderedDict()
+    for key in ["refseq-k21", "genbank-k21", "genbank-k31", "genbank-k51"]:
+        if key in minmers:
+            prefix = key.replace("-", "_")
+            if len(minmers[key]):
+                if key.startswith("genbank"):
+                    # Sourmash keys: "overlap", "p_query", "p_match", "match"
+                    if minmers[key]["matches"]:
+                        results[f"{prefix}_match"] = (
+                            minmers[key]["matches"][0]["match"].split("(")[0].rstrip()
+                        )
+                        results[f"{prefix}_overlap"] = minmers[key]["matches"][0][
+                            "overlap"
+                        ]
+                        results[f"{prefix}_p_query"] = minmers[key]["matches"][0][
+                            "p_query"
+                        ]
+                        results[f"{prefix}_p_match"] = minmers[key]["matches"][0][
+                            "p_match"
+                        ]
+                    else:
+                        results[f"{prefix}_match"] = None
+                        results[f"{prefix}_overlap"] = None
+                        results[f"{prefix}_p_query"] = None
+                        results[f"{prefix}_p_match"] = None
+
+                    results[f"{prefix}_no_assignment"] = minmers[key]["no_assignment"]
+                    results[f"{prefix}_total"] = len(minmers[key]["matches"])
+
+                else:
+                    # Mash keys: "identity", "shared-hashes", "median-multiplicity", "p-value", "query-ID", "query-comment"
+                    results[f"{prefix}_id"] = minmers[key][0]["query-ID"]
+                    results[f"{prefix}_identity"] = minmers[key][0]["identity"]
+                    results[f"{prefix}_shared_hashes"] = minmers[key][0][
+                        "shared-hashes"
+                    ]
+                    results[f"{prefix}_median_multiplicity"] = minmers[key][0][
+                        "median-multiplicity"
+                    ]
+                    results[f"{prefix}_p_value"] = minmers[key][0]["p-value"]
+                    results[f"{prefix}_comment"] = minmers[key][0]["query-comment"]
+                    results[f"{prefix}_total"] = len(minmers[key])
+    return results
