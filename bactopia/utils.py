@@ -1,12 +1,65 @@
+import gzip
+import logging
+import sys
 from pathlib import Path
+from sys import platform
 
-import rich
-import rich.console
-import rich.traceback
+import requests
+from executor import ExternalCommand, ExternalCommandFailed
 
-# Set up Rich
-stderr = rich.console.Console(stderr=True)
-rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
+NCBI_GENOME_SIZE_URL = (
+    "https://ftp.ncbi.nlm.nih.gov/genomes/ASSEMBLY_REPORTS/species_genome_size.txt.gz"
+)
+
+
+def execute(
+    cmd,
+    directory=Path.cwd(),
+    capture=False,
+    stdout_file=None,
+    stderr_file=None,
+    allow_fail=False,
+):
+    """A simple wrapper around executor."""
+    try:
+        command = ExternalCommand(
+            cmd,
+            directory=directory,
+            capture=True,
+            capture_stderr=True,
+            stdout_file=stdout_file,
+            stderr_file=stderr_file,
+        )
+
+        command.start()
+        logging.debug(command.decoded_stdout)
+        logging.debug(command.decoded_stderr)
+
+        if capture:
+            return [command.decoded_stdout, command.decoded_stderr]
+        return True
+    except ExternalCommandFailed as e:
+        if allow_fail:
+            logging.error(e)
+            sys.exit(e.returncode)
+        else:
+            return None
+
+
+def get_platform() -> str:
+    """
+    Get the platform of the executing machine
+
+    Returns:
+        str: The platform of the executing machine
+    """
+    if platform == "darwin":
+        return "mac"
+    elif platform == "win32":
+        # Windows is not supported
+        logging.error("Windows is not supported.")
+        sys.exit(1)
+    return "linux"
 
 
 def validate_file(filename: str) -> str:
@@ -58,3 +111,63 @@ def remove_keys(results: dict, remove: list) -> dict:
         if key not in remove:
             removed[key] = val
     return removed
+
+
+def get_taxid_from_species(species: str) -> str:
+    """
+    Convert a species name into a tax_id
+
+    Args:
+        species (str): A species name
+
+    Returns:
+        str: The corresponding tax_id
+    """
+    r = requests.get(
+        f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=taxonomy&term={species}"
+    )
+    taxid = None
+    if r.status_code == requests.codes.ok:
+        for line in r.text.split("\n"):
+            line = line.strip()
+            if line.startswith("<Id>"):
+                taxid = line.replace("<Id>", "").replace("</Id>", "")
+        if taxid:
+            logging.debug(f"Found taxon ID ({taxid}) for {species}")
+            return taxid
+        else:
+            logging.error(
+                f"Unable to determine taxon ID from {species}, please check spelling or try again later."
+            )
+            sys.exit(1)
+    else:
+        logging.error("Unexpected error querying NCBI, please try again later.")
+        sys.exit(1)
+
+
+def get_ncbi_genome_size() -> dict:
+    """
+    Get the NCBI's species genome size file.
+
+    Returns:
+        str: A dictionary of species genome sizes byt tax_id
+    """
+    r = requests.get(NCBI_GENOME_SIZE_URL, stream=True)
+    if r.status_code == requests.codes.ok:
+        sizes = {}
+        header = None
+        with r as res:
+            extracted = gzip.decompress(res.content)
+            for line in extracted.split(b"\n"):
+                cols = line.decode().rstrip().split("\t")
+                if header is None:
+                    header = cols
+                else:
+                    hit = dict(zip(header, cols))
+                    sizes[hit["#species_taxid"]] = hit
+        return sizes
+    else:
+        logging.error(
+            f"Unable to download NCBI's species genome size file ({NCBI_GENOME_SIZE_URL}), please try again later."
+        )
+        sys.exit(1)

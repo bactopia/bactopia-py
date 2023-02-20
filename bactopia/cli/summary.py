@@ -295,7 +295,7 @@ def summary(
     verbose,
     silent,
 ):
-    """Generate a summary report of Bactopia results."""
+    """Generate a summary table from the Bactopia results."""
     # Setup logs
     logging.basicConfig(
         format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
@@ -453,7 +453,7 @@ def summary(
             textwrap.dedent(
                 f"""
             Total Samples: {COUNTS['total']}
-            
+
             Passed: {COUNTS["pass"]}
                 Gold: {COUNTS["gold"]}
                 Silver: {COUNTS["silver"]}
@@ -490,7 +490,7 @@ def summary(
                     Quality >= Q{RANK_CUTOFF['bronze']['quality']}
                     Read Length >= {RANK_CUTOFF['bronze']['length']}bp
                     Total Contigs < {RANK_CUTOFF['bronze']['contigs']}
-            
+
             Assembly Length Exclusions:
                 Minimum: {RANK_CUTOFF['min-assembled-size']}
                 Maximum: {RANK_CUTOFF['min-assembled-size']}

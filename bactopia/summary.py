@@ -1,8 +1,3 @@
-from collections import OrderedDict
-
-from bactopia.parse import parse_bactopia_directory
-
-
 def get_rank(
     cutoff: dict,
     coverage: float,
@@ -92,7 +87,7 @@ def get_rank(
                 f"Too many contigs ({contigs}, expect <= {silver['contigs']})"
             )
         if not is_paired:
-            reason.append(f"Single-end reads")
+            reason.append("Single-end reads")
         rank = "bronze"
 
     if not rank:

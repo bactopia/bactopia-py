@@ -47,7 +47,7 @@ def parse_citations(yml: str) -> list:
 @click.option("--name", "-n", help="Only print citation matching a given name")
 @click.option("--plain-text", "-p", is_flag=True, help="Disable rich formatting")
 def citations(bactopia: str, name: str, plain_text: bool) -> None:
-    """Print out a table of tools and their citations used by Bactopia"""
+    """Print out tools and citations used throughout Bactopia"""
 
     citations_yml = validate_file(f"{bactopia}/citations.yml")
     citations, module_citations = parse_citations(citations_yml)

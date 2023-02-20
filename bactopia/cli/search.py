@@ -1,12 +1,10 @@
 import datetime
-import gzip
 import logging
 import random
 import re
 import sys
 from pathlib import Path
 
-import pandas as pd
 import requests
 import rich
 import rich.console
@@ -16,12 +14,7 @@ from pysradb import SRAweb
 from rich.logging import RichHandler
 
 import bactopia
-import bactopia.parsers as parsers
-from bactopia.parse import parse_bactopia_directory
-from bactopia.parsers.error import parse_errors
-from bactopia.parsers.parsables import EXCLUDE_COLUMNS, get_parsable_files
-from bactopia.parsers.versions import parse_versions
-from bactopia.summary import get_rank, print_cutoffs, print_failed
+from bactopia.utils import get_ncbi_genome_size
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
@@ -63,9 +56,7 @@ click.rich_click.OPTION_GROUPS = {
     ]
 }
 
-NCBI_GENOME_SIZE_URL = (
-    "https://ftp.ncbi.nlm.nih.gov/genomes/ASSEMBLY_REPORTS/species_genome_size.txt.gz"
-)
+
 ENA_URL = "https://www.ebi.ac.uk/ena/portal/api/search"
 FIELDS = [
     "study_accession",
@@ -121,29 +112,6 @@ FIELDS = [
 ]
 
 
-def get_ncbi_genome_size():
-    """Get the NCBI's species genome size file."""
-    r = requests.get(NCBI_GENOME_SIZE_URL, stream=True)
-    if r.status_code == requests.codes.ok:
-        sizes = {}
-        header = None
-        with r as res:
-            extracted = gzip.decompress(res.content)
-            for line in extracted.split(b"\n"):
-                cols = line.decode().rstrip().split("\t")
-                if header is None:
-                    header = cols
-                else:
-                    hit = dict(zip(header, cols))
-                    sizes[hit["#species_taxid"]] = hit
-        return sizes
-    else:
-        logging.error(
-            f"Unable to download NCBI's species genome size file ({NCBI_GENOME_SIZE_URL}), please try again later."
-        )
-        sys.exit(1)
-
-
 def get_sra_metadata(query: str) -> list:
     """Fetch metadata from SRA.
     Args:
@@ -162,9 +130,8 @@ def get_sra_metadata(query: str) -> list:
 
 
 def get_ena_metadata(query, is_accession, limit=1000000):
-    """USE ENA's API to retreieve the latest results."""
+    """USE ENA's API to retrieve the latest results."""
     # ENA browser info: http://www.ebi.ac.uk/ena/about/browser
-    query_original = query
     data = {
         "dataPortal": "ena",
         "dccDataOnly": "false",
@@ -277,7 +244,7 @@ def parse_accessions(
             reason = []
             if not result["fastq_bytes"]:
                 passes = False
-                reason.append(f"Missing FASTQs")
+                reason.append("Missing FASTQs")
                 filtered["technical"] += 1
             else:
                 if min_read_length:
@@ -337,13 +304,13 @@ def is_biosample(accession):
     )
 
 
-def chunks(l, n):
+def chunks(chunk: list, total: int) -> list:
     """
     Yield successive n-sized chunks from l.
     https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks?page=1&tab=votes#tab-top
     """
-    for i in range(0, len(l), n):
-        yield l[i : i + n]
+    for i in range(0, len(chunk), total):
+        yield chunk[i : i + total]
 
 
 def parse_query(q, accession_limit, exact_taxon=False):
@@ -493,7 +460,7 @@ def search(
     verbose,
     silent,
 ):
-    """Generate a summary report of Bactopia results."""
+    """Query against ENA and SRA for public accessions to process with Bactopia"""
     # Setup logs
     logging.basicConfig(
         format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
@@ -625,7 +592,7 @@ def search(
                         f'\tFAILED MIN BASE COUNT ({min_base_count} bp): {query_filtered["min_base_count"]}'
                     )
             else:
-                summary.append(f"FILTERED ACCESSIONS: no filters applied")
+                summary.append("FILTERED ACCESSIONS: no filters applied")
 
             summary.append(f'\tMISSING FASTQS: {filtered["technical"]}')
             summary.append("")
@@ -647,7 +614,7 @@ def search(
 
     logging.info(f"Writing filtered accessions to {filtered_file}")
     with open(filtered_file, "w") as output_fh:
-        output_fh.write(f"accession\treason\n")
+        output_fh.write("accession\treason\n")
         for accession, reason in filtered["filtered"].items():
             output_fh.write(f"{accession}\t{reason}\n")
 

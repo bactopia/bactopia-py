@@ -1,7 +1,7 @@
 """
 Parsers for Minmer related results.
 """
-from bactopia.parsers.generic import parse_table
+import re
 
 
 def parse(path: str, name: str) -> dict:
@@ -46,8 +46,6 @@ def _parse_sourmash(filename: str) -> dict:
     Returns:
         dict: the parsed Sourmash results
     """
-    import re
-
     re_sourmash = re.compile(
         r"(?P<overlap>[0-9]+.[0-9]+ [A-Za-z]+)\s+(?P<p_query>[0-9]+.[0-9]+%)\s+(?P<p_match>[0-9]+.[0-9]+%)\s+(?P<match>.*)"
     )
@@ -89,7 +87,7 @@ def add_minmers(minmers: dict) -> dict:
     Returns:
         dict: Top hit description for each set of databases
     """
-    results = OrderedDict()
+    results = {}
     for key in ["refseq-k21", "genbank-k21", "genbank-k31", "genbank-k51"]:
         if key in minmers:
             prefix = key.replace("-", "_")

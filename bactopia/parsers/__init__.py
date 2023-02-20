@@ -12,4 +12,4 @@ del modules
 del glob
 del os
 
-from . import *
+from bactopia.parsers import *
