@@ -1,6 +1,6 @@
 [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-908a85?logo=gitpod)](https://gitpod.io/#https://github.com/bactopia/bactopia-py)
 
-![Bactopia Logo](https://bactopia.github.io/assets/bactopia-logo.png)
+![Bactopia Logo](https://raw.githubusercontent.com/bactopia/bactopia/master/data/bactopia-logo.png)
 
 # bactopia-py
 A Python package for working with [Bactopia](https://bactopia.github.io/)
