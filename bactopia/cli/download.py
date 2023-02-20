@@ -489,7 +489,7 @@ def build_singularity_image(image, pull, max_retry=5, force=False, use_build=Fal
 @click.option("--verbose", is_flag=True, help="Print debug related text.")
 @click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
 @click.argument("unknown", nargs=-1, type=click.UNPROCESSED)
-def main(
+def download(
     bactopia,
     envtype,
     wf,
@@ -554,3 +554,14 @@ def main(
                     max_retry=max_retry,
                     use_build=singularity_pull_docker_container,
                 )
+
+
+def main():
+    if len(sys.argv) == 1:
+        download.main(["--help"])
+    else:
+        download()
+
+
+if __name__ == "__main__":
+    main()
