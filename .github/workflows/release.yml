@@ -21,7 +21,7 @@ jobs:
           miniforge-variant: Mambaforge
           channels: conda-forge,bioconda
           channel-priority: strict
-          activate-environment: fastq-dl
+          activate-environment: bactopia-py
           environment-file: environment.yml
           auto-update-conda: true
       - name: Install project
