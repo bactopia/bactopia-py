@@ -56,8 +56,6 @@ Below is the `--help` output for each subcommand.
 │                                                           environments               │
 │                                                           (NXF_CONDA_CACHEDIR env    │
 │                                                           variable takes precedence) │
-│                                                           [default:                  │
-│                                                           /home/robert_petit/.bacto… │
 │ --use_conda                                               Use Conda for building     │
 │                                                           Conda environments instead │
 │                                                           of Mamba                   │
@@ -66,8 +64,6 @@ Below is the `--help` output for each subcommand.
 │                                                           (NXF_SINGULARITY_CACHEDIR  │
 │                                                           env variable takes         │
 │                                                           precedence)                │
-│                                                           [default:                  │
-│                                                           /home/robert_petit/.bacto… │
 │ --singularity_pull_docker…                                Force conversion of Docker │
 │                                                           containers, instead        │
 │                                                           downloading Singularity    │
@@ -252,9 +248,10 @@ Your feedback is very valuable! If you run into any issues using Bactopia, have 
 [MIT License](https://raw.githubusercontent.com/bactopia/bactopia/master/LICENSE)
 
 # Citation
+
 Petit III RA, Read TD, *Bactopia: a flexible pipeline for complete analysis of bacterial genomes.* __mSystems__. 5 (2020), https://doi.org/10.1128/mSystems.00190-20.
 
-# Author 
+# Author
 
 * Robert A. Petit III
 * Twitter: [@rpetit3](https://twitter.com/rpetit3)
