@@ -32,13 +32,13 @@ click.rich_click.OPTION_GROUPS = {
             "options": [
                 "--envtype",
                 "--wf",
-                "--build_all",
-                "--build_nfcore",
+                "--build-all",
+                "--build-nfcore",
                 "--condadir",
-                "--use_conda",
+                "--use-conda",
                 "--singularity_cache",
                 "--singularity_pull_docker_container",
-                "--force_rebuild",
+                "--force-rebuild",
                 "--max_retry",
             ],
         },
@@ -461,7 +461,7 @@ def build_singularity_image(image, pull, max_retry=5, force=False, use_build=Fal
     help="Directory to create Conda environments (NXF_CONDA_CACHEDIR env variable takes precedence)",
 )
 @click.option(
-    "--use_conda",
+    "--use-conda",
     is_flag=True,
     help="Use Conda for building Conda environments instead of Mamba",
 )
@@ -477,7 +477,7 @@ def build_singularity_image(image, pull, max_retry=5, force=False, use_build=Fal
     help="Force conversion of Docker containers, instead downloading Singularity images directly",
 )
 @click.option(
-    "--force_rebuild",
+    "--force-rebuild",
     is_flag=True,
     help="Force overwrite of existing pre-built environments.",
 )
