@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.0.1
+
+Renamed parameter `--bactopia` to `--bactopia-path` in `bactopia-download`
+
 ## 1.0.0
 
 Initial release of the `bactopia-py` package. This release ports the Python helper scripts from the main Bactopia repo.

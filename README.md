@@ -43,7 +43,7 @@ Below is the `--help` output for each subcommand.
  Builds Bactopia environments for use with Nextflow.
 
 ╭─ Required Options ───────────────────────────────────────────────────────────────────╮
-│ *  --bactopia    TEXT  Directory where Bactopia results are stored [required]        │
+│ *  --bactopia-path    TEXT  Directory where Bactopia results are stored [required]   │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Build Related Options ──────────────────────────────────────────────────────────────╮
 │ --envtype                     [conda|docker|singularity|  The type of environment to │

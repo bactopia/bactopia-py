@@ -26,7 +26,7 @@ click.rich_click.USE_RICH_MARKUP = True
 click.rich_click.OPTION_GROUPS = {
     # Use underscores in parameters, since these are also passed to Nextflow
     "bactopia-download": [
-        {"name": "Required Options", "options": ["--bactopia"]},
+        {"name": "Required Options", "options": ["--bactopia-path"]},
         {
             "name": "Build Related Options",
             "options": [
@@ -427,9 +427,9 @@ def build_singularity_image(image, pull, max_retry=5, force=False, use_build=Fal
 @click.version_option(bactopia.__version__, "--version")
 # Use underscores in parameters and only --, since Nextflow parameters are passed in
 @click.option(
-    "--bactopia",
+    "--bactopia-path",
     required=True,
-    help="Directory where Bactopia results are stored",
+    help="Directory where Bactopia repository is stored",
 )
 @click.option(
     "--envtype",
@@ -490,7 +490,7 @@ def build_singularity_image(image, pull, max_retry=5, force=False, use_build=Fal
 @click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
 @click.argument("unknown", nargs=-1, type=click.UNPROCESSED)
 def download(
-    bactopia,
+    bactopia_path,
     envtype,
     wf,
     build_all,
@@ -519,7 +519,7 @@ def download(
     )
 
     # Install paths
-    bactopia_path = str(Path(bactopia).absolute())
+    bactopia_path = str(Path(bactopia_path).absolute())
     conda_path = str(Path(condadir).absolute())
     singularity_path = str(Path(singularity_cache).absolute())
     conda_method = "conda" if use_conda else "mamba"
