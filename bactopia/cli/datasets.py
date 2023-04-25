@@ -109,7 +109,7 @@ def download_file(url, save_path, max_retry=5):
     "--datasets_cache",
     default=BACTOPIA_CACHEDIR,
     show_default=True,
-    help="Directory to download datasets to (Defaults to env variable BACTOPIA_CACHEDIR)",
+    help="Base directory to download datasets to (Defaults to env variable BACTOPIA_CACHEDIR, a subfolder called datasets will be created)",
 )
 @click.option(
     "--force",
@@ -133,7 +133,7 @@ def datasets(
     silent,
     unknown,
 ):
-    """Builds Bactopia environments for use with Nextflow."""
+    """Download optional datasets to supplement your analyses with Bactopia"""
     # Setup logs
     logging.basicConfig(
         format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",

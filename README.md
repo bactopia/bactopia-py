@@ -12,6 +12,7 @@ There are many subcommands available in Bactopia. Here is a brief description of
 | Command              | Description                                                                |
 |----------------------|----------------------------------------------------------------------------|
 | `bactopia-citations` | Print out tools and citations used throughout Bactopia                     |
+| `bactopia-datasets`  | Download optional datasets to supplement your analyses with Bactopia       |
 | `bactopia-download`  | Builds Bactopia environments for use with Nextflow.                        |
 | `bactopia-prepare`   | Create a 'file of filenames' (FOFN) of samples to be processed by Bactopia |
 | `bactopia-search`    | Query against ENA and SRA for public accessions to process with Bactopia   |
@@ -33,6 +34,34 @@ Below is the `--help` output for each subcommand.
 │    --plain-text  -p        Disable rich formatting                                   │
 │    --help                  Show this message and exit.                               │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+### `bactopia-datasets`
+
+```{bash}
+ Usage: bactopia-datasets [OPTIONS] [UNKNOWN]...
+
+ Download optional datasets to supplement your analyses with Bactopia
+
+╭─ Required Options ───────────────────────────────────────────────────────────────────╮
+│ *  --bactopia-path    TEXT  Directory where Bactopia repository is stored [required] │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Download Related Options ───────────────────────────────────────────────────────────╮
+│ --datasets_cache    TEXT     Base directory to download datasets to (Defaults to env │
+│                              variable BACTOPIA_CACHEDIR, a subfolder called datasets │
+│                              will be created)                                        │
+│                              [default: ${HOME}/.bactopia]                 │
+│ --force                      Force overwrite of existing pre-built environments.     │
+│ --max_retry         INTEGER  Maximum times to attempt creating Conda environment.    │
+│                              (Default: 3)                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Additional Options ─────────────────────────────────────────────────────────────────╮
+│ --verbose      Print debug related text.                                             │
+│ --silent       Only critical errors will be printed.                                 │
+│ --version      Show the version and exit.                                            │
+│ --help         Show this message and exit.                                           │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+
 ```
 
 ### `bactopia-download`
