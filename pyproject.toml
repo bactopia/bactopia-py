@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bactopia"
-version = "1.0.1"
+version = "1.0.2"
 description = "A Python package for working with Bactopia"
 authors = [
     "Robert A. Petit III <robbie.petit@gmail.com>",
@@ -13,6 +13,7 @@ keywords = ["bioinformatics", "bacteria", "bactopia", "SRA", "ENA"]
 
 [tool.poetry.scripts]
 bactopia-citations = "bactopia.cli.citations:main"
+bactopia-datasets = "bactopia.cli.datasets:main"
 bactopia-download = "bactopia.cli.download:main"
 bactopia-prepare = "bactopia.cli.prepare:main"
 bactopia-search = "bactopia.cli.search:main"
