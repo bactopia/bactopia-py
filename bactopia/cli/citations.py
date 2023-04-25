@@ -39,17 +39,17 @@ def parse_citations(yml: str) -> list:
 @click.command()
 @click.version_option(bactopia.__version__, "--version", "-V")
 @click.option(
-    "--bactopia",
+    "--bactopia-path",
     "-b",
     required=True,
     help="Directory where Bactopia repository is stored",
 )
 @click.option("--name", "-n", help="Only print citation matching a given name")
 @click.option("--plain-text", "-p", is_flag=True, help="Disable rich formatting")
-def citations(bactopia: str, name: str, plain_text: bool) -> None:
+def citations(bactopia_path: str, name: str, plain_text: bool) -> None:
     """Print out tools and citations used throughout Bactopia"""
 
-    citations_yml = validate_file(f"{bactopia}/citations.yml")
+    citations_yml = validate_file(f"{bactopia_path}/citations.yml")
     citations, module_citations = parse_citations(citations_yml)
 
     markdown = []

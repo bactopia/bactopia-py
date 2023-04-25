@@ -25,7 +25,7 @@ rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
 click.rich_click.USE_RICH_MARKUP = True
 click.rich_click.OPTION_GROUPS = {
     "bactopia-summary": [
-        {"name": "Required Options", "options": ["--bactopia"]},
+        {"name": "Required Options", "options": ["--bactopia-path"]},
         {
             "name": "Gold Cutoffs",
             "options": [
@@ -144,7 +144,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
 @click.command()
 @click.version_option(bactopia.__version__, "--version", "-V")
 @click.option(
-    "--bactopia",
+    "--bactopia-path",
     "-b",
     required=True,
     help="Directory where Bactopia results are stored",
@@ -274,7 +274,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
 @click.option("--verbose", is_flag=True, help="Increase the verbosity of output")
 @click.option("--silent", is_flag=True, help="Only critical errors will be printed")
 def summary(
-    bactopia,
+    bactopia_path,
     gold_coverage,
     gold_quality,
     gold_read_length,
@@ -347,8 +347,8 @@ def summary(
     processed_samples = {}
     versions = []
     dfs = []
-    samples = parse_bactopia_directory(bactopia)
-    logging.info(f"Found {len(samples)} samples in {bactopia} to process")
+    samples = parse_bactopia_directory(bactopia_path)
+    logging.info(f"Found {len(samples)} samples in {bactopia_path} to process")
     if samples:
         for sample in samples:
             if sample["is_bactopia"]:

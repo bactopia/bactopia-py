@@ -28,11 +28,12 @@ Below is the `--help` output for each subcommand.
  Print out tools and citations used throughout Bactopia
 
 ╭─ Options ────────────────────────────────────────────────────────────────────────────╮
-│    --version     -V        Show the version and exit.                                │
-│ *  --bactopia    -b  TEXT  Directory where Bactopia repository is stored [required]  │
-│    --name        -n  TEXT  Only print citation matching a given name                 │
-│    --plain-text  -p        Disable rich formatting                                   │
-│    --help                  Show this message and exit.                               │
+│    --version        -V        Show the version and exit.                             │
+│ *  --bactopia-path  -b  TEXT  Directory where Bactopia repository is stored          │
+│                               [required]                                             │
+│    --name           -n  TEXT  Only print citation matching a given name              │
+│    --plain-text     -p        Disable rich formatting                                │
+│    --help                     Show this message and exit.                            │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -216,7 +217,7 @@ Below is the `--help` output for each subcommand.
  Generate a summary table from the Bactopia results.
 
 ╭─ Required Options ───────────────────────────────────────────────────────────────────╮
-│ *  --bactopia  -b  TEXT  Directory where Bactopia results are stored [required]      │
+│ *  --bactopia-path  -b  TEXT  Directory where Bactopia results are stored [required] │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Gold Cutoffs ───────────────────────────────────────────────────────────────────────╮
 │ --gold-coverage     -gcov      INTEGER  Minimum amount of coverage required for Gold │

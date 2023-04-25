@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 1.0.2
 
-Added `bactopia-datasets` to download optional datasets outside of Nextflow
+- Added `bactopia-datasets` to download optional datasets outside of Nextflow
+- consistently use `--bactopia-path` across sub-commands
 
 ## 1.0.1
 
