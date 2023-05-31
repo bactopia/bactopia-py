@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bactopia"
-version = "1.0.2"
+version = "1.0.3"
 description = "A Python package for working with Bactopia"
 authors = [
     "Robert A. Petit III <robbie.petit@gmail.com>",
@@ -26,7 +26,6 @@ rich-click = "^1.6.1"
 executor = "^23.2"
 rich = "^13.3.1"
 pandas = "^1.5.3"
-pysradb = "^1.4.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"

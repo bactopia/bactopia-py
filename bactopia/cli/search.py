@@ -5,12 +5,12 @@ import re
 import sys
 from pathlib import Path
 
+import pandas as pd
 import requests
 import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from pysradb import SRAweb
 from rich.logging import RichHandler
 
 import bactopia
@@ -30,6 +30,7 @@ click.rich_click.OPTION_GROUPS = {
                 "--limit",
                 "--accession-limit",
                 "--biosample-subset",
+                "--include-empty",
             ],
         },
         {
@@ -55,83 +56,21 @@ click.rich_click.OPTION_GROUPS = {
         },
     ]
 }
-
-
 ENA_URL = "https://www.ebi.ac.uk/ena/portal/api/search"
-FIELDS = [
-    "study_accession",
-    "secondary_study_accession",
-    "sample_accession",
-    "secondary_sample_accession",
-    "experiment_accession",
-    "run_accession",
-    "submission_accession",
-    "tax_id",
-    "scientific_name",
-    "instrument_platform",
-    "instrument_model",
-    "library_name",
-    "library_layout",
-    "nominal_length",
-    "library_strategy",
-    "library_source",
-    "library_selection",
-    "read_count",
-    "base_count",
-    "center_name",
-    "first_public",
-    "last_updated",
-    "experiment_title",
-    "study_title",
-    "study_alias",
-    "experiment_alias",
-    "run_alias",
-    "fastq_bytes",
-    "fastq_md5",
-    "fastq_ftp",
-    "fastq_aspera",
-    "fastq_galaxy",
-    "submitted_bytes",
-    "submitted_md5",
-    "submitted_ftp",
-    "submitted_aspera",
-    "submitted_galaxy",
-    "submitted_format",
-    "sra_bytes",
-    "sra_md5",
-    "sra_ftp",
-    "sra_aspera",
-    "sra_galaxy",
-    "cram_index_ftp",
-    "cram_index_aspera",
-    "cram_index_galaxy",
-    "sample_alias",
-    "broker_name",
-    "sample_title",
-    "first_created",
-]
 
 
-def get_sra_metadata(query: str) -> list:
-    """Fetch metadata from SRA.
+def get_ena_metadata(query: str, is_accession: bool, limit: int):
+    """Fetch metadata from ENA.
+    https://docs.google.com/document/d/1CwoY84MuZ3SdKYocqssumghBF88PWxUZ/edit#heading=h.ag0eqy2wfin5
+
     Args:
-        query (str): The accession to search for.
+        query (str): The query to search for.
+        is_accession (bool): If the query is an accession or not.
+        limit (int): The maximum number of records to return.
+
     Returns:
         list: Records associated with the accession.
     """
-    #
-    db = SRAweb()
-    df = db.search_sra(
-        query, detailed=True, sample_attribute=True, expand_sample_attributes=True
-    )
-    if df is None:
-        return [False, []]
-    return [True, df.to_dict(orient="records")]
-
-
-def get_ena_metadata(query, is_accession, limit=1000000):
-    """USE ENA's API to retrieve the latest results."""
-    # ENA browser info: http://www.ebi.ac.uk/ena/about/browser
     data = {
         "dataPortal": "ena",
         "dccDataOnly": "false",
@@ -139,7 +78,7 @@ def get_ena_metadata(query, is_accession, limit=1000000):
         "result": "read_run",
         "format": "tsv",
         "limit": limit,
-        "fields": ",".join(FIELDS),
+        "fields": "all",
     }
 
     if is_accession:
@@ -154,6 +93,7 @@ def get_ena_metadata(query, is_accession, limit=1000000):
         )
 
     headers = {"accept": "*/*", "Content-type": "application/x-www-form-urlencoded"}
+
     r = requests.post(ENA_URL, headers=headers, data=data)
     if r.status_code == requests.codes.ok:
         data = []
@@ -170,8 +110,8 @@ def get_ena_metadata(query, is_accession, limit=1000000):
         return [False, [r.status_code, r.text]]
 
 
-def get_metadata(
-    query: str, ena_query: str, is_accession: bool, limit: int = 1000000
+def get_run_info(
+    sra_query: str, ena_query: str, is_accession: bool, limit: int = 1000000
 ) -> tuple:
     """Retrieve a list of samples available from ENA.
 
@@ -179,7 +119,7 @@ def get_metadata(
     capture those samples not yet synced between ENA and SRA.
 
     Args:
-        query (str): The original query.
+        sra_query (str): A formatted query for SRA searches.
         ena_query (str): A formatted query for ENA searches.
         is_accession (bool): If the query is an accession or not.
         limit (int): The maximum number of records to return.
@@ -187,20 +127,16 @@ def get_metadata(
     Returns:
         tuple: Records associated with the accession.
     """
+
     logging.debug("Querying ENA for metadata...")
-    success, ena_data = get_ena_metadata(ena_query, is_accession, limit)
+    success, ena_data = get_ena_metadata(ena_query, is_accession, limit=limit)
     if success:
-        return ena_data
+        return success, ena_data
     else:
-        logging.debug("Failed to get metadata from ENA. Trying SRA...")
-        success, sra_data = get_sra_metadata(query)
-        if not success:
-            logging.error("There was an issue querying ENA and SRA, exiting...")
-            logging.error(f"STATUS: {ena_data[0]}")
-            logging.error(f"TEXT: {ena_data[1]}")
-            sys.exit(1)
-        else:
-            return sra_data
+        logging.error("There was an issue querying ENA, exiting...")
+        logging.error(f"STATUS: {ena_data[0]}")
+        logging.error(f"TEXT: {ena_data[1]}")
+        sys.exit(1)
 
 
 def parse_accessions(
@@ -231,14 +167,17 @@ def parse_accessions(
         "filtered": [],
     }
     for result in results:
+        instrument_key = (
+            "instrument_platform"
+            if "instrument_platform" in result
+            else "instrument_model_desc"
+        )
         if (
-            result["instrument_platform"] == "ILLUMINA"
-            or result["instrument_platform"] == "OXFORD_NANOPORE"
+            result[instrument_key] == "ILLUMINA"
+            or result[instrument_key] == "OXFORD_NANOPORE"
         ):
             technology = (
-                "ont"
-                if result["instrument_platform"] == "OXFORD_NANOPORE"
-                else "illumina"
+                "ont" if result[instrument_key] == "OXFORD_NANOPORE" else "illumina"
             )
             passes = True
             reason = []
@@ -329,6 +268,8 @@ def parse_query(q, accession_limit, exact_taxon=False):
     else:
         queries.append(q)
     results = []
+    bioproject_accessions = []
+    biosample_accessions = []
     experiment_accessions = []
     run_accessions = []
 
@@ -336,40 +277,42 @@ def parse_query(q, accession_limit, exact_taxon=False):
         try:
             taxon_id = int(query)
             if exact_taxon:
-                results.append(["taxon", f"tax_eq({taxon_id})"])
+                results.append(
+                    ["taxon", f"tax_eq({taxon_id})", f"txid{taxon_id}[Organism:noexp]"]
+                )
             else:
-                results.append(["taxon_tree", f"tax_tree({taxon_id})"])
+                results.append(
+                    [
+                        "taxon_tree",
+                        f"tax_tree({taxon_id})",
+                        f"txid{taxon_id}[Organism:exp]",
+                    ]
+                )
         except ValueError:
             # It is a accession or scientific name
             # Test Accession
             # Thanks! https://ena-docs.readthedocs.io/en/latest/submit/general-guide/accessions.html#accession-numbers
             if re.match(r"^PRJ[EDN][A-Z][0-9]+$|^[EDS]RP[0-9]{6,}$", query):
-                results.append(
-                    [
-                        "bioproject",
-                        f"(study_accession={query} OR secondary_study_accession={query})",
-                    ]
-                )
+                bioproject_accessions.append(query)
             elif re.match(r"^SAM[EDN][A-Z]?[0-9]+$|^[EDS]RS[0-9]{6,}$", query):
-                results.append(
-                    [
-                        "biosample",
-                        f"(sample_accession={query} OR secondary_sample_accession={query})",
-                    ]
-                )
+                biosample_accessions.append(query)
             elif re.match(r"^[EDS]RX[0-9]{6,}$", query):
                 experiment_accessions.append(query)
             elif re.match(r"^[EDS]RR[0-9]{6,}$", query):
                 run_accessions.append(query)
             else:
                 # Assuming it is a scientific name
-                results.append(["taxon_name", f'tax_name("{query}")'])
+                results.append(["taxon_name", f'tax_name("{query}")', f"'{query}'"])
 
     # Split the accessions into set number
+    for chunk in chunks(bioproject_accessions, accession_limit):
+        results.append(["bioproject_accession", ",".join(chunk), " OR ".join(chunk)])
+    for chunk in chunks(biosample_accessions, accession_limit):
+        results.append(["biosample_accession", ",".join(chunk), " OR ".join(chunk)])
     for chunk in chunks(experiment_accessions, accession_limit):
-        results.append(["experiment_accession", ",".join(chunk)])
+        results.append(["experiment_accession", ",".join(chunk), " OR ".join(chunk)])
     for chunk in chunks(run_accessions, accession_limit):
-        results.append(["run_accession", ",".join(chunk)])
+        results.append(["run_accession", ",".join(chunk), " OR ".join(chunk)])
 
     return results
 
@@ -441,6 +384,11 @@ def parse_query(q, accession_limit, exact_taxon=False):
     show_default=True,
     help="Genome size to be used for all samples, and for calculating min coverage",
 )
+@click.option(
+    "--include-empty",
+    is_flag=True,
+    help="Include metadata columns that are empty for all rows",
+)
 @click.option("--force", is_flag=True, help="Overwrite existing reports")
 @click.option("--verbose", is_flag=True, help="Increase the verbosity of output")
 @click.option("--silent", is_flag=True, help="Only critical errors will be printed")
@@ -456,6 +404,7 @@ def search(
     min_read_length,
     min_coverage,
     genome_size,
+    include_empty,
     force,
     verbose,
     silent,
@@ -478,7 +427,7 @@ def search(
 
     if min_coverage and genome_size:
         if min_base_count:
-            print(
+            logging.error(
                 "--min_base_count cannot be used with --coverage/--genome_size. Exiting...",
                 file=sys.stderr,
             )
@@ -486,7 +435,7 @@ def search(
         else:
             min_base_count = min_coverage * genome_size
     elif min_coverage or genome_size:
-        print(
+        logging.error(
             "--coverage and --genome_size must be used together. Exiting...",
             file=sys.stderr,
         )
@@ -494,7 +443,7 @@ def search(
 
     if biosample_subset > 0:
         if not is_biosample(query):
-            print(
+            logging.error(
                 "--biosample_subset requires a single BioSample. Input query: {query} is not a BioSample. Exiting...",
                 file=sys.stderr,
             )
@@ -519,10 +468,12 @@ def search(
     filtered_file = f"{outdir}/{prefix}-filtered.txt".replace("//", "/")
     summary_file = f"{outdir}/{prefix}-search.txt".replace("//", "/")
     genome_sizes = get_ncbi_genome_size()
-    for query_type, query in queries:
+    for query_type, ena_query, sra_query in queries:
         logging.info(f"Submitting query (type - {query_type})")
         is_accession = True if query_type.endswith("accession") else False
-        success, query_results = get_ena_metadata(query, is_accession, limit=limit)
+        success, query_results = get_run_info(
+            sra_query, ena_query, is_accession, limit=limit
+        )
         results += query_results
         if success:
             query_accessions, query_filtered = parse_accessions(
@@ -602,10 +553,13 @@ def search(
     # Output the results
     logging.info(f"Writing results to {metadata_file}")
     with open(metadata_file, "w") as output_fh:
-        output_fh.write(f"{results[0].keys()}\n")
-        for result in results:
-            if result:
-                output_fh.write(f"{result}\n")
+        df = pd.DataFrame.from_dict(results)
+        if not include_empty:
+            logging.debug(f"Removing empty columns from {metadata_file}")
+            df.replace("", float("NaN"), inplace=True)
+            df.dropna(inplace=True, how="all", axis=1)
+            df.replace(float("NaN"), "", inplace=True)
+        df.to_csv(output_fh, sep="\t", index=False)
 
     logging.info(f"Writing accessions to {accessions_file}")
     with open(accessions_file, "w") as output_fh:

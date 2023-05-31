@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.0.3
+
+- Fixed `bactopia-search` using missing columns in the query
+- dropped pysradb dependency
+
 ## 1.0.2
 
 - Added `bactopia-datasets` to download optional datasets outside of Nextflow
