@@ -8,6 +8,7 @@ from pathlib import Path
 IGNORE_LIST = [
     ".nextflow",
     ".nextflow.log",
+    "bactopia-runs",
     "nf-reports",
     "work",
 ]
@@ -24,7 +25,7 @@ def parse_bactopia_directory(path: str) -> list:
         list: Parsed results for all samples in a Bactopia directory
     """
     results = []
-    for directory in Path(f"{path}/bactopia-samples").iterdir():
+    for directory in Path(path).iterdir():
         if directory.is_dir():
             if directory.name not in IGNORE_LIST:
                 results.append(
@@ -51,4 +52,4 @@ def _is_bactopia_dir(path: str, name: str) -> bool:
     Returns:
         bool: path looks like Bactopia (True) or not (False)
     """
-    return Path(f"{path}/bactopia-main/gather/{name}-meta.tsv").exists()
+    return Path(f"{path}/main/gather/{name}-meta.tsv").exists()

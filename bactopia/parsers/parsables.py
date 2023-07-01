@@ -23,23 +23,23 @@ EXCLUDE_COLUMNS = [
 
 def get_parsable_files(path: str, name: str) -> list:
     return {
-        # bactopia-main
+        # main
         # annotator
-        f"{path}/bactopia-main/annotator/prokka/{name}.txt": "annotator",
+        f"{path}/main/annotator/prokka/{name}.txt": "annotator",
         # assembler
-        f"{path}/bactopia-main/assembler/{name}.tsv": "assembler",
+        f"{path}/main/assembler/{name}.tsv": "assembler",
         # gather
-        f"{path}/bactopia-main/gather/{name}-meta.tsv": "gather",
+        f"{path}/main/gather/{name}-meta.tsv": "gather",
         # qc
-        f"{path}/bactopia-main/qc/summary/{name}-final.json": "qc",
-        f"{path}/bactopia-main/qc/summary/{name}-original.json": "qc",
+        f"{path}/main/qc/summary/{name}-final.json": "qc",
+        f"{path}/main/qc/summary/{name}-original.json": "qc",
         # sketcher
-        f"{path}/bactopia-main/sketcher/summary/{name}-mash-refseq88-k21.txt": "sketcher",
-        f"{path}/bactopia-main/sketcher/summary/{name}-sourmash-gtdb-rs207-k31.txt": "sketcher",
+        f"{path}/main/sketcher/summary/{name}-mash-refseq88-k21.txt": "sketcher",
+        f"{path}/main/sketcher/summary/{name}-sourmash-gtdb-rs207-k31.txt": "sketcher",
         # bactopia-tools
         # amrfinderplus
-        f"{path}/bactopia-tools/amrfinderplus/{name}-genes.tsv": "amrfinderplus",
-        f"{path}/bactopia-tools/amrfinderplus/{name}-proteins.tsv": "amrfinderplus",
+        f"{path}/tools/amrfinderplus/{name}-genes.tsv": "amrfinderplus",
+        f"{path}/tools/amrfinderplus/{name}-proteins.tsv": "amrfinderplus",
         # mlst
-        f"{path}/bactopia-tools/mlst/{name}.tsv": "mlst",
+        f"{path}/tools/mlst/{name}.tsv": "mlst",
     }
