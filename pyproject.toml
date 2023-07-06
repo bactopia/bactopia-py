@@ -18,6 +18,7 @@ bactopia-download = "bactopia.cli.download:main"
 bactopia-prepare = "bactopia.cli.prepare:main"
 bactopia-search = "bactopia.cli.search:main"
 bactopia-summary = "bactopia.cli.summary:main"
+bactopia-update = "bactopia.cli.update:main"
 
 [tool.poetry.dependencies]
 python = "^3.8.0"
