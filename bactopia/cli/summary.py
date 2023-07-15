@@ -369,35 +369,46 @@ def summary(
                 else:
                     # Get list of files to parse
                     df = pd.DataFrame()
-                    for path, parser in get_parsable_files(
+                    is_complete, parsable_files = get_parsable_files(
                         sample["path"], sample["id"]
-                    ).items():
-                        if Path(path).exists() or parser == "qc":
-                            logging.debug(f"\tParsing {path} ({parser})")
-                            if df.empty:
-                                df = pd.DataFrame(
-                                    [getattr(parsers, parser).parse(path, sample["id"])]
-                                )
-                            else:
-                                df = pd.merge(
-                                    df,
-                                    pd.DataFrame(
+                    )
+                    if is_complete:
+                        for path, parser in parsable_files.items():
+                            if Path(path).exists() or parser == "qc":
+                                logging.debug(f"\tParsing {path} ({parser})")
+                                if df.empty:
+                                    df = pd.DataFrame(
                                         [
                                             getattr(parsers, parser).parse(
                                                 path, sample["id"]
                                             )
                                         ]
-                                    ),
-                                    on="sample",
-                                    how="inner",
-                                )
-                    rank, reason = process_sample(df, RANK_CUTOFF)
-                    processed_samples[sample["id"]] = True
-                    df["rank"] = rank
-                    df["reason"] = reason
-                    dfs.append(df)
-                    logging.debug(f"\tRank: {rank} ({reason})")
-
+                                    )
+                                else:
+                                    df = pd.merge(
+                                        df,
+                                        pd.DataFrame(
+                                            [
+                                                getattr(parsers, parser).parse(
+                                                    path, sample["id"]
+                                                )
+                                            ]
+                                        ),
+                                        on="sample",
+                                        how="inner",
+                                    )
+                        rank, reason = process_sample(df, RANK_CUTOFF)
+                        processed_samples[sample["id"]] = True
+                        df["rank"] = rank
+                        df["reason"] = reason
+                        dfs.append(df)
+                        logging.debug(f"\tRank: {rank} ({reason})")
+                    else:
+                        missing_files = ";".join(parsable_files)
+                        logging.debug(
+                            f"Skipping {sample['id']} ({sample['path']}) due to missing files: {missing_files}"
+                        )
+                        increment_and_append("ignore-unknown", sample["id"])
             else:
                 logging.debug(
                     f"Skipping {sample['id']} ({sample['path']}), incomplete or not a Bactopia directory"

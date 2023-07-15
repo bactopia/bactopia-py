@@ -1,6 +1,7 @@
 """
 A list of files that can be parsed by Bactopia
 """
+from pathlib import Path
 
 EXCLUDE_COLUMNS = [
     "qc_final_per_base_quality",
@@ -22,7 +23,7 @@ EXCLUDE_COLUMNS = [
 
 
 def get_parsable_files(path: str, name: str) -> list:
-    return {
+    parsable_files = {
         # main
         # annotator
         f"{path}/main/annotator/prokka/{name}.txt": "annotator",
@@ -43,3 +44,15 @@ def get_parsable_files(path: str, name: str) -> list:
         # mlst
         f"{path}/tools/mlst/{name}.tsv": "mlst",
     }
+
+    is_complete = True
+    missing_files = []
+    for output_file, output_type in parsable_files.items():
+        if not Path(output_file).exists():
+            is_complete = False
+            missing_files.append(output_file)
+
+    if is_complete:
+        return [is_complete, parsable_files]
+    else:
+        return [is_complete, missing_files]
