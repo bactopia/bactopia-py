@@ -139,9 +139,15 @@ def parse_workflows(bactopia_path, include_merlin=False, build_all=False):
         if "path" in workflows[wf]:
             modules[wf] = True
 
-        if include_merlin and wf == "bactopia":
-            for module in workflows["merlin"]["modules"]:
+        if wf == "bactopia" or wf == "staphopia":
+            # Build Prokka and Bakta
+            modules["prokka"] = True
+            for module in workflows["bakta"]["modules"]:
                 modules[module] = True
+            # Install Merlin tools
+            if include_merlin:
+                for module in workflows["merlin"]["modules"]:
+                    modules[module] = True
 
         for module in modules:
             final_workflows[wf][module] = parse_module(
