@@ -149,7 +149,7 @@ def update(
 
     # Install paths
     bactopia_path = str(Path(bactopia_path).absolute())
-    print(bactopia_path)
+    logging.debug(f"Using bactopia path: {bactopia_path}")
 
     # Get modules to update
     needs_update = []
