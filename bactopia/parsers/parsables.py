@@ -31,12 +31,9 @@ def get_parsable_files(path: str, name: str) -> list:
         f"{path}/main/assembler/{name}.tsv": "assembler",
         # gather
         f"{path}/main/gather/{name}-meta.tsv": "gather",
-        # qc
-        f"{path}/main/qc/summary/{name}-final.json": "qc",
-        f"{path}/main/qc/summary/{name}-original.json": "qc",
         # sketcher
-        f"{path}/main/sketcher/summary/{name}-mash-refseq88-k21.txt": "sketcher",
-        f"{path}/main/sketcher/summary/{name}-sourmash-gtdb-rs207-k31.txt": "sketcher",
+        f"{path}/main/sketcher/{name}-mash-refseq88-k21.txt": "sketcher",
+        f"{path}/main/sketcher/{name}-sourmash-gtdb-rs207-k31.txt": "sketcher",
         # bactopia-tools
         # amrfinderplus
         f"{path}/tools/amrfinderplus/{name}-genes.tsv": "amrfinderplus",
@@ -53,6 +50,8 @@ def get_parsable_files(path: str, name: str) -> list:
             missing_files.append(output_file)
 
     if is_complete:
+        parsable_files[f"{path}/main/qc/summary/{name}-original.json"] = "qc"
+        parsable_files[f"{path}/main/qc/summary/{name}-final.json"] = "qc"
         return [is_complete, parsable_files]
     else:
         return [is_complete, missing_files]

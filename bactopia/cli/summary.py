@@ -404,110 +404,114 @@ def summary(
                         dfs.append(df)
                         logging.debug(f"\tRank: {rank} ({reason})")
                     else:
-                        missing_files = ";".join(parsable_files)
                         logging.debug(
-                            f"Skipping {sample['id']} ({sample['path']}) due to missing files: {missing_files}"
+                            f"Skipping {sample['id']} ({sample['path']}) due to missing files. Missing:"
                         )
+                        for missing_file in parsable_files:
+                            logging.debug(f"\t{missing_file}")
                         increment_and_append("ignore-unknown", sample["id"])
             else:
                 logging.debug(
                     f"Skipping {sample['id']} ({sample['path']}), incomplete or not a Bactopia directory"
                 )
                 increment_and_append("ignore-unknown", sample["id"])
-    final_df = pd.concat(dfs)
-    for col in EXCLUDE_COLUMNS:
-        if col in final_df.columns:
-            final_df.drop(col, axis=1, inplace=True)
+    if dfs:
+        final_df = pd.concat(dfs)
+        for col in EXCLUDE_COLUMNS:
+            if col in final_df.columns:
+                final_df.drop(col, axis=1, inplace=True)
 
-    # Reorder the columns
-    col_order = [
-        "sample",
-        "rank",
-        "reason",
-        "genome_size",
-        "species",
-        "runtype",
-        "original_runtype",
-        "mlst_scheme",
-        "mlst_st",
-    ]
-    for col in final_df.columns:
-        if col not in col_order:
-            col_order.append(col)
-    final_df = final_df[col_order]
+        # Reorder the columns
+        col_order = [
+            "sample",
+            "rank",
+            "reason",
+            "genome_size",
+            "species",
+            "runtype",
+            "original_runtype",
+            "mlst_scheme",
+            "mlst_st",
+        ]
+        for col in final_df.columns:
+            if col not in col_order:
+                col_order.append(col)
+        final_df = final_df[col_order]
 
-    # Tab-delimited report
-    logging.info(f"Writing report: {txt_report}")
-    final_df.to_csv(txt_report, sep="\t", index=False)
+        # Tab-delimited report
+        logging.info(f"Writing report: {txt_report}")
+        final_df.to_csv(txt_report, sep="\t", index=False)
 
-    # Exclusion report
-    logging.info(f"Writing exclusion report: {exclusion_report}")
-    cutoff_counts = defaultdict(int)
-    with open(exclusion_report, "w") as exclude_fh:
-        exclude_fh.write("sample\tstatus\treason\n")
-        for name, reason in CATEGORIES["failed"]:
-            if name in processed_samples:
-                reasons = reason.split(":")[1].split(";")
-                cutoffs = []
-                for r in reasons:
-                    cutoffs.append(r.split("(")[0].strip().title())
-                cutoff_counts[";".join(sorted(cutoffs))] += 1
-                exclude_fh.write(f"{name}\texclude\t{reason}\n")
-            else:
-                exclude_fh.write(f"{name}\tqc-fail\t{reason}\n")
+        # Exclusion report
+        logging.info(f"Writing exclusion report: {exclusion_report}")
+        cutoff_counts = defaultdict(int)
+        with open(exclusion_report, "w") as exclude_fh:
+            exclude_fh.write("sample\tstatus\treason\n")
+            for name, reason in CATEGORIES["failed"]:
+                if name in processed_samples:
+                    reasons = reason.split(":")[1].split(";")
+                    cutoffs = []
+                    for r in reasons:
+                        cutoffs.append(r.split("(")[0].strip().title())
+                    cutoff_counts[";".join(sorted(cutoffs))] += 1
+                    exclude_fh.write(f"{name}\texclude\t{reason}\n")
+                else:
+                    exclude_fh.write(f"{name}\tqc-fail\t{reason}\n")
 
-    # Screen report
-    logging.info(f"Writing summary report: {summary_report}")
-    with open(summary_report, "w") as summary_fh:
-        summary_fh.write("Bactopia Summary Report\n")
-        summary_fh.write(
-            textwrap.dedent(
-                f"""
-            Total Samples: {COUNTS['total']}
+        # Screen report
+        logging.info(f"Writing summary report: {summary_report}")
+        with open(summary_report, "w") as summary_fh:
+            summary_fh.write("Bactopia Summary Report\n")
+            summary_fh.write(
+                textwrap.dedent(
+                    f"""
+                Total Samples: {COUNTS['total']}
 
-            Passed: {COUNTS["pass"]}
-                Gold: {COUNTS["gold"]}
-                Silver: {COUNTS["silver"]}
-                Bronze: {COUNTS["bronze"]}
+                Passed: {COUNTS["pass"]}
+                    Gold: {COUNTS["gold"]}
+                    Silver: {COUNTS["silver"]}
+                    Bronze: {COUNTS["bronze"]}
 
-            Excluded: {COUNTS["total-excluded"]}
-                Failed Cutoff: {COUNTS["exclude"]}\n"""
+                Excluded: {COUNTS["total-excluded"]}
+                    Failed Cutoff: {COUNTS["exclude"]}\n"""
+                )
             )
-        )
-        summary_fh.write(f"{print_cutoffs(cutoff_counts)}\n")
-        summary_fh.write(f'    QC Failure: {COUNTS["qc-failure"]}\n')
-        summary_fh.write(f"{print_failed(FAILED)}\n")
-        summary_fh.write(
-            textwrap.dedent(
-                f"""
-            Reports:
-                Full Report (txt): {txt_report}
-                Exclusion: {exclusion_report}
-                Summary: {summary_report}
+            summary_fh.write(f"{print_cutoffs(cutoff_counts)}\n")
+            summary_fh.write(f'    QC Failure: {COUNTS["qc-failure"]}\n')
+            summary_fh.write(f"{print_failed(FAILED)}\n")
+            summary_fh.write(
+                textwrap.dedent(
+                    f"""
+                Reports:
+                    Full Report (txt): {txt_report}
+                    Exclusion: {exclusion_report}
+                    Summary: {summary_report}
 
-            Rank Cutoffs:
-                Gold:
-                    Coverage >= {RANK_CUTOFF['gold']['coverage']}x
-                    Quality >= Q{RANK_CUTOFF['gold']['quality']}
-                    Read Length >= {RANK_CUTOFF['gold']['length']}bp
-                    Total Contigs < {RANK_CUTOFF['gold']['contigs']}
-                Silver:
-                    Coverage >= {RANK_CUTOFF['silver']['coverage']}x
-                    Quality >= Q{RANK_CUTOFF['silver']['quality']}
-                    Read Length >= {RANK_CUTOFF['silver']['length']}bp
-                    Total Contigs < {RANK_CUTOFF['silver']['contigs']}
-                Bronze:
-                    Coverage >= {RANK_CUTOFF['bronze']['coverage']}x
-                    Quality >= Q{RANK_CUTOFF['bronze']['quality']}
-                    Read Length >= {RANK_CUTOFF['bronze']['length']}bp
-                    Total Contigs < {RANK_CUTOFF['bronze']['contigs']}
+                Rank Cutoffs:
+                    Gold:
+                        Coverage >= {RANK_CUTOFF['gold']['coverage']}x
+                        Quality >= Q{RANK_CUTOFF['gold']['quality']}
+                        Read Length >= {RANK_CUTOFF['gold']['length']}bp
+                        Total Contigs < {RANK_CUTOFF['gold']['contigs']}
+                    Silver:
+                        Coverage >= {RANK_CUTOFF['silver']['coverage']}x
+                        Quality >= Q{RANK_CUTOFF['silver']['quality']}
+                        Read Length >= {RANK_CUTOFF['silver']['length']}bp
+                        Total Contigs < {RANK_CUTOFF['silver']['contigs']}
+                    Bronze:
+                        Coverage >= {RANK_CUTOFF['bronze']['coverage']}x
+                        Quality >= Q{RANK_CUTOFF['bronze']['quality']}
+                        Read Length >= {RANK_CUTOFF['bronze']['length']}bp
+                        Total Contigs < {RANK_CUTOFF['bronze']['contigs']}
 
-            Assembly Length Exclusions:
-                Minimum: {RANK_CUTOFF['min-assembled-size']}
-                Maximum: {RANK_CUTOFF['min-assembled-size']}
-        """
+                Assembly Length Exclusions:
+                    Minimum: {RANK_CUTOFF['min-assembled-size']}
+                    Maximum: {RANK_CUTOFF['min-assembled-size']}
+            """
+                )
             )
-        )
+    else:
+        logging.warning("No samples found to process!")
 
 
 def main():

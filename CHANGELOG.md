@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.0.6
+
+- Fixed `bactopia-summary` handling of empty searches
+
 ## 1.0.5
 
 - Fixed `bactopia-download` not building prokka and bakta conda envs
