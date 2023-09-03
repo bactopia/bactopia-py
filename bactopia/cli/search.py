@@ -563,6 +563,7 @@ def search(
 
     logging.info(f"Writing accessions to {accessions_file}")
     with open(accessions_file, "w") as output_fh:
+        output_fh.write("accession\truntype\tspecies\tgenome_size\n")
         for accession in accessions:
             output_fh.write(f"{accession}\n")
 

@@ -30,6 +30,8 @@ click.rich_click.OPTION_GROUPS = {
                 "--pe2-pattern",
                 "--merge",
                 "--ont",
+                "--hybrid",
+                "--short-polish",
                 "--recursive",
                 "--prefix",
             ],
@@ -130,33 +132,61 @@ def print_examples():
     print(
         textwrap.dedent(
             """
+        # Example '*.fastq.gz' FASTQ files:
+        bactopia prepare --path fastqs/
+        sample  runtype genome_size     species r1      r2      extra
+        sample01        paired-end      0       UNKNOWN_SPECIES fastqs/sample01_R1.fastq.gz fastqs/sample01_R2.fastq.gz
+        sample02        single-end      0       UNKNOWN_SPECIES fastqs/sample02.fastq.gz
+        sample03        paired-end      0       UNKNOWN_SPECIES fastqs/sample03_R1.fastq.gz fastqs/sample03_R2.fastq.gz
+
         # Example '*_001.fastq.gz' FASTQ files:
-        bactopia-prepare --path fastqs/ --fastq-ext '_001.fastq.gz' | head -n
-        sample  runtype r1      r2      extra
-        sample01        paired-end      /fastqs/sample01_R1_001.fastq.gz        /fastqs/sample01_R2_001.fastq.gz
-        sample02        paired-end      /fastqs/sample02_R1_001.fastq.gz        /fastqs/sample02_R2_001.fastq.gz
-        sample03        single-end      /fastqs/sample03_001.fastq.gz
+        bactopia prepare --path fastqs/ --fastq-ext '_001.fastq.gz'
+        sample  runtype genome_size     species r1      r2      extra
+        sample01        paired-end      0       UNKNOWN_SPECIES fastqs/sample01_R1_001.fastq.gz        fastqs/sample01_R2_001.fastq.gz
+        sample02        paired-end      0       UNKNOWN_SPECIES fastqs/sample02_R1_001.fastq.gz        fastqs/sample02_R2_001.fastq.gz
+        sample03        paired-end      0       UNKNOWN_SPECIES fastqs/sample03_R1_001.fastq.gz        fastqs/sample03_R2_001.fastq.gz
 
         # Example '*.fq.gz' FASTQ files:
-        bactopia prepare --path fastqs/ --fastq-ext '.fq.gz'
-        sample  runtype r1      r2      extra
-        sample01        single-end      /home/robert_petit/bactopia/fastqs/sample01.fq.gz
-        sample02        single-end      /home/robert_petit/bactopia/fastqs/sample02.fq.gz
-        sample03        single-end      /home/robert_petit/bactopia/fastqs/sample03.fq.gz
+        bactopia prepare --path fastqs --fastq-ext '.fq.gz'
+        sample  runtype genome_size     species r1      r2      extra
+        sample01       single-end      0       UNKNOWN_SPECIES fastqs/sample01.fq.gz
+        sample02       single-end      0       UNKNOWN_SPECIES fastqs/sample02.fq.gz
+        sample03       single-end      0       UNKNOWN_SPECIES fastqs/sample03.fq.gz
+
+        # Example '*.fna.gz' FASTA files:
+        bactopia-prepare --path assembly/
+        sample  runtype genome_size     species r1      r2      extra
+        sample01        assembly        0       UNKNOWN_SPECIES                 assembly/sample01.fna.gz
+        sample02        assembly        0       UNKNOWN_SPECIES                 assembly/sample02.fna.gz
+        sample03        assembly        0       UNKNOWN_SPECIES                 assembly/sample03.fna.gz
 
         # Example "*.fasta.gz" FASTA files:
-        bactopia-prepare --path fastqs/ --assembly-ext '.fasta.gz'
-        sample  runtype r1      r2      extra
-        sample01        assembly                        /home/robert_petit/bactopia/temp/fastas/sample01.fasta.gz
-        sample02        assembly                        /home/robert_petit/bactopia/temp/fastas/sample02.fasta.gz
-        sample03        assembly                        /home/robert_petit/bactopia/temp/fastas/sample03.fasta.gz
+        bactopia prepare --path assembly/ --assembly-ext .fasta.gz
+        sample  runtype genome_size     species r1      r2      extra
+        sample01        assembly        0       UNKNOWN_SPECIES                 assembly/sample01.fasta.gz
+        sample02        assembly        0       UNKNOWN_SPECIES                 assembly/sample02.fasta.gz
+        sample03        assembly        0       UNKNOWN_SPECIES                 assembly/sample03.fasta.gz
+
+        # Example Nanopore FASTQ files:
+        bactopia prepare --path fastqs/ --ont
+        sample  runtype genome_size     species r1      r2      extra
+        sample01        ont     0       UNKNOWN_SPECIES fastqs/sample01.fastq.gz
+        sample02        ont     0       UNKNOWN_SPECIES fastqs/sample02.fastq.gz
+        sample03        ont     0       UNKNOWN_SPECIES fastqs/sample03.fastq.gz
+
+        # Example Illumina and Nanopore FASTQ files:
+        bactopia prepare --path illumina/ --ont --short-polish
+        sample  runtype genome_size     species r1      r2      extra
+        sample01        short_polish    0       UNKNOWN_SPECIES fastqs/sample01_R1.fastq.gz fastqs/sample01_R2.fastq.gz fastqs/sample01.fastq.gz
+        sample02        ont     0       UNKNOWN_SPECIES fastqs/sample02.fastq.gz
+        sample03        short_polish    0       UNKNOWN_SPECIES fastqs/sample03_R1.fastq.gz fastqs/sample03_R2.fastq.gz fastqs/sample03.fastq.gz
 
         # Example changing the separator:
-        bactopia-prepare --path fastqs/ --fastq-separator '.'
-        sample  runtype r1      r2      extra
-        my_sample01     ont     /home/robert_petit/bactopia/temp/fastqs/my_sample01.fastq.gz
-        my_sample02     ont     /home/robert_petit/bactopia/temp/fastqs/my_sample02.fastq.gz
-        my_sample03     ont     /home/robert_petit/bactopia/temp/fastqs/my_sample03.fastq.gz
+        bactopia prepare --path ext/ --fastq-separator '.'
+        sample  runtype genome_size     species r1      r2      extra
+        sample_01       single-end      0       UNKNOWN_SPECIES fastqs/sample_01.fastq.gz
+        sample_02       single-end      0       UNKNOWN_SPECIES fastqs/sample_02.fastq.gz
+        sample_03       single-end      0       UNKNOWN_SPECIES fastqs/sample_03.fastq.gz
 
         # Example metadata file (--metadata):
         sample01     Staphylococcus aureus  0
@@ -227,6 +257,16 @@ def print_examples():
     help="Single-end reads should be treated as Oxford Nanopore reads",
 )
 @click.option(
+    "--hybrid",
+    is_flag=True,
+    help="Samples with paired and single-end reads will be set to Illumina-first hybrid assembly (requires --ont)",
+)
+@click.option(
+    "--short-polish",
+    is_flag=True,
+    help="Samples with paired and single-end reads will be set to Nanopore-first hybrid assembly (requires --ont)",
+)
+@click.option(
     "--merge",
     is_flag=True,
     help="Flag samples with multiple read sets to be merged by Bactopia",
@@ -248,6 +288,8 @@ def prepare(
     taxid,
     recursive,
     ont,
+    hybrid,
+    short_polish,
     merge,
     prefix,
     examples,
@@ -266,6 +308,12 @@ def prepare(
     logging.getLogger().setLevel(
         logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
     )
+
+    if hybrid and short_polish:
+        logging.error(
+            "--hybrid and --short-polish cannot be used together. Please select only one."
+        )
+        sys.exit(1)
 
     abspath = Path(path).absolute()
     SAMPLES = {}
@@ -351,18 +399,18 @@ def prepare(
         if len(assembly) > 1:
             # Can't have multiple assemblies for the same sample
             errors.append(
-                f'ERROR: "{sample}" cannot have more than two assembly FASTA, please check.'
+                f'"{sample}" cannot have more than two assembly FASTA, please check.'
             )
         elif len(assembly) == 1 and (pe_count or len(se_reads)):
             # Can't have an assembly and reads for a sample
             errors.append(
-                f'ERROR: "{sample}" cannot have assembly and sequence reads, please check.'
+                f'"{sample}" cannot have assembly and sequence reads, please check.'
             )
 
         if len(r1_reads) != len(r2_reads):
             # PE reads must be a pair
             errors.append(
-                f'ERROR: "{sample}" must have equal paired-end read sets (R1 has {len(r1_reads)} and R2 has {len(r2_reads)}, please check.'
+                f'"{sample}" must have equal paired-end read sets (R1 has {len(r1_reads)} and R2 has {len(r2_reads)}, please check.'
             )
         elif pe_count > 2:
             # PE reads must be a pair
@@ -370,12 +418,16 @@ def prepare(
                 multiple_read_sets = True
             else:
                 errors.append(
-                    f'ERROR: "{sample}" cannot have more than two paired-end FASTQ, please check.'
+                    f'"{sample}" cannot have more than two paired-end FASTQ, please check. Did you mean to use "--merge"?'
                 )
 
         if ont:
             if not pe_count and len(se_reads):
                 is_single_end = True
+            elif pe_count and len(se_reads) and not hybrid and not short_polish:
+                errors.append(
+                    f'"{sample}" cannot have paired and single-end FASTQs, please check. Did you mean to use "--hybrid" or "--short-polish"?'
+                )
         else:
             if len(se_reads) > 1:
                 # Can't have multiple SE reads
@@ -383,12 +435,12 @@ def prepare(
                     multiple_read_sets = True
                 else:
                     errors.append(
-                        f'ERROR: "{sample}" has more than two single-end FASTQs, please check.'
+                        f'"{sample}" has more than two single-end FASTQs, please check. Did you mean to use "--merge"?'
                     )
             elif pe_count and len(se_reads):
                 # Can't have SE and PE reads unless long reads
                 errors.append(
-                    f'ERROR: "{sample}" has paired and single-end FASTQs, please check.'
+                    f'"{sample}" has paired and single-end FASTQs, please check. Did you mean to use "--ont" along with "--hybrid" or "--short-polish"?'
                 )
 
         if errors:
@@ -408,7 +460,10 @@ def prepare(
             if pe_count:
                 if multiple_read_sets:
                     if ont:
-                        runtype = "hybrid-merge-pe"
+                        if hybrid:
+                            runtype = "hybrid-merge-ont"
+                        elif short_polish:
+                            runtype = "short_polish-merge-ont"
                     else:
                         runtype = "merge-pe"
                     r1 = ",".join(sorted(r1_reads))
@@ -420,7 +475,10 @@ def prepare(
 
             if se_reads:
                 if ont and not is_single_end:
-                    runtype = "hybrid"
+                    if hybrid:
+                        runtype = "hybrid"
+                    elif short_polish:
+                        runtype = "short_polish"
                     extra = se_reads[0]
                 elif ont and is_single_end:
                     runtype = "ont"

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.0.7
+
+- Fixed `bactopia-search` not including header name in accessions.txt
+- Added `--hybrid` and `--short-polish` to `bactopia-prepare`
+
 ## 1.0.6
 
 - Fixed `bactopia-summary` handling of empty searches
