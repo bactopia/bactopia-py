@@ -271,6 +271,112 @@ Below is the `--help` output for each subcommand.
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
+# All The Bacteria (ATB)
+
+The [AllTheBacteria](https://www.biorxiv.org/content/10.1101/2024.03.08.584059v1) is a collection
+of nearly 2,000,000 bacterial genomes. Using available FASTQ files from the European Nucleotide
+Archive (ENA) and Sequence Read Archive (SRA), the genomes were assembled using [Shovill] and made
+publicly available from the [Iqbal Lab])https://github.com/iqbal-lab-org/AllTheBacteria).
+
+To make it easy to utilize [Bactopia Tools](https://bactopia.github.io/latest/bactopia-tools/) with
+assemblies from AllTheBacteria, `bactopia-atb-formatter` was created. This tool will create a 
+directory structure that resembles output from an actual Bactopia run.
+
+### `bactopia-atb-formatter`
+
+```{bash}
+ Usage: bactopia-atb-formatter [OPTIONS]
+
+ Restructure All-the-Bacteria assemblies to allow usage with Bactopia Tools
+
+╭─ Required Options ───────────────────────────────────────────────────────────────────╮
+│ *  --path  -p  TEXT  Directory where FASTQ files are stored [required]               │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Bactopia Directory Structure Options ───────────────────────────────────────────────╮
+│ --bactopia-dir  -b  TEXT            The path you would like to place bactopia        │
+│                                     structure                                        │
+│                                     [default: bactopia]                              │
+│ --publish-mode  -m  [symlink|copy]  Designates plascement of assemblies will be      │
+│                                     handled                                          │
+│                                     [default: symlink]                               │
+│ --recursive     -r                  Traverse recursively through provided path       │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Additional Options ─────────────────────────────────────────────────────────────────╮
+│ --verbose        Increase the verbosity of output                                    │
+│ --silent         Only critical errors will be printed                                │
+│ --version  -V    Show the version and exit.                                          │
+│ --help           Show this message and exit.                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+### Example Usage for _Legionella pneumophila_
+
+To demonstrate the usage of `bactopia-atb-formatter`, we will use assemblies for
+_Legionella pneumophila_. The following steps will download the assemblies, build the
+Bactopia directory structure, and then run [legsta](https://github.com/tseemann/legsta)
+via the [Bactopia Tool](https://bactopia.github.io/latest/bactopia-tools/legsta/).
+
+#### Download the Assemblies
+
+First will download the _Legionella pneumophila_ assemblies from AllTheBacteria. After downloading
+we will extract them into a folder called `legionella-assemblies`. Within this folder, there will be
+subdirectories for each tarball that was downloaded.
+
+```{bash}
+mkdir atb-legionella
+cd atb-legionella
+
+# Download the assemblies
+wget https://ftp.ebi.ac.uk/pub/databases/AllTheBacteria/Releases/0.1/assembly/legionella_pneumophila__01.asm.tar.xz
+wget https://ftp.ebi.ac.uk/pub/databases/AllTheBacteria/Releases/0.1/assembly/legionella_pneumophila__02.asm.tar.xz
+
+# Extract the assemblies
+mkdir legionella-assemblies
+tar -C legionella-assemblies -xJf legionella_pneumophila__01.asm.tar.xz
+tar -C legionella-assemblies -xJf legionella_pneumophila__02.asm.tar.xz
+```
+
+#### Create the Bactopia Directory Structure
+
+With the assemblies extracted, we can now create the Bactopia directory structure using
+`bactopia-atb-formatter`. Once complete, each assembly will have its own folder created
+which matches the BioSample accession of the assembly.
+
+```{bash}
+# Create the Bactopia directory structure
+bactopia atb-formatter --path legionella-assemblies --recursive
+2024-03-22 14:30:07 INFO     2024-03-22 14:30:07:root:INFO - Setting up Bactopia directory structure (use --verbose to see more details)                                                                                                                  atb_formatter.py:129
+2024-03-22 14:30:08 INFO     2024-03-22 14:30:08:root:INFO - Bactopia directory structure created at bactopia                                                                                                                                             atb_formatter.py:134
+                    INFO     2024-03-22 14:30:08:root:INFO - Total assemblies processed: 5393
+```
+
+Please note the usage of `--recursive` which will traverse the `legionella-assemblies` directory
+to find all assemblies contained. At this point, the `bactopia` directory structure has been
+created for 5,393 assemblies and is ready for use with Bactopia Tools.
+
+#### Use Bactopia to run Legsta
+
+As mentioned above, we will use [legsta](https://github.com/tseemann/legsta) to analyze each
+of the _Legionella pneumophila_ assemblies. To do this, we will use the
+[legsta Bactopia Tool](https://bactopia.github.io/latest/bactopia-tools/legsta/).
+
+```{bash}
+# Run legsta (please utilize Docker or Singularity only for reproducibility)
+bactopia --wf legsta -profile singularity
+```
+
+Please note, for reproducibility, it is recommended to use Docker or Singularity with
+Bactopia Tools.
+
+Upon completion, you should be met with something like the following:
+
+```{bash}
+
+```
+
+That's it! Now you can take advantage of any of the [Bactopia Tools](https://bactopia.github.io/latest/bactopia-tools/)
+that utilize assemblies as inputs.
+
 # Feedback
 Your feedback is very valuable! If you run into any issues using Bactopia, have questions, or have some ideas to improve Bactopia, I highly encourage you to submit it to the [Issue Tracker](https://github.com/bactopia/bactopia/issues).
 

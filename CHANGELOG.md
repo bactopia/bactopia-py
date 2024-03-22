@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 1.0.9
+
+- added `bactopia-atb-formatter` to format All-the-Bacteria assemblies for Bactopia
+
 ## 1.0.8
 
 - Fixed `bactopia-prepare` usage of `--prefix` not working
