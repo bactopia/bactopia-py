@@ -276,7 +276,7 @@ Below is the `--help` output for each subcommand.
 The [AllTheBacteria](https://www.biorxiv.org/content/10.1101/2024.03.08.584059v1) is a collection
 of nearly 2,000,000 bacterial genomes. Using available FASTQ files from the European Nucleotide
 Archive (ENA) and Sequence Read Archive (SRA), the genomes were assembled using [Shovill] and made
-publicly available from the [Iqbal Lab])https://github.com/iqbal-lab-org/AllTheBacteria).
+publicly available from the [Iqbal Lab](https://github.com/iqbal-lab-org/AllTheBacteria).
 
 To make it easy to utilize [Bactopia Tools](https://bactopia.github.io/latest/bactopia-tools/) with
 assemblies from AllTheBacteria, `bactopia-atb-formatter` was created. This tool will create a 
