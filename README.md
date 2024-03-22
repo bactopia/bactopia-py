@@ -371,7 +371,28 @@ Bactopia Tools.
 Upon completion, you should be met with something like the following:
 
 ```{bash}
+[5d/d04297] process > BACTOPIATOOLS:LEGSTA:LEGSTA_MODULE (SAMN29911258) [100%] 5393 of 5393 ✔
+[71/c63bf7] process > BACTOPIATOOLS:LEGSTA:CSVTK_CONCAT (legsta)        [100%] 1 of 1 ✔
+[16/833262] process > BACTOPIATOOLS:CUSTOM_DUMPSOFTWAREVERSIONS (1)     [100%] 1 of 1 ✔
 
+    Bactopia Tools: `legsta Execution Summary
+    ---------------------------
+    Bactopia Version : 3.0.1
+    Nextflow Version : 23.10.1
+    Command Line     : nextflow run /home/rpetit3/bactopia/main.nf --wf legsta --bactopia bactopia/ -profile singularity
+    Resumed          : false
+    Completed At     : 2024-03-22T15:09:54.959834620-06:00
+    Duration         : 32m 51s
+    Success          : true
+    Exit Code        : 0
+    Error Report     : -
+    Launch Dir       : /home/rpetit3/test-legsta
+
+WARN: Graphviz is required to render the execution DAG in the given format -- See http://www.graphviz.org for more info.
+Completed at: 22-Mar-2024 15:09:55
+Duration    : 32m 52s
+CPU hours   : 5.2
+Succeeded   : 5'395
 ```
 
 That's it! Now you can take advantage of any of the [Bactopia Tools](https://bactopia.github.io/latest/bactopia-tools/)
