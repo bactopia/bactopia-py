@@ -14,5 +14,4 @@ def parse(path: str, name: str) -> dict:
     Returns:
         dict: parsed results
     """
-    which_type = "proteins" if "proteins" in path else "genes"
-    return {"sample": name, f"amrfinderplus_{which_type}_hits": parse_table(path)}
+    return {"sample": name, f"amrfinderplus_hits": parse_table(path)}

@@ -17,8 +17,7 @@ EXCLUDE_COLUMNS = [
     "qc_original_read_lengths",
     "qc_original_r1_read_lengths",
     "qc_original_r2_read_lengths",
-    "amrfinderplus_genes_hits",
-    "amrfinderplus_proteins_hits",
+    "amrfinderplus_hits",
 ]
 
 
@@ -36,8 +35,7 @@ def get_parsable_files(path: str, name: str) -> list:
         f"{path}/main/sketcher/{name}-sourmash-gtdb-rs207-k31.txt": "sketcher",
         # bactopia-tools
         # amrfinderplus
-        f"{path}/tools/amrfinderplus/{name}-genes.tsv": "amrfinderplus",
-        f"{path}/tools/amrfinderplus/{name}-proteins.tsv": "amrfinderplus",
+        f"{path}/tools/amrfinderplus/{name}.tsv": "amrfinderplus",
         # mlst
         f"{path}/tools/mlst/{name}.tsv": "mlst",
     }
