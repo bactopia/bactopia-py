@@ -9,6 +9,10 @@ jobs:
   build-n-publish:
     name: Build and publish to PyPI
     runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
     defaults:
       run:
         shell: bash -el {0}
@@ -18,7 +22,6 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v2
         with:
           python-version: '3.10'
-          miniforge-variant: Mambaforge
           channels: conda-forge,bioconda
           channel-priority: strict
           activate-environment: bactopia-py
@@ -32,5 +35,3 @@ jobs:
         run: just build
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_TOKEN }}
