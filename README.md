@@ -300,6 +300,8 @@ directory structure that resembles output from an actual Bactopia run.
 │                                     handled                                          │
 │                                     [default: symlink]                               │
 │ --recursive     -r                  Traverse recursively through provided path       │
+│ --extension     -e  TEXT            The extension of the assemblies e.g .fa,.fa.gz   │
+│                                     [default: .fa]                                   │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Additional Options ─────────────────────────────────────────────────────────────────╮
 │ --verbose        Increase the verbosity of output                                    │
