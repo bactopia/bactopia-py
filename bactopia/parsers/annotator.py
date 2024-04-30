@@ -1,6 +1,28 @@
 """
 Parsers for Annotation related results.
 """
+BAKTA_METADATA = [
+    "tRNAs",
+    "tmRNAs",
+    "rRNAs",
+    "ncRNAs",
+    "ncRNA regions",
+    "CRISPR arrays",
+    "CDSs",
+    "pseudogenes",
+    "hypotheticals",
+    "signal peptides",
+    "sORFs",
+    "gaps",
+    "oriCs",
+    "oriVs",
+    "oriTs",
+]
+PROKKA_METADATA = [
+    "CDS",
+    "rRNA",
+    "tRNA",
+]
 
 
 def parse(path: str, name: str) -> dict:
@@ -14,22 +36,21 @@ def parse(path: str, name: str) -> dict:
     Returns:
         dict: parsed results
     """
-    if "prokka" in str(path):
-        return _parse_prokka_annotation(path, name)
-    # else:
-    #    return _parse_bakta_annotation(path)
+    return _parse_annotation(path, name, "prokka")
 
 
-def _parse_prokka_annotation(path: str, name: str) -> dict:
+def _parse_annotation(path: str, name: str) -> dict:
     """
-    Parse Prokka summary text file.
+    Parse Prokka or Bakta summary text file.
 
     Args:
-        filename (str): input file to be parsed
+        path (str): input file to be parsed
+        name (str): the name of the sample
 
     Returns:
         dict: the parsed Prokka summary
     """
+    COLS = PROKKA_METADATA if "prokka" in path else BAKTA_METADATA
     results = {
         "sample": name,
     }
@@ -37,6 +58,6 @@ def _parse_prokka_annotation(path: str, name: str) -> dict:
         for line in fh:
             line = line.rstrip()
             key, val = line.split(":")
-            if key not in ["organism", "contigs", "bases"]:
+            if key in COLS:
                 results[f"annotator_total_{key}"] = int(val.lstrip())
     return results

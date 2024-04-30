@@ -1,6 +1,11 @@
 # Changelog
 
-## 1.10.0
+## 1.1.1
+
+- fixed `bactopia-summary` not working with Bakta annotations
+- added support for alternative extensions in `bactopia-atb-formatter` @nickjhathaway 🎉
+
+## 1.1.0
 
 - rework `bactopia-summary` for new AMRFinder+ outputs
 

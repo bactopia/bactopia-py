@@ -47,6 +47,16 @@ def get_parsable_files(path: str, name: str) -> list:
             is_complete = False
             missing_files.append(output_file)
 
+    # Check annotation files seperately, since Prokka or Bakta can be used
+    if Path(f"{path}/main/annotator/bakta/{name}.txt").exists():
+        parsable_files[f"{path}/main/annotator/bakta/{name}.txt"] = "annotator"
+    elif Path(f"{path}/main/annotator/prokka/{name}.txt").exists():
+        parsable_files[f"{path}/main/annotator/prokka/{name}.txt"] = "annotator"
+    else:
+        is_complete = False
+        missing_files.append(f"{path}/main/annotator/prokka/{name}.txt")
+        missing_files.append(f"{path}/main/annotator/bakta/{name}.txt")
+
     if is_complete:
         parsable_files[f"{path}/main/qc/summary/{name}-original.json"] = "qc"
         parsable_files[f"{path}/main/qc/summary/{name}-final.json"] = "qc"

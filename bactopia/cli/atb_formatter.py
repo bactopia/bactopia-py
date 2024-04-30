@@ -24,7 +24,7 @@ click.rich_click.OPTION_GROUPS = {
                 "--bactopia-dir",
                 "--publish-mode",
                 "--recursive",
-                "--extension"
+                "--extension",
             ],
         },
         {
