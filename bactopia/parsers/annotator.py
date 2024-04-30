@@ -36,7 +36,7 @@ def parse(path: str, name: str) -> dict:
     Returns:
         dict: parsed results
     """
-    return _parse_annotation(path, name, "prokka")
+    return _parse_annotation(path, name)
 
 
 def _parse_annotation(path: str, name: str) -> dict:
