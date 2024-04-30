@@ -60,21 +60,19 @@ def create_sample_directory(sample, assembly, bactopia_dir, publish_mode="symlin
 
     # Write the meta.tsv file
     logging.debug(f"Writing {sample}-meta.tsv")
-    compressed = "false"
-    if str(assembly).endswith(".gz"):
-        compressed = "true"
+    is_compressed = "true" if str(assembly).endswith(".gz") else "false"
     with open(f"{bactopia_dir}/{sample}/main/gather/{sample}-meta.tsv", "w") as meta_fh:
         meta_fh.write(
             "sample\truntype\toriginal_runtype\tis_paired\tis_compressed\tspecies\tgenome_size\n"
         )
         meta_fh.write(
-            f"{sample}\tassembly_accession\tassembly_accession\tfalse\t" + compressed + "\tnull\t0\n"
+            f"{sample}\tassembly_accession\tassembly_accession\tfalse\t{is_compressed}\tnull\t0\n"
         )
 
     # Write the assembly file
     final_assembly = f"{bactopia_dir}/{sample}/main/assembler/{sample}.fna"
-    if "true" == compressed:
-        final_assembly = final_assembly + ".gz"
+    if is_compressed:
+        final_assembly = f"{final_assembly}.gz"
     final_assembly_path = Path(final_assembly)
     if publish_mode == "symlink":
         logging.debug(f"Creating symlink of {assembly} at {final_assembly}")
@@ -141,7 +139,6 @@ def atb_formatter(
     )
 
     abspath = Path(path).absolute()
-    # fasta_ext = ".fa"
 
     # Match Assemblies
     count = 0
