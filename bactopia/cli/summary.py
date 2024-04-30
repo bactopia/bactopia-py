@@ -404,14 +404,14 @@ def summary(
                         dfs.append(df)
                         logging.debug(f"\tRank: {rank} ({reason})")
                     else:
-                        logging.debug(
+                        logging.info(
                             f"Skipping {sample['id']} ({sample['path']}) due to missing files. Missing:"
                         )
                         for missing_file in parsable_files:
-                            logging.debug(f"\t{missing_file}")
+                            logging.info(f"\t{missing_file}")
                         increment_and_append("ignore-unknown", sample["id"])
             else:
-                logging.debug(
+                logging.info(
                     f"Skipping {sample['id']} ({sample['path']}), incomplete or not a Bactopia directory"
                 )
                 increment_and_append("ignore-unknown", sample["id"])

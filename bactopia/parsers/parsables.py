@@ -1,6 +1,7 @@
 """
 A list of files that can be parsed by Bactopia
 """
+import logging
 from pathlib import Path
 
 EXCLUDE_COLUMNS = [
@@ -24,8 +25,6 @@ EXCLUDE_COLUMNS = [
 def get_parsable_files(path: str, name: str) -> list:
     parsable_files = {
         # main
-        # annotator
-        f"{path}/main/annotator/prokka/{name}.txt": "annotator",
         # assembler
         f"{path}/main/assembler/{name}.tsv": "assembler",
         # gather
@@ -49,13 +48,22 @@ def get_parsable_files(path: str, name: str) -> list:
 
     # Check annotation files seperately, since Prokka or Bakta can be used
     if Path(f"{path}/main/annotator/bakta/{name}.txt").exists():
+        logging.debug(
+            f"Found Bakta annotation file: {path}/main/annotator/bakta/{name}.txt"
+        )
         parsable_files[f"{path}/main/annotator/bakta/{name}.txt"] = "annotator"
     elif Path(f"{path}/main/annotator/prokka/{name}.txt").exists():
+        logging.debug(
+            f"Found Prokka annotation file: {path}/main/annotator/prokka/{name}.txt"
+        )
         parsable_files[f"{path}/main/annotator/prokka/{name}.txt"] = "annotator"
     else:
         is_complete = False
         missing_files.append(f"{path}/main/annotator/prokka/{name}.txt")
         missing_files.append(f"{path}/main/annotator/bakta/{name}.txt")
+
+    logging.debug(f"Missing Files: {missing_files}")
+    logging.debug(f"Is Complete: {is_complete}")
 
     if is_complete:
         parsable_files[f"{path}/main/qc/summary/{name}-original.json"] = "qc"

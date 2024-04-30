@@ -57,7 +57,8 @@ def _parse_annotation(path: str, name: str) -> dict:
     with open(path, "rt") as fh:
         for line in fh:
             line = line.rstrip()
-            key, val = line.split(":")
-            if key in COLS:
-                results[f"annotator_total_{key}"] = int(val.lstrip())
+            if ":" in line:
+                key, val = line.split(":")
+                if key in COLS:
+                    results[f"annotator_total_{key}"] = int(val.lstrip())
     return results
