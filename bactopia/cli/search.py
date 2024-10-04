@@ -1,7 +1,6 @@
 import datetime
 import logging
 import random
-import re
 import sys
 from pathlib import Path
 
@@ -14,6 +13,7 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
+from bactopia.ncbi import is_biosample
 from bactopia.utils import get_ncbi_genome_size
 
 # Set up Rich
@@ -232,15 +232,6 @@ def parse_accessions(
                     }
                 )
     return [list(set(accessions)), filtered]
-
-
-def is_biosample(accession):
-    """Check if input accession is a BioSample."""
-    return (
-        True
-        if re.match(r"SAM(E|D|N)[A-Z]?[0-9]+|(E|D|S)RS[0-9]{6,}", accession)
-        else False
-    )
 
 
 def chunks(chunk: list, total: int) -> list:

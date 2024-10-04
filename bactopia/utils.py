@@ -5,6 +5,7 @@ from pathlib import Path
 from sys import platform
 
 import requests
+import tqdm
 from executor import ExternalCommand, ExternalCommandFailed
 
 NCBI_GENOME_SIZE_URL = (
@@ -32,8 +33,8 @@ def execute(
         )
 
         command.start()
-        logging.debug(command.decoded_stdout)
-        logging.debug(command.decoded_stderr)
+        logging.debug(f"STDOUT: {command.decoded_stdout}")
+        logging.debug(f"STDERR: {command.decoded_stderr}")
 
         if capture:
             return [command.decoded_stdout, command.decoded_stderr]
@@ -62,6 +63,36 @@ def get_platform() -> str:
     return "linux"
 
 
+def mkdir(directory: str) -> Path:
+    """
+    Create a directory if it does not exist
+
+    Args:
+        directory (str): The directory to create
+
+    Returns:
+        Path: The Path object of the created directory
+    """
+    d = Path(directory)
+    if not d.exists():
+        d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def file_exists(filename: str) -> bool:
+    """
+    Check if a file exists
+
+    Args:
+        filename (str): The file to check for existence
+
+    Returns:
+        bool: True if the file exists, False otherwise
+    """
+    f = Path(filename)
+    return f.exists()
+
+
 def validate_file(filename: str) -> str:
     """
     Validate a file exists and return the absolute path
@@ -75,7 +106,7 @@ def validate_file(filename: str) -> str:
     f = Path(filename)
     if not f.exists():
         raise FileNotFoundError(f"File not found: {filename}")
-    return f.absolute()
+    return f.resolve()
 
 
 def prefix_keys(results: dict, prefix: str) -> dict:
@@ -171,3 +202,57 @@ def get_ncbi_genome_size() -> dict:
             f"Unable to download NCBI's species genome size file ({NCBI_GENOME_SIZE_URL}), please try again later."
         )
         sys.exit(1)
+
+
+def download_url(url: str, save_path: str, show_progress: bool) -> str:
+    """
+    Download a file from a URL
+
+    Modified from: https://github.com/tqdm/tqdm/blob/master/examples/tqdm_requests.py
+
+    Args:
+        url (str): The URL to download
+        save_path (str): The path to save the downloaded file
+        show_progress (bool): Show a progress bar while downloading
+
+    Returns:
+        str: The path to the downloaded file
+    """
+    r = requests.get(url, stream=True)
+    if r.status_code == requests.codes.ok:
+        total_size = int(r.headers.get("content-length", 0))
+        with open(save_path, "wb") as f:
+            if show_progress:
+                with tqdm.tqdm(
+                    desc=save_path,
+                    total=total_size,
+                    unit="B",
+                    unit_scale=True,
+                    bar_format="{l_bar}{bar:80}{r_bar}{bar:-80b}",
+                ) as pbar:
+                    for data in r.iter_content(chunk_size=1024):
+                        f.write(data)
+                        pbar.update(len(data))
+            else:
+                for data in r.iter_content(chunk_size=1024):
+                    f.write(data)
+    else:
+        logging.error(f"Unable to download {url}, please try again later.")
+        sys.exit(1)
+
+    return validate_file(save_path)
+
+
+def chunk_list(lst: list, n: int) -> list:
+    """
+    Yield successive n-sized chunks from input list.
+
+    Args:
+        l (list): The list to chunk
+        n (int): The size of each chunk
+
+    Returns:
+        list: A list of n-sized chunks
+    """
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]

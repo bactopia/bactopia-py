@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bactopia"
-version = "1.1.1"
+version = "1.2.0"
 description = "A Python package for working with Bactopia"
 authors = [
     "Robert A. Petit III <robbie.petit@gmail.com>",
@@ -19,7 +19,8 @@ bactopia-prepare = "bactopia.cli.prepare:main"
 bactopia-search = "bactopia.cli.search:main"
 bactopia-summary = "bactopia.cli.summary:main"
 bactopia-update = "bactopia.cli.update:main"
-bactopia-atb-formatter = "bactopia.cli.atb_formatter:main"
+bactopia-atb-formatter = "bactopia.cli.atb.atb_formatter:main"
+bactopia-atb-downloader = "bactopia.cli.atb.atb_downloader:main"
 
 [tool.poetry.dependencies]
 python = "^3.8.0"
@@ -28,6 +29,7 @@ rich-click = "^1.6.1"
 executor = "^23.2"
 rich = "^13.3.1"
 pandas = "^1.5.3"
+tqdm = "^4.66.5"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"

@@ -10,6 +10,8 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
+from bactopia.atb import create_sample_directory, search_path
+from bactopia.utils import validate_file
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
@@ -40,54 +42,13 @@ click.rich_click.OPTION_GROUPS = {
 }
 
 
-def search_path(path, pattern, recursive=False):
-    if recursive:
-        return Path(path).rglob(pattern)
-    else:
-        return Path(path).glob(pattern)
-
-
-def create_sample_directory(sample, assembly, bactopia_dir, publish_mode="symlink"):
-    logging.debug(f"Creating {sample} directory ({bactopia_dir}/{sample})")
-    sample_dir = Path(f"{bactopia_dir}/{sample}")
-    if not sample_dir.exists():
-        sample_dir.mkdir(parents=True, exist_ok=True)
-
-    # Make remaining subdirectories (which will be empty)
-    Path(f"{bactopia_dir}/{sample}/main").mkdir(parents=True, exist_ok=True)
-    Path(f"{bactopia_dir}/{sample}/main/gather").mkdir(parents=True, exist_ok=True)
-    Path(f"{bactopia_dir}/{sample}/main/assembler").mkdir(parents=True, exist_ok=True)
-
-    # Write the meta.tsv file
-    logging.debug(f"Writing {sample}-meta.tsv")
-    is_compressed = "true" if str(assembly).endswith(".gz") else "false"
-    with open(f"{bactopia_dir}/{sample}/main/gather/{sample}-meta.tsv", "w") as meta_fh:
-        meta_fh.write(
-            "sample\truntype\toriginal_runtype\tis_paired\tis_compressed\tspecies\tgenome_size\n"
-        )
-        meta_fh.write(
-            f"{sample}\tassembly_accession\tassembly_accession\tfalse\t{is_compressed}\tnull\t0\n"
-        )
-
-    # Write the assembly file
-    final_assembly = f"{bactopia_dir}/{sample}/main/assembler/{sample}.fna"
-    if is_compressed:
-        final_assembly = f"{final_assembly}.gz"
-    final_assembly_path = Path(final_assembly)
-    if publish_mode == "symlink":
-        logging.debug(f"Creating symlink of {assembly} at {final_assembly}")
-        final_assembly_path.symlink_to(assembly)
-    else:
-        logging.debug(f"Copying {assembly} to {final_assembly}")
-        shutil.copyfile(assembly, final_assembly)
-
-    return True
-
-
 @click.command()
 @click.version_option(bactopia.__version__, "--version", "-V")
 @click.option(
-    "--path", "-p", required=True, help="Directory where FASTQ files are stored"
+    "--path",
+    "-p",
+    required=True,
+    help="Directory where ATB assemblies are stored",
 )
 @click.option(
     "--bactopia-dir",
@@ -102,7 +63,7 @@ def create_sample_directory(sample, assembly, bactopia_dir, publish_mode="symlin
     default="symlink",
     show_default=True,
     type=click.Choice(["symlink", "copy"], case_sensitive=False),
-    help="Designates plascement of assemblies will be handled",
+    help="Specifies how assemblies will be saved in the Bactopia directory",
 )
 @click.option(
     "--extension",
@@ -138,7 +99,8 @@ def atb_formatter(
         logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
     )
 
-    abspath = Path(path).absolute()
+    # Get absolute path of input
+    abspath = validate_file(path)
 
     # Match Assemblies
     count = 0
