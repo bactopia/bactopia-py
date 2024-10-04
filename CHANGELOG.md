@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0
+
+- added `bactopia-atb-downloader` to download All-the-Bacteria assemblies
+
 ## 1.1.1
 
 - fixed `bactopia-summary` not working with Bakta annotations
