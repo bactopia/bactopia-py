@@ -7,6 +7,7 @@ from sys import platform
 import requests
 import tqdm
 from executor import ExternalCommand, ExternalCommandFailed
+from tqdm.contrib.concurrent import process_map
 
 NCBI_GENOME_SIZE_URL = (
     "https://ftp.ncbi.nlm.nih.gov/genomes/ASSEMBLY_REPORTS/species_genome_size.txt.gz"
@@ -45,6 +46,41 @@ def execute(
             sys.exit(e.returncode)
         else:
             return None
+
+
+def pgzip(files: list, cpus: int) -> list:
+    """
+    Parallel gzip a list of files
+
+    Args:
+        files (list): A list of files to gzip
+        cpus (int): The number of cpus to use
+
+    Returns:
+        list: A list of gzipped files
+    """
+    return process_map(
+        _gzip,
+        files,
+        max_workers=cpus,
+        chunksize=1,
+        bar_format="{l_bar}{bar:80}{r_bar}{bar:-80b}",
+        desc="Gzipping",
+    )
+
+
+def _gzip(filename: str) -> str:
+    """
+    Gzip a file
+
+    Args:
+        filename (str): The file to gzip
+
+    Returns:
+        str: The path to the gzipped file
+    """
+    stdout, stderr = execute(f"gzip --force {filename}", capture=True, allow_fail=True)
+    return f"{filename}.gz"
 
 
 def get_platform() -> str:

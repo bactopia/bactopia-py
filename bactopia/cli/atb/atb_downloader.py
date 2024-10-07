@@ -11,7 +11,14 @@ from rich.logging import RichHandler
 import bactopia
 from bactopia.atb import parse_atb_file_list
 from bactopia.ncbi import is_biosample, taxid2name
-from bactopia.utils import download_url, execute, file_exists, mkdir, validate_file
+from bactopia.utils import (
+    download_url,
+    execute,
+    file_exists,
+    mkdir,
+    pgzip,
+    validate_file,
+)
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
@@ -32,6 +39,7 @@ click.rich_click.OPTION_GROUPS = {
                 "--atb-file-list-url",
                 "--dry-run",
                 "--progress",
+                "--cpus",
                 "--uncompressed",
                 "--remove-archives",
             ],
@@ -92,6 +100,11 @@ click.rich_click.OPTION_GROUPS = {
     help="Show download progress bar",
 )
 @click.option(
+    "--cpus",
+    default=4,
+    help="The total number of cpus to use for downloading and compressing",
+)
+@click.option(
     "--uncompressed",
     "-u",
     is_flag=True,
@@ -125,6 +138,7 @@ def atb_downloader(
     atb_file_list_url,
     dry_run,
     progress,
+    cpus,
     uncompressed,
     remove_archives,
     ncbi_api_key,
@@ -194,102 +208,124 @@ def atb_downloader(
             logging.error(f"Species not found in ATB file list: {query_species}")
             sys.exit(1)
         matched_samples = species[query_species]
+
+    # Estimate total size of downloads
+    total_size = 0
+    for archive, info in archives_to_download.items():
+        total_size += float(info["size"])
+
     logging.info(f"Found {len(matched_samples)} samples to extract")
     logging.debug(f"Samples: {matched_samples}")
-    logging.info(f"Found {len(archives_to_download)} archives to download")
+    logging.info(
+        f"Found {len(archives_to_download)} archives (~{int(total_size):,} MB) to download"
+    )
     if verbose:
         for archive in archives_to_download:
             logging.debug(f"Archive: {archive}")
 
     # Check if archives exist, otherwise download
-    logging.info(f"Downloading archives to: {outdir}/archives")
-    mkdir(f"{outdir}/archives")
-    for archive, info in archives_to_download.items():
-        archive_path = f"{str(outdir)}/archives/{archive}"
-        if file_exists(archive_path):
-            logging.info(f"Using existing archive: {archive_path}")
-            archive_path = validate_file(archive_path)
-        else:
-            logging.info(f"Downloading archive to: {archive_path}")
-            if dry_run:
-                logging.info(f"Would download: {info['url']} to {archive_path}")
+    if not dry_run:
+        logging.info(f"Downloading archives to: {outdir}/archives")
+        mkdir(f"{outdir}/archives")
+        for archive, info in archives_to_download.items():
+            archive_path = f"{str(outdir)}/archives/{archive}"
+            if file_exists(archive_path):
+                logging.info(f"Using existing archive: {archive_path}")
+                archive_path = validate_file(archive_path)
             else:
-                archive_path = download_url(info["url"], archive_path, progress)
+                logging.info(f"Downloading archive to: {archive_path}")
+                if dry_run:
+                    logging.info(f"Would download: {info['url']} to {archive_path}")
+                else:
+                    archive_path = download_url(info["url"], archive_path, progress)
 
-    # Extract each of the archives
-    cleanup = []
-    for archive, info in archives_to_download.items():
-        archive_path = f"{str(outdir)}/archives/{archive}"
-        if dry_run:
-            logging.info(f"Would have extracted: {archive_path}")
-        else:
-            logging.info(f"Extracting: {archive_path}")
-            stdout, stderr = execute(
-                f"tar xf {archive_path} -C {outdir}", capture=True, allow_fail=True
-            )
-            cleanup_dir = f"{outdir}/{archive.replace('.tar.xz', '')}"
-            logging.debug(f"Adding {cleanup_dir} to cleanup list")
-            cleanup.append(f"{outdir}/{archive.replace('.tar.xz', '')}")
+        # Extract each of the archives
+        cleanup = []
+        for archive, info in archives_to_download.items():
+            archive_path = f"{str(outdir)}/archives/{archive}"
+            if dry_run:
+                logging.info(f"Would have extracted: {archive_path}")
+            else:
+                logging.info(f"Extracting: {archive_path}")
+                stdout, stderr = execute(
+                    f"tar xf {archive_path} -C {outdir}", capture=True, allow_fail=True
+                )
+                cleanup_dir = f"{outdir}/{archive.replace('.tar.xz', '')}"
+                logging.debug(f"Adding {cleanup_dir} to cleanup list")
+                cleanup.append(f"{outdir}/{archive.replace('.tar.xz', '')}")
+    else:
+        logging.info("Would have downloaded and extracted archives")
 
     # Move samples into species directories, then compress
     species_dirs = {}
-    logging.info(f"Moving {len(matched_samples)} samples to: {outdir}")
-    for i, sample in enumerate(matched_samples):
-        if uncompressed:
-            logging.info(f"Moving sample {i+1} of {len(matched_samples)}: {sample}")
-        else:
-            logging.info(
-                f"Moving and compressing sample {i+1} of {len(matched_samples)}: {sample}"
-            )
-        info = samples[sample]
-        species = info["species_sylph"].lower().replace(" ", "_")
-        if species not in species_dirs:
-            species_dirs[species] = True
-            mkdir(f"{outdir}/{species}")
+    needs_compression = []
+    if not dry_run:
+        logging.info(f"Moving {len(matched_samples)} samples to: {outdir}")
+        for i, sample in enumerate(matched_samples):
+            logging.debug(f"Moving sample {i+1} of {len(matched_samples)}: {sample}")
+            info = samples[sample]
+            species = info["species_sylph"].lower().replace(" ", "_")
+            if species not in species_dirs:
+                species_dirs[species] = True
+                mkdir(f"{outdir}/{species}")
 
-        archive_file = f"{outdir}/{info['filename']}"
-        if file_exists(archive_file):
-            sample_filename = info["filename"].split("/")[-1]
-            sample_out = f"{outdir}/{species}/{sample_filename}"
-
+            archive_file = f"{outdir}/{info['filename']}"
             if file_exists(archive_file):
-                if (file_exists(sample_out) and not force) or ():
-                    logging.debug(
-                        f"Sample already exists: {sample_out}...skipping unless --force provided"
-                    )
-                elif file_exists(f"{sample_out}.gz") and not force:
-                    logging.debug(
-                        f"Sample already exists: {sample_out}.gz...skipping unless --force provided"
-                    )
-                else:
-                    logging.debug(f"Moving {archive_file} to {sample_out}")
-                    stdout, stderr = execute(
-                        f"mv {archive_file} {sample_out}", capture=True, allow_fail=True
-                    )
+                sample_filename = info["filename"].split("/")[-1]
+                sample_out = f"{outdir}/{species}/{sample_filename}"
 
-                    # Compress unless --uncompressed provided
-                    if not uncompressed:
-                        logging.debug(f"Compressing {sample_out}")
-                        stdout, stderr = execute(
-                            f"gzip --force {sample_out}", capture=True, allow_fail=True
+                if file_exists(archive_file):
+                    if (file_exists(sample_out) and not force) or ():
+                        logging.debug(
+                            f"Sample already exists: {sample_out}...skipping unless --force provided"
                         )
+
+                        # Compress unless --uncompressed provided
+                        if not uncompressed:
+                            needs_compression.append(sample_out)
+                    elif file_exists(f"{sample_out}.gz") and not force:
+                        logging.debug(
+                            f"Sample already exists: {sample_out}.gz...skipping unless --force provided"
+                        )
+                    else:
+                        logging.debug(f"Moving {archive_file} to {sample_out}")
+                        stdout, stderr = execute(
+                            f"mv {archive_file} {sample_out}",
+                            capture=True,
+                            allow_fail=True,
+                        )
+
+                        # Compress unless --uncompressed provided
+                        if not uncompressed:
+                            needs_compression.append(sample_out)
+                else:
+                    logging.warning(f"Unable to find {info['filename']}")
             else:
-                logging.warning(f"Unable to find {info['filename']}")
-        else:
-            logging.warning(f"{outdir}/{info['filename']}")
+                logging.warning(f"{outdir}/{info['filename']}")
 
-    # Cleanup
-    for archive in cleanup:
-        if file_exists(archive):
-            logging.info(f"Removing extracted files: {archive}")
-            stdout, stderr = execute(f"rm -rf {archive}", capture=True, allow_fail=True)
+        # Compress samples
+        if len(needs_compression):
+            logging.info(f"Compressing {len(needs_compression)} samples")
+            pgzip(needs_compression, cpus)
 
-    if remove_archives:
+        # Cleanup
+        for archive in cleanup:
+            if file_exists(archive):
+                logging.info(f"Removing extracted files: {archive}")
+                stdout, stderr = execute(
+                    f"rm -rf {archive}", capture=True, allow_fail=True
+                )
+
+        if remove_archives:
+            logging.info(
+                "Provided --remove-archives, removing all downloaded archives in {outdir}/archives"
+            )
+            stdout, stderr = execute(
+                f"rm -rf {outdir}/archives", capture=True, allow_fail=True
+            )
+    else:
         logging.info(
-            "Provided --remove-archives, removing all downloaded archives in {outdir}/archives"
-        )
-        stdout, stderr = execute(
-            f"rm -rf {outdir}/archives", capture=True, allow_fail=True
+            "Would have moved samples to species directories and cleaned up archives"
         )
 
 

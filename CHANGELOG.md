@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+- added parallel gzipping of assemblies in `bactopia-atb-formatter`
+- added size estimation to `bactopia-atb-formatter` output
+
 ## 1.2.0
 
 - added `bactopia-atb-downloader` to download All-the-Bacteria assemblies
