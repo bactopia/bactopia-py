@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2
+
+- replace conda/mamba `--force` with simple `rm -rf`
+  - latest version of mamba removed `--force`
+
 ## 1.2.1
 
 - added parallel gzipping of assemblies in `bactopia-atb-formatter`

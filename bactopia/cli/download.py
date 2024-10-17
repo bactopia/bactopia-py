@@ -364,7 +364,7 @@ def build_conda_env(
     success = False
     while not success:
         result = execute(
-            f"{program} create -y -p {conda_path} -c conda-forge -c bioconda --force {conda_env}",
+            f"rm -rf {conda_path} && {program} create -y -p {conda_path} -c conda-forge -c bioconda --force {conda_env}",
             allow_fail=allow_fail,
         )
         if not result:
@@ -374,7 +374,7 @@ def build_conda_env(
             logging.error(
                 "Error creating Conda environment, retrying after short sleep."
             )
-            time.sleep(30 * retry)
+            time.sleep(10 * retry)
         else:
             success = True
     return success
@@ -392,7 +392,7 @@ def docker_pull(container, max_retry=5):
                 allow_fail = True
             retry += 1
             logging.error("Error pulling container, retrying after short sleep.")
-            time.sleep(30 * retry)
+            time.sleep(10 * retry)
         else:
             success = True
     return success
@@ -418,7 +418,7 @@ def build_singularity_image(image, pull, max_retry=5, force=False, use_build=Fal
                 allow_fail = True
             retry += 1
             logging.error("Error creating image, retrying after short sleep.")
-            time.sleep(30 * retry)
+            time.sleep(10 * retry)
         else:
             success = True
     return success
