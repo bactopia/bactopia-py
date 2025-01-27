@@ -647,6 +647,21 @@ files = [
 ]
 
 [[package]]
+name = "rauth"
+version = "0.7.3"
+description = "A Python library for OAuth 1.0/a, 2.0, and Ofly."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "rauth-0.7.3-py2-none-any.whl", hash = "sha256:b18590fbd77bc3d871936bbdb851377d1b0c08e337b219c303f8fc2b5a42ef2d"},
+    {file = "rauth-0.7.3.tar.gz", hash = "sha256:524cdbc1c28560eacfc9a9d40c59525eb8d00fdf07fbad86107ea24411477b0a"},
+]
+
+[package.dependencies]
+requests = ">=1.2.3"
+
+[[package]]
 name = "requests"
 version = "2.32.3"
 description = "Python HTTP for Humans."
@@ -799,4 +814,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8.0"
-content-hash = "f11e313e246ee0aca23003cf9d99c6d91ffa7a16a380db5aa75642d12f6dbf38"
+content-hash = "ba7c23e5c3eb848637bee14720f59cd9aea2baec71d3faa5f4a33e038233bd89"

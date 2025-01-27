@@ -14,4 +14,4 @@ def parse(path: str, name: str) -> dict:
     Returns:
         dict: parsed results
     """
-    return {"sample": name, f"amrfinderplus_hits": parse_table(path)}
+    return {"sample": name, "amrfinderplus_hits": parse_table(path)}
