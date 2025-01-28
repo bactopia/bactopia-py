@@ -9,7 +9,7 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
-from bactopia.databases.pubmlst import setup_pubmlst
+from bactopia.databases.pubmlst.utils import setup_pubmlst
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)

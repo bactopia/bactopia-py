@@ -9,7 +9,7 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
-from bactopia.databases.pubmlst import download_database
+from bactopia.databases.pubmlst.utils import available_databases, download_database
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
@@ -72,7 +72,7 @@ click.rich_click.OPTION_GROUPS = {
 @click.option(
     "--out-dir",
     "-o",
-    default="./pubmlst",
+    default="./bactopia-mlst",
     show_default=True,
     help="The directory where the database files will be saved.",
 )
@@ -94,7 +94,14 @@ def pubmlst_download(
         format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
+            RichHandler(
+                rich_tracebacks=True,
+                console=rich.console.Console(stderr=True),
+                show_time=True if verbose else False,
+                show_level=True if verbose else False,
+                show_path=True,
+                markup=True,
+            )
         ],
     )
     logging.getLogger().setLevel(
@@ -108,10 +115,10 @@ def pubmlst_download(
         logging.error("Please run `bactopia-pubmlst-setup` to create the token file.")
         sys.exit(1)
     else:
-        logging.info(f"Using token file: {token_file}")
+        logging.info(f"Using token file: '{token_file}'")
 
     # check if out-dir exists
-    out_dir = Path(f"{out_dir}/{site}/{database}")
+    out_dir = Path(f"{out_dir}/mlst/db/{site}")
     if out_dir.exists() and not force:
         logging.error(f"Output directory exists: {out_dir}")
         logging.error("Use --force to overwrite existing files.")
@@ -120,8 +127,26 @@ def pubmlst_download(
         logging.debug(f"Creating output directory: {out_dir}")
         out_dir.mkdir(parents=True, exist_ok=True)
 
-    logging.info(f"Downloading {database} from {site}")
-    download_database(database, site, token_file, out_dir, force)
+    databases = available_databases(site, token_file)
+    database_found = False
+    testing = 0
+    for db, description in databases.items():
+        if db == database:
+            download_database(database, site, token_file, out_dir, force)
+            database_found = True
+            testing += 1
+        elif database == "all":
+            download_database(db, site, token_file, out_dir, force)
+            database_found = True
+            testing += 1
+
+        if testing > 5:
+            break
+
+    if not database_found:
+        logging.error(f"Database '{database}' not found in {site} databases.")
+        logging.error(f"Available databases: {', '.join(databases.keys())}")
+        sys.exit(1)
 
 
 def main():
