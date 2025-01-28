@@ -9,7 +9,11 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
-from bactopia.databases.pubmlst.utils import available_databases, download_database
+from bactopia.databases.pubmlst.utils import (
+    available_databases,
+    build_blast_db,
+    download_database,
+)
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
@@ -22,6 +26,14 @@ click.rich_click.OPTION_GROUPS = {
             "name": "Required Options",
             "options": [
                 "--database",
+            ],
+        },
+        {
+            "name": "Build Options",
+            "options": [
+                "--skip-download",
+                "--skip-blast",
+                "--force",
             ],
         },
         {
@@ -52,7 +64,7 @@ click.rich_click.OPTION_GROUPS = {
     "-d",
     default="pubmlst_yersinia_seqdef",
     show_default=True,
-    help="The organism database to interact with for setup.",
+    help="The organism database to interact with for setup. (Use 'all' to download all databases.)",
 )
 @click.option(
     "--site",
@@ -76,6 +88,10 @@ click.rich_click.OPTION_GROUPS = {
     show_default=True,
     help="The directory where the database files will be saved.",
 )
+@click.option(
+    "--skip-download", is_flag=True, help="Skip downloading the database files."
+)
+@click.option("--skip-blast", is_flag=True, help="Skip building the BLAST database.")
 @click.option("--force", is_flag=True, help="Force overwrite of existing files.")
 @click.option("--verbose", is_flag=True, help="Print debug related text.")
 @click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
@@ -84,6 +100,8 @@ def pubmlst_download(
     site: str,
     token_dir: str,
     out_dir: str,
+    skip_download: bool,
+    skip_blast: bool,
     force: bool,
     verbose: bool,
     silent: bool,
@@ -108,45 +126,55 @@ def pubmlst_download(
         logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
     )
 
-    # Setup tokens for pubmlst
-    token_file = f"{token_dir}/{site}-token.json"
-    if not Path(token_file).exists() and not force:
-        logging.error(f"Token file does not exist: {token_file}")
-        logging.error("Please run `bactopia-pubmlst-setup` to create the token file.")
-        sys.exit(1)
-    else:
-        logging.info(f"Using token file: '{token_file}'")
-
     # check if out-dir exists
-    out_dir = Path(f"{out_dir}/mlst/db/{site}")
-    if out_dir.exists() and not force:
-        logging.error(f"Output directory exists: {out_dir}")
+    mlst_dir = Path(f"{out_dir}/mlstdb/{site}")
+    if mlst_dir.exists() and not force:
+        logging.error(f"Output directory exists: {mlst_dir}")
         logging.error("Use --force to overwrite existing files.")
         sys.exit(1)
     else:
-        logging.debug(f"Creating output directory: {out_dir}")
-        out_dir.mkdir(parents=True, exist_ok=True)
+        logging.debug(f"Creating output directory: {mlst_dir}")
+        mlst_dir.mkdir(parents=True, exist_ok=True)
 
-    databases = available_databases(site, token_file)
-    database_found = False
-    testing = 0
-    for db, description in databases.items():
-        if db == database:
-            download_database(database, site, token_file, out_dir, force)
-            database_found = True
-            testing += 1
-        elif database == "all":
-            download_database(db, site, token_file, out_dir, force)
-            database_found = True
-            testing += 1
+    if not skip_download:
+        # Setup tokens for pubmlst
+        token_file = f"{token_dir}/{site}-token.json"
+        if not Path(token_file).exists() and not force:
+            logging.error(f"Token file does not exist: {token_file}")
+            logging.error(
+                "Please run `bactopia-pubmlst-setup` to create the token file."
+            )
+            sys.exit(1)
+        else:
+            logging.info(f"Using token file: '{token_file}'")
 
-        if testing > 5:
-            break
+        # Get available databases
+        databases = available_databases(site, token_file)
+        database_found = False
+        testing = 0
+        for db, description in databases.items():
+            if db == database:
+                download_database(database, site, token_file, mlst_dir, force)
+                database_found = True
+                testing += 1
+            elif database == "all":
+                download_database(db, site, token_file, mlst_dir, force)
+                database_found = True
+                testing += 1
 
-    if not database_found:
-        logging.error(f"Database '{database}' not found in {site} databases.")
-        logging.error(f"Available databases: {', '.join(databases.keys())}")
-        sys.exit(1)
+            if testing > 5:
+                break
+
+        if not database_found:
+            logging.error(f"Database '{database}' not found in {site} databases.")
+            logging.error(f"Available databases: {', '.join(databases.keys())}")
+            sys.exit(1)
+
+    if not skip_blast:
+        # Build MLST database
+        build_blast_db(
+            f"{out_dir}/mlstdb",
+        )
 
 
 def main():
