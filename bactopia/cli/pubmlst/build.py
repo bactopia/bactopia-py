@@ -31,6 +31,7 @@ click.rich_click.OPTION_GROUPS = {
         {
             "name": "Build Options",
             "options": [
+                "--ignore",
                 "--skip-download",
                 "--skip-blast",
                 "--force",
@@ -89,6 +90,12 @@ click.rich_click.OPTION_GROUPS = {
     help="The directory where the database files will be saved.",
 )
 @click.option(
+    "--ignore",
+    default="afumigatus,blastocystis,calbicans,cbotulinum,cglabrata,ckrusei,ctropicalis,csinensis,kseptempunctata,rmlst,sparasitica,test,tpallidum,tvaginalis",
+    show_default=True,
+    help="A comma separated list of databases to ignore.",
+)
+@click.option(
     "--skip-download", is_flag=True, help="Skip downloading the database files."
 )
 @click.option("--skip-blast", is_flag=True, help="Skip building the BLAST database.")
@@ -100,6 +107,7 @@ def pubmlst_download(
     site: str,
     token_dir: str,
     out_dir: str,
+    ignore: str,
     skip_download: bool,
     skip_blast: bool,
     force: bool,
@@ -126,6 +134,9 @@ def pubmlst_download(
         logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
     )
 
+    # Ignore DBs
+    ignore_dbs = ignore.split(",")
+
     # check if out-dir exists
     mlst_dir = Path(f"{out_dir}/mlstdb/{site}")
     if mlst_dir.exists() and not force:
@@ -151,19 +162,19 @@ def pubmlst_download(
         # Get available databases
         databases = available_databases(site, token_file)
         database_found = False
-        testing = 0
         for db, description in databases.items():
             if db == database:
+                database_found = True
+                if db in ignore_dbs:
+                    logging.info(f"Ignoring database: {db} (use --ignore to change)")
+                    continue
                 download_database(database, site, token_file, mlst_dir, force)
-                database_found = True
-                testing += 1
             elif database == "all":
-                download_database(db, site, token_file, mlst_dir, force)
                 database_found = True
-                testing += 1
-
-            if testing > 5:
-                break
+                if db in ignore_dbs:
+                    logging.info(f"Ignoring database: {db} (use --ignore to change)")
+                    continue
+                download_database(db, site, token_file, mlst_dir, force)
 
         if not database_found:
             logging.error(f"Database '{database}' not found in {site} databases.")

@@ -22,7 +22,7 @@ bactopia-update = "bactopia.cli.update:main"
 bactopia-atb-formatter = "bactopia.cli.atb.atb_formatter:main"
 bactopia-atb-downloader = "bactopia.cli.atb.atb_downloader:main"
 bactopia-pubmlst-setup = "bactopia.cli.pubmlst.setup:main"
-bactopia-pubmlst-download = "bactopia.cli.pubmlst.download:main"
+bactopia-pubmlst-build = "bactopia.cli.pubmlst.build:main"
 
 [tool.poetry.dependencies]
 python = "^3.8.0"
