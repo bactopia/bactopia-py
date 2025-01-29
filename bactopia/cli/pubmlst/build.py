@@ -13,6 +13,7 @@ from bactopia.databases.pubmlst.utils import (
     available_databases,
     build_blast_db,
     download_database,
+    print_citation,
 )
 
 # Set up Rich
@@ -21,7 +22,7 @@ rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
 click.rich_click.USE_RICH_MARKUP = True
 click.rich_click.OPTION_GROUPS = {
     # Use underscores in parameters, since these are also passed to Nextflow
-    "bactopia-pubmlst-download": [
+    "bactopia-pubmlst-build": [
         {
             "name": "Required Options",
             "options": [
@@ -63,9 +64,7 @@ click.rich_click.OPTION_GROUPS = {
 @click.option(
     "--database",
     "-d",
-    default="pubmlst_yersinia_seqdef",
-    show_default=True,
-    help="The organism database to interact with for setup. (Use 'all' to download all databases.)",
+    help="A known organism database to download. (Use 'all' to download all databases.)",
 )
 @click.option(
     "--site",
@@ -78,7 +77,7 @@ click.rich_click.OPTION_GROUPS = {
 @click.option(
     "--token-dir",
     "-t",
-    default=".bactopia/pubmlst",
+    default=f"{Path.home()}/.bactopia",
     show_default=True,
     help="The directory where the token file is saved.",
 )
@@ -114,7 +113,7 @@ def pubmlst_download(
     verbose: bool,
     silent: bool,
 ):
-    """Download specific database files from PubMLST or Pasteur."""
+    """Build PubMLST databases for use with the 'mlst' Bactopia Tool."""
     # Setup logs
     logging.basicConfig(
         format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
@@ -184,8 +183,10 @@ def pubmlst_download(
     if not skip_blast:
         # Build MLST database
         build_blast_db(
-            f"{out_dir}/mlstdb",
+            out_dir,
         )
+
+    print_citation()
 
 
 def main():

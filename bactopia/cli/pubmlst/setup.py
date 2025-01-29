@@ -9,7 +9,7 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
-from bactopia.databases.pubmlst.utils import setup_pubmlst
+from bactopia.databases.pubmlst.utils import print_citation, setup_pubmlst
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
@@ -58,6 +58,7 @@ click.rich_click.OPTION_GROUPS = {
 @click.option(
     "--site",
     "-s",
+    default="pubmlst",
     show_default=True,
     type=click.Choice(["pubmlst", "pasteur"], case_sensitive=True),
     help="Only print citation matching a given name",
@@ -72,7 +73,7 @@ click.rich_click.OPTION_GROUPS = {
 @click.option(
     "--save-dir",
     "-sd",
-    default=".bactopia/pubmlst",
+    default=f"{Path.home()}/.bactopia",
     show_default=True,
     help="The directory to save the token",
 )
@@ -95,7 +96,14 @@ def pubmlst_setup(
         format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
+            RichHandler(
+                rich_tracebacks=True,
+                console=rich.console.Console(stderr=True),
+                show_time=True if verbose else False,
+                show_level=True if verbose else False,
+                show_path=True,
+                markup=True,
+            )
         ],
     )
     logging.getLogger().setLevel(
@@ -114,6 +122,7 @@ def pubmlst_setup(
         )
         sys.exit(1)
     setup_pubmlst(site, database, token_file, client_id, client_secret)
+    print_citation()
 
 
 def main():

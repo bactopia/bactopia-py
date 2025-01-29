@@ -16,6 +16,21 @@ from bactopia.parsers.generic import parse_json
 from bactopia.utils import execute
 
 
+def print_citation():
+    """
+    Print the citation for PubMLST and Bactopia
+    """
+    logging.info(
+        "\n\n"
+        "If you make use of 'bactopia-pubmlst-(setup|build)' commands and 'PubMLST' database files, please cite the following:\n\n"
+        "'PubMLST'\n"
+        "Jolley, K. A., Bray, J. E., & Maiden, M. C. J. (2018). Open-access bacterial population genomics: BIGSdb software, the Pubmlst.org website and their applications. Wellcome Open Research, 3, 124. https://doi.org/10.12688/wellcomeopenres.14826.1\n\n"
+        "'Bactopia'\n"
+        "Petit III RA, Read TD Bactopia - a flexible pipeline for complete analysis of bacterial genomes. mSystems 5 (2020) https://doi.org/10.1128/mSystems.00190-20\n\n"
+        "adios!"
+    )
+
+
 def setup_pubmlst(
     site: str, database: str, token_file: str, client_id: str, client_secret: str
 ):
@@ -115,7 +130,7 @@ def check_session(site: str, token_file: str, database: str = "yersinia") -> dic
     tokens = parse_json(token_file)
 
     if not tokens["session_token"] or not tokens["session_secret"]:
-        logging.warning("Session token not found, will request a new one")
+        logging.debug("Session token not found, will request a new one")
         needs_update = True
     else:
         # Try querying the API to see if the session token is still valid
@@ -548,13 +563,14 @@ def download_database(
     logging.info(f"'{database}' complete")
 
 
-def build_blast_db(database_dir: str):
+def build_blast_db(out_dir: str):
     """
     Build a BLAST database from the loci FASTA files that is compatible with 'tseemann/mlst'
 
     Args:
-        database_dir (str): The directory containing the loci FASTA files
+        out_dir (str): The directory containing the loci FASTA files
     """
+    database_dir = f"{out_dir}/mlstdb"
     blast_db_dir = f"{database_dir}/blast"
     if not Path(blast_db_dir).exists():
         Path(blast_db_dir).mkdir(parents=True, exist_ok=True)
@@ -579,7 +595,7 @@ def build_blast_db(database_dir: str):
 
     # Build the BLAST database
     execute(
-        f"makeblastdb -hash_index -in mlst.fa -dbtype nucl -title 'PubMLST' -parse_seqids",
+        "makeblastdb -hash_index -in mlst.fa -dbtype nucl -title 'PubMLST' -parse_seqids",
         directory=blast_db_dir,
     )
 
@@ -589,4 +605,5 @@ def build_blast_db(database_dir: str):
 
     # Tar the BLAST database
     logging.info(f"Save BLAST database to '{database_dir}/mlst.tar.gz'")
-    execute(f"tar -czvf mlst.tar.gz mlstdb/", directory=database_dir)
+    execute("tar -czvf mlst.tar.gz mlstdb/", directory=out_dir)
+    shutil.move(f"{out_dir}/mlst.tar.gz", f"{database_dir}/mlst.tar.gz")

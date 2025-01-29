@@ -9,14 +9,18 @@ A Python package for working with [Bactopia](https://bactopia.github.io/)
 
 There are many subcommands available in Bactopia. Here is a brief description of each command:
 
-| Command              | Description                                                                |
-|----------------------|----------------------------------------------------------------------------|
-| `bactopia-citations` | Print out tools and citations used throughout Bactopia                     |
-| `bactopia-datasets`  | Download optional datasets to supplement your analyses with Bactopia       |
-| `bactopia-download`  | Builds Bactopia environments for use with Nextflow.                        |
-| `bactopia-prepare`   | Create a 'file of filenames' (FOFN) of samples to be processed by Bactopia |
-| `bactopia-search`    | Query against ENA and SRA for public accessions to process with Bactopia   |
-| `bactopia-summary`   | Generate a summary table from the Bactopia results.                        |
+| Command                   | Description                                                                |
+|---------------------------|----------------------------------------------------------------------------|
+| `bactopia-citations`      | Print out tools and citations used throughout Bactopia                     |
+| `bactopia-datasets`       | Download optional datasets to supplement your analyses with Bactopia       |
+| `bactopia-download`       | Builds Bactopia environments for use with Nextflow.                        |
+| `bactopia-prepare`        | Create a 'file of filenames' (FOFN) of samples to be processed by Bactopia |
+| `bactopia-search`         | Query against ENA and SRA for public accessions to process with Bactopia   |
+| `bactopia-summary`        | Generate a summary table from the Bactopia results.                        |
+| `bactopia-atb-downloader` | Download assemblies from AllTheBacteria for use with Bactopia Tools        |
+| `bactopia-atb-formatter`  | Restructure All-the-Bacteria assemblies to allow usage with Bactopia Tools |
+| `bactopia-pubmlst-setup`  | One-time setup for interacting with the PubMLST API                        |
+| `bactopia-pubmlst-build`  | Build PubMLST databases for use with the 'mlst' Bactopia Tool.             |
 
 Below is the `--help` output for each subcommand.
 

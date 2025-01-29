@@ -2,7 +2,9 @@
 
 ## 1.4.0 
 
-
+- added:
+    - `bactopia-pubmlst-setup` to setup PubMLST REST API connections
+    - `bactopia-pubmlst-build` to build PubMLST databases compatible with `mlst` Bactopia Tool
 
 ## 1.3.0
 
