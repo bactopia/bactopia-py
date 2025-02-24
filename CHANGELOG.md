@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0
+
+- actually remove `--force` from `mamba|conda` commands
+
 ## 1.4.0 
 
 - added:

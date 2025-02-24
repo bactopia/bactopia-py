@@ -38,7 +38,7 @@ click.rich_click.OPTION_GROUPS = {
                 "--use-conda",
                 "--singularity_cache",
                 "--singularity_pull_docker_container",
-                "--force-rebuild",
+                "--force_rebuild",
                 "--max_retry",
             ],
         },
@@ -364,7 +364,7 @@ def build_conda_env(
     success = False
     while not success:
         result = execute(
-            f"rm -rf {conda_path} && {program} create -y -p {conda_path} -c conda-forge -c bioconda --force {conda_env}",
+            f"rm -rf {conda_path} && {program} create -y -p {conda_path} -c conda-forge -c bioconda {conda_env}",
             allow_fail=allow_fail,
         )
         if not result:
@@ -483,7 +483,7 @@ def build_singularity_image(image, pull, max_retry=5, force=False, use_build=Fal
     help="Force conversion of Docker containers, instead downloading Singularity images directly",
 )
 @click.option(
-    "--force-rebuild",
+    "--force_rebuild",
     is_flag=True,
     help="Force overwrite of existing pre-built environments.",
 )
