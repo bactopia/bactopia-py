@@ -404,6 +404,94 @@ Succeeded   : 5'395
 That's it! Now you can take advantage of any of the [Bactopia Tools](https://bactopia.github.io/latest/bactopia-tools/)
 that utilize assemblies as inputs.
 
+# PubMLST DB Builds
+
+As of [v1.4.0](https://github.com/bactopia/bactopia-py/releases/tag/v1.4.0), `bactopia-py` now includes commands
+(`bactopia-pubmlst-setup` and `bactopia-pubmlst-build`) to help you build PubMLST databases using their RestAPI,
+instead of the XML files. By using the RestAPI, you will always retrieve the latest schema and allele information
+for all available organisms (_the XML build did not include all organisms_).
+
+One thing to note, its by using the RestAPI, there is a one time manual process of setting up the necessary credentials.
+No worries, though, `bactopia-pubmlst-setup` will assist you with this process.
+
+## `bactopia-pubmlst-setup`
+
+The first step of building PubMLST databases is to setup your credentials. Due to the way the PubMLST API works, you
+will need to do this interactively. In order to make this work you will need already have created an account on the
+PubMLST website, then created a client ID and client secret. To learn more about this process, please visit the
+[PubMLST API Authentication Docs](https://bigsdb.readthedocs.io/en/latest/rest.html#authentication).
+
+Once you have your client ID and client secret, you can run `bactopia-pubmlst-setup` to setup your credentials.
+
+```{bash}
+                                                                                      
+ Usage: bactopia-pubmlst-setup [OPTIONS]                                               
+                                                                                       
+ One-time setup for interacting with the PubMLST API                                   
+                                                                                       
+╭─ Required Options ──────────────────────────────────────────────────────────────────╮
+│ *  --client-id      -ci  TEXT  The client ID for the site [required]                │
+│ *  --client-secret  -cs  TEXT  The client secret for the site [required]            │
+╰─────────────────────────────────────────────────────────────────────────────────────╯
+╭─ API Options ───────────────────────────────────────────────────────────────────────╮
+│ --site      -s   [pubmlst|pasteur]  Only print citation matching a given name       │
+│                                     [default: pubmlst]                              │
+│ --database  -d   TEXT               The organism database to interact with for      │
+│                                     setup. Note: the default is available from both │
+│                                     PubMLST and Pasteur                             │
+│                                     [default: pubmlst_yersinia_seqdef]              │
+│ --save-dir  -sd  TEXT               The directory to save the token                 │
+│                                     [default: /home/gitpod/.bactopia]               │
+│ --force                             Force overwrite of existing token files.        │
+╰─────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Additional Options ────────────────────────────────────────────────────────────────╮
+│ --verbose        Print debug related text.                                          │
+│ --silent         Only critical errors will be printed.                              │
+│ --version  -V    Show the version and exit.                                         │
+│ --help           Show this message and exit.                                        │
+╰─────────────────────────────────────────────────────────────────────────────────────╯
+```
+
+## `bactopia-pubmlst-build`
+
+The `bactopia-pubmlst-build` command will build MLST databases for a given organism or all available organisms. In order
+utilize this command you will need to have already setup your credentials using `bactopia-pubmlst-setup`.
+
+```{bash}
+                                                                                       
+ Usage: bactopia-pubmlst-build [OPTIONS]                                               
+                                                                                       
+ Build PubMLST databases for use with the 'mlst' Bactopia Tool.                        
+                                                                                       
+╭─ Required Options ──────────────────────────────────────────────────────────────────╮
+│ --database  -d  TEXT  A known organism database to download. (Use 'all' to download │
+│                       all databases.)                                               │
+╰─────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Build Options ─────────────────────────────────────────────────────────────────────╮
+│ --ignore           TEXT  A comma separated list of databases to ignore.             │
+│                          [default:                                                  │
+│                          afumigatus,blastocystis,calbicans,cbotulinum,cglabrata,ck… │
+│ --skip-download          Skip downloading the database files.                       │
+│ --skip-blast             Skip building the BLAST database.                          │
+│ --force                  Force overwrite of existing files.                         │
+╰─────────────────────────────────────────────────────────────────────────────────────╯
+╭─ API Options ───────────────────────────────────────────────────────────────────────╮
+│ --site       -s  [pubmlst|pasteur]  Only print citation matching a given name       │
+│                                     [default: pubmlst]                              │
+│ --token-dir  -t  TEXT               The directory where the token file is saved.    │
+│                                     [default: /home/gitpod/.bactopia]               │
+│ --out-dir    -o  TEXT               The directory where the database files will be  │
+│                                     saved.                                          │
+│                                     [default: ./bactopia-mlst]                      │
+╰─────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Additional Options ────────────────────────────────────────────────────────────────╮
+│ --verbose        Print debug related text.                                          │
+│ --silent         Only critical errors will be printed.                              │
+│ --version  -V    Show the version and exit.                                         │
+│ --help           Show this message and exit.                                        │
+╰─────────────────────────────────────────────────────────────────────────────────────╯
+```
+
 # Feedback
 Your feedback is very valuable! If you run into any issues using Bactopia, have questions, or have some ideas to improve Bactopia, I highly encourage you to submit it to the [Issue Tracker](https://github.com/bactopia/bactopia/issues).
 
