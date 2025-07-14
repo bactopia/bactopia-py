@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.1
+
+- fix ena metadata parsing in `bactopia-search` to handle missing columns
+
 ## 1.5.0
 
 - actually remove `--force` from `mamba|conda` commands

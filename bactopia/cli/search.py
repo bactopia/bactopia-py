@@ -99,7 +99,7 @@ def get_ena_metadata(query: str, is_accession: bool, limit: int):
         data = []
         col_names = None
         for line in r.text.split("\n"):
-            cols = line.rstrip().split("\t")
+            cols = line.split("\t")
             if line:
                 if col_names:
                     data.append(dict(zip(col_names, cols)))
