@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0
+
+- `bactopia-search`
+    - fixed issue when no tax id is associated with an accession
+    - NCBI genome size is now optional (`--use-ncbi-genome-size`)
+    - moved modules to specific database files
+- Remove `executor` dependency
+
 ## 1.5.1
 
 - fix ena metadata parsing in `bactopia-search` to handle missing columns
