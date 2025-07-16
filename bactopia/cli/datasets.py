@@ -11,7 +11,7 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
-from bactopia.utils import execute, validate_file
+from bactopia.utils import execute
 
 BACTOPIA_CACHEDIR = os.getenv("BACTOPIA_CACHEDIR", f"{Path.home()}/.bactopia")
 

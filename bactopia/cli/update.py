@@ -1,5 +1,4 @@
 import logging
-import os
 import sys
 import time
 from pathlib import Path
@@ -12,7 +11,6 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
-from bactopia.utils import execute, validate_file
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)

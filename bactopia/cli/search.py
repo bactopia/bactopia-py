@@ -13,8 +13,9 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
-from bactopia.ncbi import is_biosample
-from bactopia.utils import get_ncbi_genome_size
+from bactopia.databases.ena import get_run_info
+from bactopia.databases.ncbi import get_ncbi_genome_size, is_biosample
+from bactopia.utils import chunk_list
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
@@ -45,6 +46,7 @@ click.rich_click.OPTION_GROUPS = {
             "name": "Additional Options",
             "options": [
                 "--genome-size",
+                "--use-ncbi-genome-size",
                 "--outdir",
                 "--prefix",
                 "--force",
@@ -56,87 +58,6 @@ click.rich_click.OPTION_GROUPS = {
         },
     ]
 }
-ENA_URL = "https://www.ebi.ac.uk/ena/portal/api/search"
-
-
-def get_ena_metadata(query: str, is_accession: bool, limit: int):
-    """Fetch metadata from ENA.
-    https://docs.google.com/document/d/1CwoY84MuZ3SdKYocqssumghBF88PWxUZ/edit#heading=h.ag0eqy2wfin5
-
-    Args:
-        query (str): The query to search for.
-        is_accession (bool): If the query is an accession or not.
-        limit (int): The maximum number of records to return.
-
-    Returns:
-        list: Records associated with the accession.
-    """
-    data = {
-        "dataPortal": "ena",
-        "dccDataOnly": "false",
-        "download": "false",
-        "result": "read_run",
-        "format": "tsv",
-        "limit": limit,
-        "fields": "all",
-    }
-
-    if is_accession:
-        data["includeAccessions"] = query
-    else:
-        data["query"] = (
-            f'"{query} AND library_source=GENOMIC AND '
-            "(library_strategy=OTHER OR library_strategy=WGS OR "
-            "library_strategy=WGA) AND (library_selection=MNase OR "
-            "library_selection=RANDOM OR library_selection=unspecified OR "
-            'library_selection="size fractionation")"'
-        )
-
-    headers = {"accept": "*/*", "Content-type": "application/x-www-form-urlencoded"}
-
-    r = requests.post(ENA_URL, headers=headers, data=data)
-    if r.status_code == requests.codes.ok:
-        data = []
-        col_names = None
-        for line in r.text.split("\n"):
-            cols = line.split("\t")
-            if line:
-                if col_names:
-                    data.append(dict(zip(col_names, cols)))
-                else:
-                    col_names = cols
-        return [True, data]
-    else:
-        return [False, [r.status_code, r.text]]
-
-
-def get_run_info(
-    sra_query: str, ena_query: str, is_accession: bool, limit: int = 1000000
-) -> tuple:
-    """Retrieve a list of samples available from ENA.
-
-    The first attempt will be against ENA, and if that fails, SRA will be queried. This should
-    capture those samples not yet synced between ENA and SRA.
-
-    Args:
-        sra_query (str): A formatted query for SRA searches.
-        ena_query (str): A formatted query for ENA searches.
-        is_accession (bool): If the query is an accession or not.
-        limit (int): The maximum number of records to return.
-
-    Returns:
-        tuple: Records associated with the accession.
-    """
-
-    logging.debug("Querying ENA for metadata...")
-    success, ena_data = get_ena_metadata(ena_query, is_accession, limit=limit)
-    if success:
-        return success, ena_data
-    else:
-        logging.error("There was an issue querying ENA, exiting...")
-        logging.error(f"STATUS: {ena_data[0]}")
-        logging.error(f"TEXT: {ena_data[1]}")
-        sys.exit(1)
 
 
 def parse_accessions(
@@ -209,13 +130,26 @@ def parse_accessions(
 
             # Genome size
             gsize = genome_size
-            if not gsize:
-                if result["tax_id"] in genome_sizes:
-                    gsize = genome_sizes[result["tax_id"]]["expected_ungapped_length"]
+            if not gsize and genome_sizes:
+                if result["tax_id"]:
+                    if result["tax_id"] in genome_sizes:
+                        if "expected_ungapped_length" in genome_sizes[result["tax_id"]]:
+                            gsize = genome_sizes[result["tax_id"]][
+                                "expected_ungapped_length"
+                            ]
+                        else:
+                            logging.warning(
+                                f"Could not find genome size for {result['scientific_name']} (Tax ID {result['tax_id']})"
+                            )
+                    else:
+                        logging.warning(
+                            f"Could not find genome size for {result['scientific_name']} (Tax ID {result['tax_id']})"
+                        )
                 else:
                     logging.warning(
-                        f"Could not find genome size for {result['scientific_name']} (Tax ID {result['tax_id']})"
+                        f"Accession ({result['experiment_accession']}) does not have a tax_id associated with it."
                     )
+                    result["scientific_name"] = "UNKNOWN_SPECIES"
 
             if passes:
                 accessions.append(
@@ -232,15 +166,6 @@ def parse_accessions(
                     }
                 )
     return [list(set(accessions)), filtered]
-
-
-def chunks(chunk: list, total: int) -> list:
-    """
-    Yield successive n-sized chunks from l.
-    https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks?page=1&tab=votes#tab-top
-    """
-    for i in range(0, len(chunk), total):
-        yield chunk[i : i + total]
 
 
 def parse_query(q, accession_limit, exact_taxon=False):
@@ -296,13 +221,13 @@ def parse_query(q, accession_limit, exact_taxon=False):
                 results.append(["taxon_name", f'tax_name("{query}")', f"'{query}'"])
 
     # Split the accessions into set number
-    for chunk in chunks(bioproject_accessions, accession_limit):
+    for chunk in chunk_list(bioproject_accessions, accession_limit):
         results.append(["bioproject_accession", ",".join(chunk), " OR ".join(chunk)])
-    for chunk in chunks(biosample_accessions, accession_limit):
+    for chunk in chunk_list(biosample_accessions, accession_limit):
         results.append(["biosample_accession", ",".join(chunk), " OR ".join(chunk)])
-    for chunk in chunks(experiment_accessions, accession_limit):
+    for chunk in chunk_list(experiment_accessions, accession_limit):
         results.append(["experiment_accession", ",".join(chunk), " OR ".join(chunk)])
-    for chunk in chunks(run_accessions, accession_limit):
+    for chunk in chunk_list(run_accessions, accession_limit):
         results.append(["run_accession", ",".join(chunk), " OR ".join(chunk)])
 
     return results
@@ -376,6 +301,11 @@ def parse_query(q, accession_limit, exact_taxon=False):
     help="Genome size to be used for all samples, and for calculating min coverage",
 )
 @click.option(
+    "--use-ncbi-genome-size",
+    is_flag=True,
+    help="If available, use NCBI genome size for species",
+)
+@click.option(
     "--include-empty",
     is_flag=True,
     help="Include metadata columns that are empty for all rows",
@@ -395,6 +325,7 @@ def search(
     min_read_length,
     min_coverage,
     genome_size,
+    use_ncbi_genome_size,
     include_empty,
     force,
     verbose,
@@ -419,7 +350,7 @@ def search(
     if min_coverage and genome_size:
         if min_base_count:
             logging.error(
-                "--min_base_count cannot be used with --coverage/--genome_size. Exiting...",
+                "--min-base-count cannot be used with --min-coverage/--genome-size. Exiting...",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -427,7 +358,7 @@ def search(
             min_base_count = min_coverage * genome_size
     elif min_coverage or genome_size:
         logging.error(
-            "--coverage and --genome_size must be used together. Exiting...",
+            "--min-coverage and --genome-size must be used together. Exiting...",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -435,7 +366,7 @@ def search(
     if biosample_subset > 0:
         if not is_biosample(query):
             logging.error(
-                "--biosample_subset requires a single BioSample. Input query: {query} is not a BioSample. Exiting...",
+                "--biosample-subset requires a single BioSample. Input query: {query} is not a BioSample. Exiting...",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -458,7 +389,7 @@ def search(
     accessions_file = f"{outdir}/{prefix}-accessions.txt".replace("//", "/")
     filtered_file = f"{outdir}/{prefix}-filtered.txt".replace("//", "/")
     summary_file = f"{outdir}/{prefix}-search.txt".replace("//", "/")
-    genome_sizes = get_ncbi_genome_size()
+    genome_sizes = get_ncbi_genome_size() if use_ncbi_genome_size else None
     for query_type, ena_query, sra_query in queries:
         logging.info(f"Submitting query (type - {query_type})")
         is_accession = True if query_type.endswith("accession") else False

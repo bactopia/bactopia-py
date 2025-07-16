@@ -5,5 +5,5 @@ dependencies:
   - blast
   - pigz
   - poetry
-  - python >=3.8,<3.12
+  - python >=3.9
   - wget

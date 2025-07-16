@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bactopia"
-version = "1.5.1"
+version = "1.6.0"
 description = "A Python package for working with Bactopia"
 authors = [
     "Robert A. Petit III <robbie.petit@gmail.com>",
@@ -25,12 +25,11 @@ bactopia-pubmlst-setup = "bactopia.cli.pubmlst.setup:main"
 bactopia-pubmlst-build = "bactopia.cli.pubmlst.build:main"
 
 [tool.poetry.dependencies]
-python = "^3.8.0"
+python = "^3.9.0"
 requests = "^2.28.2"
-rich-click = "^1.6.1"
-executor = "^23.2"
 rich = "^13.3.1"
-pandas = "^1.5.3"
+rich-click = "^1.6.1"
+pandas = "^2.2.0"
 tqdm = "^4.66.5"
 rauth = "^0.7.3"
 

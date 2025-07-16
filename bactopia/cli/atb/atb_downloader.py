@@ -10,7 +10,7 @@ from rich.logging import RichHandler
 
 import bactopia
 from bactopia.atb import parse_atb_file_list
-from bactopia.ncbi import is_biosample, taxid2name
+from bactopia.databases.ncbi import is_biosample, taxid2name
 from bactopia.utils import (
     download_url,
     execute,

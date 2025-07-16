@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 import rich
@@ -11,7 +12,7 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
-from bactopia.utils import execute, validate_file
+from bactopia.utils import execute
 
 BACTOPIA_CACHEDIR = os.getenv("BACTOPIA_CACHEDIR", f"{Path.home()}/.bactopia")
 CONDA_CACHEDIR = os.getenv("NXF_CONDA_CACHEDIR", f"{BACTOPIA_CACHEDIR}/conda")
@@ -262,7 +263,8 @@ def build_env(
         build_conda_env(
             conda_method, envinfo["conda"], conda_prefix, max_retry=max_retry
         )
-        execute(f"date > {conda_complete}")
+        with open(conda_complete, "w") as f:
+            f.write(f"{datetime.now().isoformat()}\n")
         BUILT_ALREADY["conda"][
             conda_prefix
         ] = f"Already built {envname} ({conda_prefix}) this run, skipping rebuild"
@@ -363,11 +365,17 @@ def build_conda_env(
     allow_fail = False
     success = False
     while not success:
-        result = execute(
-            f"rm -rf {conda_path} && {program} create -y -p {conda_path} -c conda-forge -c bioconda {conda_env}",
+        # Cleanup existing directory if they exist
+        execute(
+            f"rm -rf {conda_path}",
             allow_fail=allow_fail,
         )
-        if not result:
+        result = execute(
+            f"{program} create -y -p {conda_path} -c conda-forge -c bioconda {conda_env}",
+            allow_fail=allow_fail,
+        )
+        if result:
+            # Non-zero exit code
             if retry > max_retry:
                 allow_fail = True
             retry += 1

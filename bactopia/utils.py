@@ -1,51 +1,59 @@
-import gzip
 import logging
+import subprocess
 import sys
 from pathlib import Path
 from sys import platform
 
 import requests
 import tqdm
-from executor import ExternalCommand, ExternalCommandFailed
 from tqdm.contrib.concurrent import process_map
-
-NCBI_GENOME_SIZE_URL = (
-    "https://ftp.ncbi.nlm.nih.gov/genomes/ASSEMBLY_REPORTS/species_genome_size.txt.gz"
-)
 
 
 def execute(
     cmd,
     directory=Path.cwd(),
     capture=False,
-    stdout_file=None,
-    stderr_file=None,
     allow_fail=False,
 ):
-    """A simple wrapper around executor."""
-    try:
-        command = ExternalCommand(
-            cmd,
-            directory=directory,
-            capture=True,
-            capture_stderr=True,
-            stdout_file=stdout_file,
-            stderr_file=stderr_file,
-        )
+    """A simple wrapper around executor.
 
-        command.start()
-        logging.debug(f"STDOUT: {command.decoded_stdout}")
-        logging.debug(f"STDERR: {command.decoded_stderr}")
+    Args:
+        cmd (str): A command to execute.
+        directory (str, optional): Set the working directory for command. Defaults to str(Path.cwd()).
+        capture (bool, optional): Capture and return the STDOUT of a command. Defaults to False.
+        allow_fail (bool, optional): Allow command to fail without raising an error. Defaults to False.
+
+    Raises:
+        error: An unexpected error occurred.
+
+    Returns:
+        str: Exit code, accepted error message, or STDOUT of command.
+    """
+    logging.debug(f"Executing command: {cmd}")
+    logging.debug(f"Working directory: {directory}")
+    try:
+        command = subprocess.run(
+            cmd.split(" "),  # Replace with your command and arguments
+            cwd=directory,
+            capture_output=True,
+            text=True,  # Decodes stdout/stderr as strings using default encoding
+            check=True,  # Raises CalledProcessError for non-zero exit codes
+        )
+        logging.debug(f"Exit code: {command.returncode}")
+        logging.debug(f"STDOUT:\n{command.stdout}")
+        logging.debug(f"STDERR:\n{command.stderr}")
 
         if capture:
-            return [command.decoded_stdout, command.decoded_stderr]
-        return True
-    except ExternalCommandFailed as e:
-        if allow_fail:
-            logging.error(e)
-            sys.exit(e.returncode)
+            return [command.stdout, command.stderr]
         else:
+            return command.returncode
+    except subprocess.CalledProcessError as e:
+        logging.error(f'"{cmd}" return exit code {e.returncode}')
+        logging.error(e)
+        if allow_fail:
             return None
+        else:
+            sys.exit(e.returncode)
 
 
 def pgzip(files: list, cpus: int) -> list:
@@ -212,34 +220,6 @@ def get_taxid_from_species(species: str) -> str:
         sys.exit(1)
 
 
-def get_ncbi_genome_size() -> dict:
-    """
-    Get the NCBI's species genome size file.
-
-    Returns:
-        str: A dictionary of species genome sizes byt tax_id
-    """
-    r = requests.get(NCBI_GENOME_SIZE_URL, stream=True)
-    if r.status_code == requests.codes.ok:
-        sizes = {}
-        header = None
-        with r as res:
-            extracted = gzip.decompress(res.content)
-            for line in extracted.split(b"\n"):
-                cols = line.decode().rstrip().split("\t")
-                if header is None:
-                    header = cols
-                else:
-                    hit = dict(zip(header, cols))
-                    sizes[hit["#species_taxid"]] = hit
-        return sizes
-    else:
-        logging.error(
-            f"Unable to download NCBI's species genome size file ({NCBI_GENOME_SIZE_URL}), please try again later."
-        )
-        sys.exit(1)
-
-
 def download_url(url: str, save_path: str, show_progress: bool) -> str:
     """
     Download a file from a URL
@@ -282,6 +262,7 @@ def download_url(url: str, save_path: str, show_progress: bool) -> str:
 def chunk_list(lst: list, n: int) -> list:
     """
     Yield successive n-sized chunks from input list.
+    https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks?page=1&tab=votes#tab-top
 
     Args:
         l (list): The list to chunk

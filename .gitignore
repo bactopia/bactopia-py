@@ -1,6 +1,13 @@
+temp/
 bactopia-exclude.tsv
 bactopia-report.tsv
 bactopia-summary.txt
+accessions.txt
+bactopia-accessions.txt
+bactopia-filtered.txt
+bactopia-metadata.txt
+bactopia-search.txt
+species_genome_size.txt.gz
 .vscode/settings.json
 
 # Byte-compiled / optimized / DLL files

@@ -1,9 +1,43 @@
+import gzip
 import logging
 import re
+import sys
 
 import requests
 
 from bactopia.utils import chunk_list
+
+NCBI_GENOME_SIZE_URL = (
+    "https://ftp.ncbi.nlm.nih.gov/genomes/ASSEMBLY_REPORTS/species_genome_size.txt.gz"
+)
+
+
+def get_ncbi_genome_size() -> dict:
+    """
+    Get the NCBI's species genome size file.
+
+    Returns:
+        str: A dictionary of species genome sizes byt tax_id
+    """
+    r = requests.get(NCBI_GENOME_SIZE_URL, stream=True)
+    if r.status_code == requests.codes.ok:
+        sizes = {}
+        header = None
+        with r as res:
+            extracted = gzip.decompress(res.content)
+            for line in extracted.split(b"\n"):
+                cols = line.decode().rstrip().split("\t")
+                if header is None:
+                    header = cols
+                else:
+                    hit = dict(zip(header, cols))
+                    sizes[hit["#species_taxid"]] = hit
+        return sizes
+    else:
+        logging.error(
+            f"Unable to download NCBI's species genome size file ({NCBI_GENOME_SIZE_URL}), please try again later."
+        )
+        sys.exit(1)
 
 
 def is_biosample(accession: str) -> bool:
