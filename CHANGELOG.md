@@ -5,7 +5,6 @@
 - shuffle ncbi related module out of `utils` and into `ncbi`
 - fixed missing import in `bactopia-prepare`
 
-
 ## 1.6.0
 
 - `bactopia-search`
