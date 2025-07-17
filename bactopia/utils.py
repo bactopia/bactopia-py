@@ -40,7 +40,7 @@ def execute(
             check=True,  # Raises CalledProcessError for non-zero exit codes
         )
         logging.debug(f"Exit code: {command.returncode}")
-        logging.debug(f"STDOUT:\n{command.stdout}")
+        logging.debug(f"STDOUT: \n{command.stdout}")
         logging.debug(f"STDERR:\n{command.stderr}")
 
         if capture:
@@ -186,38 +186,6 @@ def remove_keys(results: dict, remove: list) -> dict:
         if key not in remove:
             removed[key] = val
     return removed
-
-
-def get_taxid_from_species(species: str) -> str:
-    """
-    Convert a species name into a tax_id
-
-    Args:
-        species (str): A species name
-
-    Returns:
-        str: The corresponding tax_id
-    """
-    r = requests.get(
-        f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=taxonomy&term={species}"
-    )
-    taxid = None
-    if r.status_code == requests.codes.ok:
-        for line in r.text.split("\n"):
-            line = line.strip()
-            if line.startswith("<Id>"):
-                taxid = line.replace("<Id>", "").replace("</Id>", "")
-        if taxid:
-            logging.debug(f"Found taxon ID ({taxid}) for {species}")
-            return taxid
-        else:
-            logging.error(
-                f"Unable to determine taxon ID from {species}, please check spelling or try again later."
-            )
-            sys.exit(1)
-    else:
-        logging.error("Unexpected error querying NCBI, please try again later.")
-        sys.exit(1)
 
 
 def download_url(url: str, save_path: str, show_progress: bool) -> str:

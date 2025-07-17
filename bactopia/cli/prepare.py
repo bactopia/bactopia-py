@@ -11,7 +11,8 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
-from bactopia.utils import get_ncbi_genome_size, get_taxid_from_species, validate_file
+from bactopia.databases.ncbi import get_ncbi_genome_size, get_taxid_from_species
+from bactopia.utils import validate_file
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
