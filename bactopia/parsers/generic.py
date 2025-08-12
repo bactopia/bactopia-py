@@ -3,6 +3,7 @@ Shared functions used by parsers.
 """
 import csv
 import json
+import logging
 from typing import Union
 
 import yaml
@@ -43,6 +44,7 @@ def parse_json(jsonfile: str) -> Union[list, dict]:
     Returns:
         Union[list, dict]: the values parsed from the JSON file
     """
+    logging.debug(f"Parsing JSON file: {jsonfile}")
     with open(jsonfile, "rt") as fh:
         return json.load(fh)
 

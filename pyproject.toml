@@ -21,6 +21,7 @@ bactopia-summary = "bactopia.cli.summary:main"
 bactopia-update = "bactopia.cli.update:main"
 bactopia-atb-formatter = "bactopia.cli.atb.atb_formatter:main"
 bactopia-atb-downloader = "bactopia.cli.atb.atb_downloader:main"
+bactopia-merge-schemas = "bactopia.cli.helpers.merge_schemas:main"
 bactopia-pubmlst-setup = "bactopia.cli.pubmlst.setup:main"
 bactopia-pubmlst-build = "bactopia.cli.pubmlst.build:main"
 
@@ -32,6 +33,7 @@ rich-click = "^1.6.1"
 pandas = "^2.2.0"
 tqdm = "^4.66.5"
 rauth = "^0.7.3"
+jinja2 = "^3.1.6"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
