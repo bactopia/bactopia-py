@@ -102,64 +102,58 @@ def parse_module(main_nf):
 
 
 def parse_workflows(bactopia_path, include_merlin=False, build_all=False):
-    """Parse Bactopia's workflows.conf to get modules per-workflow"""
-    workflows = {}
-    available_workflows = []
-    nf_config, stderr = execute(
-        f"nextflow config -flat {bactopia_path}/main.nf", capture=True
-    )
-    for line in nf_config.split("\n"):
-        if line.startswith("params.available_workflows.") or line.startswith(
-            "params.workflows."
-        ):
-            param, val = line.split(" = ")
-            if line.startswith("params.available_workflows."):
-                # Available workflow definitions
-                for wf in cleanup_value(val):
-                    available_workflows.append(wf)
-            elif line.startswith("params.workflows."):
-                # Workflow definitions
-                wf, key = param.replace("params.workflows.", "").split(".")
-                if wf not in workflows:
-                    workflows[wf] = {}
-                workflows[wf][key] = cleanup_value(val)
+    """Parse Bactopia's workflows.yaml to get modules per-workflow"""
+    from bactopia.parsers.generic import parse_yaml
 
-    # Merged the two
+    # Load the workflows.yaml file
+    workflows_yaml = parse_yaml(f"{bactopia_path}/conf/workflows.yaml")
+    workflows = workflows_yaml["workflows"]
+
+    # Build the final workflows structure
     final_workflows = {}
-    for wf in available_workflows:
+
+    for wf, wf_info in workflows.items():
         final_workflows[wf] = {}
         modules = {}
-        if "includes" in workflows[wf]:
-            for include in workflows[wf]["includes"]:
-                if "modules" in workflows[include]:
+
+        # Get modules from includes
+        if "includes" in wf_info:
+            for include in wf_info["includes"]:
+                if include in workflows and "modules" in workflows[include]:
                     for module in workflows[include]["modules"]:
                         modules[module] = True
-        if "modules" in workflows[wf]:
-            for module in workflows[wf]["modules"]:
-                modules[module] = True
-        if "path" in workflows[wf]:
-            modules[wf] = True
 
+        # Get direct modules
+        if "modules" in wf_info:
+            for module in wf_info["modules"]:
+                modules[module] = True
+
+        # Special handling for bactopia and staphopia
         if wf == "bactopia" or wf == "staphopia":
             # Build Prokka and Bakta
             modules["prokka"] = True
-            for module in workflows["bakta"]["modules"]:
-                modules[module] = True
+            if "bakta" in workflows and "modules" in workflows["bakta"]:
+                for module in workflows["bakta"]["modules"]:
+                    modules[module] = True
             # Install Merlin tools
-            if include_merlin:
+            if include_merlin and "merlin" in workflows:
                 for module in workflows["merlin"]["modules"]:
                     modules[module] = True
 
+        # Parse each module
         for module in modules:
+            # Convert module name to path (underscore to slash)
+            module_path = f"modules/{module.replace('_', '/')}"
             final_workflows[wf][module] = parse_module(
-                f'{bactopia_path}/{workflows[module]["path"]}/main.nf'
+                f"{bactopia_path}/{module_path}/main.nf"
             )
 
+        # Always add these modules
         final_workflows[wf]["custom_dumpsoftwareversions"] = parse_module(
-            f'{bactopia_path}/{workflows["custom_dumpsoftwareversions"]["path"]}/main.nf'
+            f"{bactopia_path}/modules/custom/dumpsoftwareversions/main.nf"
         )
         final_workflows[wf]["csvtk_concat"] = parse_module(
-            f'{bactopia_path}/{workflows["csvtk_concat"]["path"]}/main.nf'
+            f"{bactopia_path}/modules/csvtk/concat/main.nf"
         )
 
     return final_workflows
@@ -335,8 +329,8 @@ def needs_conda_create(observed_md5, expected_md5, prefix, force=False):
 
 def needs_docker_pull(pull_name):
     """Check if a new container needs to be pulled."""
-    output = execute(f"docker inspect {pull_name} || true", capture=True)
-    if output[1].startswith("Error: No such object"):
+    stdout, stderr = execute(f"docker inspect {pull_name} || true", capture=True)
+    if stderr.startswith("Error: No such object"):
         return True
     logging.debug(
         f"Existing container ({pull_name}) found, skipping unless manually removed"
@@ -544,7 +538,10 @@ def download(
         bactopia_path, include_merlin=include_merlin, build_all=build_all
     )
 
-    if wf not in workflow_modules:
+    if build_all:
+        # Build all workflows
+        pass
+    elif wf not in workflow_modules:
         # Let nextflow handle unknown workflows
         logging.error(f"{wf} is not a known workflow, skipping")
         sys.exit()

@@ -133,15 +133,12 @@ def merge_schemas(
     # Get the modules associated with the workflow
     modules = []
     if "modules" in workflows["workflows"][wf]:
-        # A named pipeline or complex Bactopia Tool
         modules = workflows["workflows"][wf]["modules"]
-    else:
-        # A sinple Bactopia Tool
-        modules.append(wf)
 
     final_schema = None
     # determine if this is Bactopia, named workflow or a Bactopia Tool
-    if wf in workflows["available_workflows"]["bactopia"]:
+    is_workflow = workflows["workflows"][wf].get("is_workflow", False)
+    if is_workflow:
         if wf == "bactopia":
             # This is the Bactopia workflow
             final_schema = parse_json(f"{bactopia_path}/conf/schema/bactopia.json")
@@ -158,7 +155,9 @@ def merge_schemas(
 
     for module in modules:
         # Get the schema for each module
-        module_path = workflows["workflows"][module].get("path", f"modules/{module}")
+        # Modules follow a standard path pattern where underscores become slashes
+        # e.g., abricate_run -> abricate/run, mlst -> mlst
+        module_path = f"modules/{module.replace('_', '/')}"
         schema = parse_json(f"{bactopia_path}/{module_path}/schema.json")
 
         # determine if the module schema has a required field, that should be moved to
@@ -202,16 +201,13 @@ def merge_schemas(
     template = env.get_template("nextflow-config.j2")
 
     # Determine logo_name based on is_workflow
-    logo_name = (
-        wf if workflows["workflows"][wf].get("is_workflow", False) else "bactopia-tools"
-    )
+    logo_name = wf if is_workflow else "bactopia-tools"
 
     # Build module paths dictionary
     module_paths = {}
     for module in modules:
-        module_paths[module] = workflows["workflows"][module].get(
-            "path", f"modules/{module}"
-        )
+        # All modules follow the standard path pattern where underscores become slashes
+        module_paths[module] = f"modules/{module.replace('_', '/')}"
 
     # Render the template
     config_content = template.render(
