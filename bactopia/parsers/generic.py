@@ -49,7 +49,7 @@ def parse_json(jsonfile: str) -> Union[list, dict]:
         return json.load(fh)
 
 
-def parse_yaml(yamlfile: str) -> Union[list, dict]:
+def parse_yaml(yamlfile: str) -> dict:
     """
     Parse a YAML file.
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.0
+
+- `bactopia-download`
+    - Use appropriate executable for singularity and apptainer
+    - support Bactopia v4
+- `bactopia-workflows` will print the path for a specific Bactopia wf
+- `bactopia-merge-schemes` will merge schemes and configs for a given wf
+
 ## 1.6.1
 
 - shuffle ncbi related module out of `utils` and into `ncbi`

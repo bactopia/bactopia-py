@@ -1,1 +1,22 @@
-{"python.pythonPath": "/home/gitpod/.conda/envs/bactopia-py/bin/python"}
+{
+    "python.pythonPath": "/home/gitpod/.conda/envs/bactopia-py/bin/python",
+    "cSpell.words": [
+        "abricate",
+        "Bakta",
+        "Biocontainer",
+        "CACHEDIR",
+        "csvtk",
+        "dumpsoftwareversions",
+        "endfor",
+        "envinfo",
+        "envname",
+        "envtype",
+        "getenv",
+        "infodir",
+        "ismapper",
+        "mlst",
+        "Prokka",
+        "staphopia",
+        "vmem"
+    ]
+}

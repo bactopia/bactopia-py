@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bactopia"
-version = "1.6.1"
+version = "1.7.0"
 description = "A Python package for working with Bactopia"
 authors = [
     "Robert A. Petit III <robbie.petit@gmail.com>",
@@ -19,6 +19,7 @@ bactopia-prepare = "bactopia.cli.prepare:main"
 bactopia-search = "bactopia.cli.search:main"
 bactopia-summary = "bactopia.cli.summary:main"
 bactopia-update = "bactopia.cli.update:main"
+bactopia-workflows = "bactopia.cli.workflows:main"
 bactopia-atb-formatter = "bactopia.cli.atb.atb_formatter:main"
 bactopia-atb-downloader = "bactopia.cli.atb.atb_downloader:main"
 bactopia-merge-schemas = "bactopia.cli.helpers.merge_schemas:main"

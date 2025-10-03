@@ -1,8 +1,6 @@
 import json
 import logging
-import os
 import sys
-import time
 from pathlib import Path
 
 import rich
@@ -14,6 +12,13 @@ from rich.logging import RichHandler
 
 import bactopia
 from bactopia.parsers.generic import parse_json, parse_yaml
+from bactopia.parsers.workflows import get_modules_by_workflow
+
+MODULE_PRIORITY = [
+    "csvtk_concat",
+    "csvtk_join",
+    "wget",
+]
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
@@ -131,9 +136,8 @@ def merge_schemas(
         sys.exit()
 
     # Get the modules associated with the workflow
-    modules = []
-    if "modules" in workflows["workflows"][wf]:
-        modules = workflows["workflows"][wf]["modules"]
+    modules = get_modules_by_workflow(wf, workflows)
+    logging.info(f"Modules associated with {wf}: {', '.join(modules)}")
 
     final_schema = None
     # determine if this is Bactopia, named workflow or a Bactopia Tool
@@ -164,25 +168,30 @@ def merge_schemas(
         # final_schema['$defs']['input_parameters']['properties'], then removed from the
         # module schema
         for definition in schema["$defs"]:
-            for property, vals in schema["$defs"][definition]["properties"].items():
-                # Check if the property is required
-                if "is_required" in property:
-                    final_schema["$defs"]["input_parameters"]["properties"][
-                        property
-                    ] = vals
-                    del schema["$defs"][definition]["properties"][property]
+            if schema["$defs"][definition]["properties"]:
+                for property, vals in schema["$defs"][definition]["properties"].items():
+                    # Check if the property is required
+                    if "is_required" in property:
+                        final_schema["$defs"]["input_parameters"]["properties"][
+                            property
+                        ] = vals
+                        del schema["$defs"][definition]["properties"][property]
 
-            # add the definitions to the final schema
-            if definition not in final_schema["$defs"]:
-                final_schema["$defs"][definition] = schema["$defs"][definition]
+                # add the definitions to the final schema
+                if definition not in final_schema["$defs"]:
+                    final_schema["$defs"][definition] = schema["$defs"][definition]
+                else:
+                    # raise an error if the definitions are the same
+                    logging.error(
+                        f"Duplicate definition ({definition}) found will parsing the following modules: {module}"
+                    )
+                    sys.exit(1)
+
+                final_schema["allOf"].extend(schema["allOf"])
             else:
-                # raise an error if the definitions are the same
-                logging.error(
-                    f"Duplicate definition ({definition}) found will parsing the following modules: {module}"
+                logging.warning(
+                    f"No properties found in definition ({definition}) while parsing the following module: {module}"
                 )
-                sys.exit(1)
-
-        final_schema["allOf"].extend(schema["allOf"])
 
     # Add the final generic schema to the end of the final schema
     generic_schema = parse_json(f"{bactopia_path}/conf/schema/generic.json")
@@ -209,13 +218,22 @@ def merge_schemas(
         # All modules follow the standard path pattern where underscores become slashes
         module_paths[module] = f"modules/{module.replace('_', '/')}"
 
+    # Reorder modules list based on priority
+    config_modules = []
+    for priority_module in MODULE_PRIORITY:
+        if priority_module in modules:
+            config_modules.append(priority_module)
+    for module in modules:
+        if module not in config_modules:
+            config_modules.append(module)
+
     # Render the template
     config_content = template.render(
         workflow_name=wf,
         logo_name=logo_name,
         description=workflows["workflows"][wf]["description"],
         ext=workflows["workflows"][wf].get("ext", None),
-        modules=modules,
+        modules=config_modules,
         module_paths=module_paths,
     )
 

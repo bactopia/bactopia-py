@@ -34,9 +34,9 @@ click.rich_click.OPTION_GROUPS = {
                 "--envtype",
                 "--wf",
                 "--build-all",
-                "--build-nfcore",
                 "--condadir",
                 "--use-conda",
+                "--registry",
                 "--singularity_cache",
                 "--singularity_pull_docker_container",
                 "--force_rebuild",
@@ -57,104 +57,121 @@ click.rich_click.OPTION_GROUPS = {
 BUILT_ALREADY = {"conda": {}, "singularity": {}}
 
 
-def cleanup_value(value):
+def cleanup_value(value, is_conda=False):
     """Remove some characters Nextflow param values"""
-    if value.startswith("["):
-        # return a list
-        return value.lstrip("[").rstrip("]").replace("'", "").replace(",", "").split()
-    elif value == "true" or value == "false":
-        return bool(value)
+    if is_conda:
+        return value.lstrip('"').split('".replace')[0]
     else:
-        return value.lstrip("'").rstrip("'").replace("\\", "")
+        return value.rstrip(",").strip('"')
 
 
-def parse_module(main_nf):
-    """Pull out the Conda, Docker and singularity info"""
+def parse_module(process_config: str, registry: str) -> dict:
+    """
+    Pull out the Conda, Docker and singularity info from a process.config
+
+    Example:
+        // pull info from ext.env
+        process {
+            withName: 'CSVTK_CONCAT' {
+                // Environment information
+                ext.args = [
+                    "${params.csvtk_concat_opts}",
+                ].join(' ').replaceAll("\\s{2,}", " ").trim()
+
+                ext.env = [
+                    toolName: "bioconda::csvtk=0.31.0".replace("=", "-").replace(":", "-").replace(" ", "-"),
+                    docker: "biocontainers/csvtk:0.31.0--h9ee0642_0",
+                    image: "https://depot.galaxyproject.org/singularity/csvtk:0.31.0--h9ee0642_0",
+                    condaDir: "${params.condadir}",
+                ]
+
+                ext.wf = params.wf
+                ext.rundir = params.rundir
+            }
+        }
+    """
     envs = {}
-    with open(main_nf, "rt") as main_fh:
-        read_container = 0
-        for line in main_fh:
+    with open(process_config, "rt") as pc_fh:
+        read_env = 0
+        for line in pc_fh:
             line = line.strip()
-            if line.startswith("conda_tools"):
-                # Conda
-                envs["conda"] = (
-                    line.replace("conda_tools", "")
-                    .lstrip()
-                    .replace("= ", "")
-                    .replace('"', "")
-                )
-            elif line.startswith("container") and "containerEngine" in line:
-                # Next two lines are singularity and docker
-                read_container = 1
-            elif line.startswith("container"):
-                # There is not singularity image
-                envs["singularity"] = False
-                envs["docker"] = line.replace("container ", "").replace("'", "")
-            elif read_container == 1:
-                # Galaxy Project image
-                envs["singularity"] = line.replace("'", "").split(" ")[0].strip()
-                read_container = 2
-            elif read_container == 2:
-                # Biocontainer
-                envs["docker"] = line.replace("'", "").replace('}"', "").strip()
-                read_container = 0
+            if line.startswith("ext.env"):
+                read_env = 1
+            elif read_env == 1 and line.startswith("]"):
+                read_env = 0
+                break
+            elif read_env == 1 and ":" in line:
+                key, value = line.split(":", 1)
+                value = value.strip().rstrip(",")
+
+                if key == "toolName":
+                    # Conda
+                    # "bioconda::csvtk=0.31.0".replace("=", "-").replace(":", "-").replace(" ", "-") -> bioconda--csvtk-0.31.0
+                    envs["conda"] = cleanup_value(value, is_conda=True)
+                elif key == "docker":
+                    # Docker
+                    envs["docker"] = f"{registry}/{cleanup_value(value)}"
+                elif key == "image":
+                    # Singularity
+                    envs["singularity"] = cleanup_value(value)
+            else:
+                continue
+    logging.debug(f"Parsed envs from: {process_config}")
+    logging.debug(f"{envs}")
     return envs
 
 
-def parse_workflows(bactopia_path, include_merlin=False, build_all=False):
+def parse_workflows(bactopia_path, input_wf, include_merlin=False, build_all=False):
     """Parse Bactopia's workflows.yaml to get modules per-workflow"""
     from bactopia.parsers.generic import parse_yaml
 
     # Load the workflows.yaml file
+    logging.debug(f"Loading workflows from {bactopia_path}/conf/workflows.yaml")
     workflows_yaml = parse_yaml(f"{bactopia_path}/conf/workflows.yaml")
     workflows = workflows_yaml["workflows"]
 
+    if input_wf not in workflows and not build_all:
+        # Let nextflow handle unknown workflows
+        logging.error(f"{input_wf} is not a known workflow, skipping")
+        sys.exit(0)
+
     # Build the final workflows structure
     final_workflows = {}
-
     for wf, wf_info in workflows.items():
-        final_workflows[wf] = {}
-        modules = {}
+        if input_wf == wf or build_all:
+            logging.debug(f"Processing workflow: {wf}")
+            final_workflows[wf] = {}
+            modules = {}
 
-        # Get modules from includes
-        if "includes" in wf_info:
-            for include in wf_info["includes"]:
-                if include in workflows and "modules" in workflows[include]:
-                    for module in workflows[include]["modules"]:
-                        modules[module] = True
+            # Get modules from includes
+            if "includes" in wf_info:
+                for include in wf_info["includes"]:
+                    if include in workflows and "modules" in workflows[include]:
+                        if include == "merlin" and not include_merlin:
+                            logging.debug(
+                                "Skipping merlin modules since --include_merlin not set"
+                            )
+                            continue
+                        else:
+                            for module in workflows[include]["modules"]:
+                                logging.debug(
+                                    f"Adding module {module} from include {include}"
+                                )
+                                modules[module] = True
 
-        # Get direct modules
-        if "modules" in wf_info:
-            for module in wf_info["modules"]:
-                modules[module] = True
-
-        # Special handling for bactopia and staphopia
-        if wf == "bactopia" or wf == "staphopia":
-            # Build Prokka and Bakta
-            modules["prokka"] = True
-            if "bakta" in workflows and "modules" in workflows["bakta"]:
-                for module in workflows["bakta"]["modules"]:
+            # Get direct modules
+            if "modules" in wf_info:
+                for module in wf_info["modules"]:
+                    logging.debug(f"Adding module {module}")
                     modules[module] = True
-            # Install Merlin tools
-            if include_merlin and "merlin" in workflows:
-                for module in workflows["merlin"]["modules"]:
-                    modules[module] = True
 
-        # Parse each module
-        for module in modules:
-            # Convert module name to path (underscore to slash)
-            module_path = f"modules/{module.replace('_', '/')}"
-            final_workflows[wf][module] = parse_module(
-                f"{bactopia_path}/{module_path}/main.nf"
-            )
-
-        # Always add these modules
-        final_workflows[wf]["custom_dumpsoftwareversions"] = parse_module(
-            f"{bactopia_path}/modules/custom/dumpsoftwareversions/main.nf"
-        )
-        final_workflows[wf]["csvtk_concat"] = parse_module(
-            f"{bactopia_path}/modules/csvtk/concat/main.nf"
-        )
+            # Parse each module
+            for module in modules:
+                # Convert module name to path (underscore to slash)
+                module_path = f"modules/{module.replace('_', '/')}"
+                final_workflows[wf][
+                    module
+                ] = f"{bactopia_path}/{module_path}/process.config"
 
     return final_workflows
 
@@ -164,6 +181,7 @@ def build_env(
     envinfo: dict,
     conda_path: str,
     conda_method: str,
+    singularity_exe: str,
     singularity_path: str,
     env_type: str,
     force: bool = False,
@@ -178,6 +196,7 @@ def build_env(
         envinfo (dict): Information about Conda, Docker, and Singularity builds
         conda_path (str): Path to build Conda environments
         conda_method (str): Whether to use Conda or Mamba
+        singularity_exe (str): Which Singularity executable to use (singularity or apptainer)
         singularity_path (str): Path to build Singularity images
         env_type (str): Which environment types to build
         force (bool, optional): Force a rebuild if existing, Defaults to False.
@@ -281,6 +300,7 @@ def build_env(
                     max_retry=max_retry,
                     force=force,
                     use_build=use_build,
+                    singularity_exe=singularity_exe,
                 )
             else:
                 logging.info(f"Begin {envname} download to {singularity_img}")
@@ -329,13 +349,13 @@ def needs_conda_create(observed_md5, expected_md5, prefix, force=False):
 
 def needs_docker_pull(pull_name):
     """Check if a new container needs to be pulled."""
-    stdout, stderr = execute(f"docker inspect {pull_name} || true", capture=True)
-    if stderr.startswith("Error: No such object"):
-        return True
-    logging.debug(
-        f"Existing container ({pull_name}) found, skipping unless manually removed"
-    )
-    return False
+    returncode = execute(f"docker inspect {pull_name}", allow_fail=True)
+    if returncode == 0:
+        logging.debug(
+            f"Existing container ({pull_name}) found, skipping unless manually removed"
+        )
+        return False
+    return True
 
 
 def needs_singularity_build(image, force=False):
@@ -400,7 +420,14 @@ def docker_pull(container, max_retry=5):
     return success
 
 
-def build_singularity_image(image, pull, max_retry=5, force=False, use_build=False):
+def build_singularity_image(
+    image,
+    pull,
+    max_retry=5,
+    force=False,
+    use_build=False,
+    singularity_exe="singularity",
+):
     """Build Conda env, with chance to retry."""
     force = "--force" if force else ""
     retry = 0
@@ -410,7 +437,7 @@ def build_singularity_image(image, pull, max_retry=5, force=False, use_build=Fal
         result = None
         if use_build:
             result = execute(
-                f"singularity build {force} {image} {pull}", allow_fail=allow_fail
+                f"{singularity_exe} build {force} {image} {pull}", allow_fail=allow_fail
             )
         else:
             # Download from Galaxy Project
@@ -458,11 +485,6 @@ def build_singularity_image(image, pull, max_retry=5, force=False, use_build=Fal
     help="Builds all environments for Bactopia workflows",
 )
 @click.option(
-    "--build-nfcore",
-    is_flag=True,
-    help="Builds all nf-core related environments",
-)
-@click.option(
     "--condadir",
     default=CONDA_CACHEDIR,
     show_default=True,
@@ -472,6 +494,12 @@ def build_singularity_image(image, pull, max_retry=5, force=False, use_build=Fal
     "--use-conda",
     is_flag=True,
     help="Use Conda for building Conda environments instead of Mamba",
+)
+@click.option(
+    "--registry",
+    default="quay.io",
+    show_default=True,
+    help="Registry to pull Docker containers from.",
 )
 @click.option(
     "--singularity_cache",
@@ -502,11 +530,11 @@ def download(
     envtype,
     wf,
     build_all,
-    build_nfcore,
-    singularity_cache,
-    singularity_pull_docker_container,
     condadir,
     use_conda,
+    registry,
+    singularity_cache,
+    singularity_pull_docker_container,
     force_rebuild,
     max_retry,
     verbose,
@@ -526,6 +554,29 @@ def download(
         logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
     )
 
+    singularity_exe = "singularity"
+    # Check if -profile x is in unknown
+    if "-profile" in unknown:
+        profile_index = unknown.index("-profile")
+        if len(unknown) > profile_index + 1:
+            profile = unknown[profile_index + 1]
+            if profile not in [
+                "standard",
+                "conda",
+                "mamba",
+                "docker",
+                "arm",
+                "singularity",
+                "apptainer",
+            ]:
+                # user providing an unsupported profile, let Nextflow handle it
+                logging.info(
+                    f"Downloads for profile '{profile}' will be handled by Nextflow, skipping pre-builds"
+                )
+                sys.exit()
+            elif profile == "apptainer":
+                singularity_exe = "apptainer"
+
     # Install paths
     bactopia_path = str(Path(bactopia_path).absolute())
     conda_path = str(Path(condadir).absolute())
@@ -535,30 +586,24 @@ def download(
     # Current Bactopia workflows
     include_merlin = True if "--ask_merlin" in unknown else False
     workflow_modules = parse_workflows(
-        bactopia_path, include_merlin=include_merlin, build_all=build_all
+        bactopia_path, wf, include_merlin=include_merlin, build_all=build_all
     )
-
-    if build_all:
-        # Build all workflows
-        pass
-    elif wf not in workflow_modules:
-        # Let nextflow handle unknown workflows
-        logging.error(f"{wf} is not a known workflow, skipping")
-        sys.exit()
 
     logging.info(
         "Checking if environment pre-builds are needed (this may take a while if building for the first time)"
     )
     for workflow, modules in workflow_modules.items():
-        if workflow == wf or build_all or build_nfcore:
+        if workflow == wf or build_all:
             logging.debug(f"Working on {workflow} (--wf)")
-            for module, info in modules.items():
+            for module, config in modules.items():
                 logging.debug(f"Building required environment: {module}")
+                info = parse_module(config, registry)
                 build_env(
                     module,
                     info,
                     conda_path,
                     conda_method,
+                    singularity_exe,
                     singularity_path,
                     envtype,
                     force=force_rebuild,
