@@ -559,23 +559,24 @@ def download(
     if "-profile" in unknown:
         profile_index = unknown.index("-profile")
         if len(unknown) > profile_index + 1:
-            profile = unknown[profile_index + 1]
-            if profile not in [
-                "standard",
-                "conda",
-                "mamba",
-                "docker",
-                "arm",
-                "singularity",
-                "apptainer",
-            ]:
-                # user providing an unsupported profile, let Nextflow handle it
-                logging.info(
-                    f"Downloads for profile '{profile}' will be handled by Nextflow, skipping pre-builds"
-                )
-                sys.exit()
-            elif profile == "apptainer":
-                singularity_exe = "apptainer"
+            for profile in unknown[profile_index + 1].split(","):
+                if profile not in [
+                    "standard",
+                    "conda",
+                    "mamba",
+                    "docker",
+                    "arm",
+                    "singularity",
+                    "apptainer",
+                    "test",
+                ]:
+                    # user providing an unsupported profile, let Nextflow handle it
+                    logging.info(
+                        f"Downloads for profile '{profile}' will be handled by Nextflow, skipping pre-builds"
+                    )
+                    sys.exit()
+                elif profile == "apptainer":
+                    singularity_exe = "apptainer"
 
     # Install paths
     bactopia_path = str(Path(bactopia_path).absolute())

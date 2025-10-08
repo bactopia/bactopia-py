@@ -26,28 +26,35 @@ manifest.version = "${params.bactopia_version}"
 
 // Includes
 params.bactopia_cache = env("BACTOPIA_CACHEDIR") ? "${env('BACTOPIA_CACHEDIR')}" : "${env('HOME')}/.bactopia"
-includeConfig "../../../conf/params.config"
-includeConfig "../../../conf/params/bactopia-tools.config"
-includeConfig "../../../conf/base.config"
-includeConfig "../../../conf/profiles.config"
-
-// Module specific config
-{%- for module in modules %}
-includeConfig "../../../{{ module_paths[module] }}/params.config"
+{%- for config in generic_params %}
+includeConfig "{{ config }}"
 {%- endfor %}
+
+// Module specific params.config
+{%- for module in modules %}
+includeConfig "{{ module_paths[module] }}/params.config"
+{%- endfor %}
+
+{%- if extra_wf %}
+
+// Workflow specific params.config
+includeConfig "{{ extra_wf }}"
+{%- endif %}
 
 // Set output directory
 outputDir = params.outdir
 workflow.output.mode = params.publish_dir_mode
-workflow.output.overwrite = params.force
+workflow.output.overwrite = params.force 
 
 // Set up run directory
 params.singularity_cache = env("NXF_SINGULARITY_CACHEDIR") ? "${env('NXF_SINGULARITY_CACHEDIR')}" : "${params.singularity_cache}"
 params.run_timestamp = new java.util.Date().format('yyyyMMdd-HHmmss')
 params.rundir = params.is_ci ? "bactopia-runs/${params.run_name}" : "bactopia-runs/${params.run_name}-${params.run_timestamp}"
 params.infodir = "${params.outdir}/${params.rundir}/nf-reports"
+
+// Module specific process.config
 {%- for module in modules %}
-includeConfig "../../../{{ module_paths[module] }}/process.config"
+includeConfig "{{ module_paths[module] }}/process.config"
 {%- endfor %}
 
 // Load nf-core custom profiles from different Institutions
@@ -56,6 +63,12 @@ includeConfig !env('NXF_OFFLINE') && params.custom_config_base ? "${params.custo
 // Load Bactopia custom profiles from different institutions.
 // Uncomment in the event a bactopia specific profile is added
 //includeConfig !System.getenv('NXF_OFFLINE') && params.custom_config_base ? "${params.custom_config_base}/pipeline/bactopia.config" : "/dev/null"
+
+// Base Config
+includeConfig "{{ base }}"
+
+// Profiles
+includeConfig "{{ profiles }}"
 
 // Reporting configuration
 timeline {

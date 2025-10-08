@@ -51,7 +51,7 @@ def execute(
         logging.error(f'"{cmd}" return exit code {e.returncode}')
         logging.error(e)
         if allow_fail:
-            return 1
+            return None
         else:
             sys.exit(e.returncode)
 

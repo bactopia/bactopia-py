@@ -1,0 +1,7 @@
+process {
+{% for config in processes %}
+    // {{ config.name }} process configuration
+    // Source: {{ config.path }}
+{{ config.contents }}
+{% endfor %}
+}

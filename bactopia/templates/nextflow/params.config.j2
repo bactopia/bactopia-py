@@ -1,0 +1,6 @@
+params {
+{% for config in params %}
+    // Source: {{ config.path }}
+{{ config.contents }}
+{% endfor %}
+}

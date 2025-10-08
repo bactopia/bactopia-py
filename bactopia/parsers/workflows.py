@@ -14,15 +14,20 @@ def get_modules_by_workflow(wf: str, workflows: dict) -> list:
     Returns:
         list: A list of modules associated with the workflow
     """
-    modules = set()
+    modules = []
     if wf not in workflows["workflows"]:
-        return list(modules)
+        return modules
 
     if "includes" in workflows["workflows"][wf]:
         for workflow in workflows["workflows"][wf]["includes"]:
-            modules.update(get_modules_by_workflow(workflow, workflows))
+            wf_modules = get_modules_by_workflow(workflow, workflows)
+            for module in wf_modules:
+                if module not in modules:
+                    modules.append(module)
 
     if "modules" in workflows["workflows"][wf]:
-        modules.update(workflows["workflows"][wf]["modules"])
+        for module in workflows["workflows"][wf]["modules"]:
+            if module not in modules:
+                modules.append(module)
 
-    return list(modules)
+    return modules

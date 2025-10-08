@@ -11,6 +11,7 @@ from jinja2 import Environment, FileSystemLoader
 from rich.logging import RichHandler
 
 import bactopia
+import bactopia.parsers.nextflow as nf_parsers
 from bactopia.parsers.generic import parse_json, parse_yaml
 from bactopia.parsers.workflows import get_modules_by_workflow
 
@@ -18,6 +19,20 @@ MODULE_PRIORITY = [
     "csvtk_concat",
     "csvtk_join",
     "wget",
+]
+
+SHOW_PARAMETERS = [
+    "input_parameters",
+    "assembler_parameters",
+    "dataset_parameters",
+    "gather_parameters",
+    "qc_parameters",
+    "sketcher_parameters",
+    "optional_parameters",
+    "max_job_request_parameters",
+    "nextflow_parameters",
+    "nextflow_profile_parameters",
+    "generic_parameters",
 ]
 
 # Set up Rich
@@ -112,20 +127,17 @@ def merge_schemas(
     outdir_path.mkdir(parents=True, exist_ok=True)
 
     schema_file = f"{outdir_path}/nextflow_schema.json"
-    config_file = f"{outdir_path}/nextflow.config"
+    params_file = f"{outdir_path}/params.config"
+    process_file = f"{outdir_path}/process.config"
+    nf_config_file = f"{outdir_path}/nextflow.config"
 
     # Check if files exist and handle accordingly
-    if Path(schema_file).exists() and not force:
-        logging.error(
-            f"Output file {schema_file} already exists. Use --force to overwrite."
-        )
-        sys.exit(1)
-
-    if Path(config_file).exists() and not force:
-        logging.error(
-            f"Output file {config_file} already exists. Use --force to overwrite."
-        )
-        sys.exit(1)
+    for file in [schema_file, params_file, process_file, nf_config_file]:
+        if Path(file).exists() and not force:
+            logging.error(
+                f"Output file {file} already exists. Use --force to overwrite."
+            )
+            sys.exit(1)
 
     # parse the workflows
     workflows = parse_yaml(f"{bactopia_path}/conf/workflows.yaml")
@@ -143,12 +155,8 @@ def merge_schemas(
     # determine if this is Bactopia, named workflow or a Bactopia Tool
     is_workflow = workflows["workflows"][wf].get("is_workflow", False)
     if is_workflow:
-        if wf == "bactopia":
-            # This is the Bactopia workflow
-            final_schema = parse_json(f"{bactopia_path}/conf/schema/bactopia.json")
-        else:
-            # This is a named workflow
-            final_schema = parse_json(f"{bactopia_path}/conf/schema/{wf}.json")
+        # This is a named workflow
+        final_schema = parse_json(f"{bactopia_path}/conf/schema/{wf}.json")
     else:
         # This is a Bactopia Tool
         final_schema = parse_json(f"{bactopia_path}/conf/schema/bactopia-tools.json")
@@ -170,6 +178,11 @@ def merge_schemas(
         for definition in schema["$defs"]:
             if schema["$defs"][definition]["properties"]:
                 for property, vals in schema["$defs"][definition]["properties"].items():
+                    # Set hidden
+                    if is_workflow and definition not in SHOW_PARAMETERS:
+                        schema["$defs"][definition]["properties"][property][
+                            "hidden"
+                        ] = True
                     # Check if the property is required
                     if "is_required" in property:
                         final_schema["$defs"]["input_parameters"]["properties"][
@@ -183,7 +196,7 @@ def merge_schemas(
                 else:
                     # raise an error if the definitions are the same
                     logging.error(
-                        f"Duplicate definition ({definition}) found will parsing the following modules: {module}"
+                        f"Duplicate definition ({definition}) found while parsing the following modules: {module}"
                     )
                     sys.exit(1)
 
@@ -203,20 +216,18 @@ def merge_schemas(
         json.dump(final_schema, f, indent=4, separators=(",", ": "))
     logging.info(f"Generated nextflow_schema.json at {schema_file}")
 
-    # Generate Nextflow config file
-    # Set up Jinja2 environment
-    template_dir = Path(__file__).parent.parent.parent / "templates"
-    env = Environment(loader=FileSystemLoader(template_dir))
-    template = env.get_template("nextflow-config.j2")
+    # Generate Nextflow config files
 
     # Determine logo_name based on is_workflow
     logo_name = wf if is_workflow else "bactopia-tools"
 
     # Build module paths dictionary
     module_paths = {}
+    depth = len(workflows["workflows"][wf]["path"].split("/"))
+    include_prefix = "./" if depth == 1 else "../" * depth
+    logging.debug(f"Include prefix: {include_prefix} ({depth})")
     for module in modules:
-        # All modules follow the standard path pattern where underscores become slashes
-        module_paths[module] = f"modules/{module.replace('_', '/')}"
+        module_paths[module] = f"{include_prefix}modules/{module.replace('_', '/')}"
 
     # Reorder modules list based on priority
     config_modules = []
@@ -227,20 +238,45 @@ def merge_schemas(
         if module not in config_modules:
             config_modules.append(module)
 
-    # Render the template
-    config_content = template.render(
+    # Parse config files
+    base = f"{include_prefix}conf/base.config"
+    profiles = f"{include_prefix}conf/profiles.config"
+
+    generic_params = []
+    generic_params.append(f"{include_prefix}conf/params.config")
+
+    extra_wf = None
+    if is_workflow:
+        if wf != "bactopia":
+            extra_wf = f"{include_prefix}conf/params/{wf}.config"
+        generic_params.append(f"{include_prefix}conf/params/bactopia.config")
+    else:
+        generic_params.append(f"{include_prefix}conf/params/bactopia-tools.config")
+
+    # Generate Nextflow config file
+    # Set up Jinja2 environment
+    template_dir = Path(__file__).parent.parent.parent / "templates"
+    env = Environment(loader=FileSystemLoader(template_dir))
+    nf_template = env.get_template("nextflow/nextflow.config.j2")
+
+    # nextflow.config
+    nf_config_content = nf_template.render(
         workflow_name=wf,
         logo_name=logo_name,
         description=workflows["workflows"][wf]["description"],
         ext=workflows["workflows"][wf].get("ext", None),
+        generic_params=generic_params,
         modules=config_modules,
         module_paths=module_paths,
+        base=base,
+        profiles=profiles,
+        extra_wf=extra_wf,
     )
 
     # Write the config to file
-    with open(config_file, "w") as f:
-        f.write(config_content)
-    logging.info(f"Generated nextflow.config at {config_file}")
+    with open(nf_config_file, "w") as f:
+        f.write(nf_config_content)
+    logging.info(f"Generated nextflow.config at {nf_config_file}")
 
 
 def main():
