@@ -10,6 +10,7 @@ from rich.logging import RichHandler
 
 import bactopia
 from bactopia.parsers.generic import parse_yaml
+from bactopia.templates.logos import BACTOPIA_LOGO
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
@@ -20,9 +21,10 @@ click.rich_click.OPTION_GROUPS = {
     "bactopia-workflows": [
         {"name": "Required Options", "options": ["--bactopia-path"]},
         {
-            "name": "Build Related Options",
+            "name": "Workflow Related Options",
             "options": [
                 "--wf",
+                "--list_wfs",
             ],
         },
         {
@@ -57,12 +59,18 @@ click.rich_click.OPTION_GROUPS = {
     show_default=True,
     help="Build a environment for a the given workflow",
 )
+@click.option(
+    "--list_wfs",
+    is_flag=True,
+    help="List available Bactopia workflows and exit.",
+)
 @click.option("--verbose", is_flag=True, help="Print debug related text.")
 @click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
 @click.argument("unknown", nargs=-1, type=click.UNPROCESSED)
 def download(
     bactopia_path,
     wf,
+    list_wfs,
     verbose,
     silent,
     unknown,
@@ -96,6 +104,28 @@ def download(
             f"'workflows.yaml' could not be found in {bactopia_path}/conf/, is this a valid Bactopia installation?"
         )
         sys.exit(1)
+
+    # List available workflows in a table and exit
+    if list_wfs:
+        rich.print(BACTOPIA_LOGO)
+        table = rich.table.Table(title="Available Workflows")
+        table.add_column("Name", style="bold", width=15)
+        table.add_column("Description", style="dim", width=65)
+        for workflow in workflows:
+            if "is_workflow" in workflows[workflow]:
+                if workflows[workflow]["is_workflow"]:
+                    table.add_row(workflow, workflows[workflow]["description"])
+        rich.print(table)
+
+        table = rich.table.Table(title="Available Bactopia Tools")
+        table.add_column("Name", style="bold", width=15)
+        table.add_column("Description", style="dim", width=65)
+        for workflow in workflows:
+            if "is_workflow" not in workflows[workflow]:
+                table.add_row(workflow, workflows[workflow]["description"])
+        rich.print(table)
+
+        sys.exit(0)
 
     # Print the path to the workflow
     if wf in workflows:

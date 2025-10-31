@@ -388,7 +388,7 @@ def build_conda_env(
             f"{program} create -y -p {conda_path} -c conda-forge -c bioconda {conda_env}",
             allow_fail=allow_fail,
         )
-        if result:
+        if result != 0:
             # Non-zero exit code
             if retry > max_retry:
                 allow_fail = True
@@ -409,7 +409,9 @@ def docker_pull(container, max_retry=5):
     success = False
     while not success:
         result = execute(f"docker pull {container}", allow_fail=allow_fail)
-        if not result:
+        logging.debug(f"Docker pull returned: {result}")
+        if result != 0:
+            # Non-zero exit code
             if retry > max_retry:
                 allow_fail = True
             retry += 1
@@ -442,7 +444,7 @@ def build_singularity_image(
         else:
             # Download from Galaxy Project
             result = execute(f"wget --quiet -O {image} {pull}", allow_fail=allow_fail)
-        if not result:
+        if result != 0:
             if retry > max_retry:
                 allow_fail = True
             retry += 1
@@ -599,18 +601,21 @@ def download(
             for module, config in modules.items():
                 logging.debug(f"Building required environment: {module}")
                 info = parse_module(config, registry)
-                build_env(
-                    module,
-                    info,
-                    conda_path,
-                    conda_method,
-                    singularity_exe,
-                    singularity_path,
-                    envtype,
-                    force=force_rebuild,
-                    max_retry=max_retry,
-                    use_build=singularity_pull_docker_container,
-                )
+                if info:
+                    build_env(
+                        module,
+                        info,
+                        conda_path,
+                        conda_method,
+                        singularity_exe,
+                        singularity_path,
+                        envtype,
+                        force=force_rebuild,
+                        max_retry=max_retry,
+                        use_build=singularity_pull_docker_container,
+                    )
+                else:
+                    logging.warning(f"No environment associated with {module}")
 
 
 def main():
