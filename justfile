@@ -2,19 +2,18 @@ PROJECT := "bactopia"
 OPEN := if os() == "macos" { "open" } else { "xdg-open" }
 VERSION := `poetry version -s`
 
-# format code with black and isort
+# format code with ruff
 fmt:
-    poetry run black .
-    poetry run isort .
+    poetry run ruff format .
+    poetry run ruff check --fix .
 
-# check format of code with black and isort
+# check format and lint with ruff
 check-fmt:
-    poetry run black --check .
-    poetry run isort --check .
+    poetry run ruff format --check .
 
-# lint code with flake8
+# lint code with ruff
 lint:
-    poetry run flake8 .
+    poetry run ruff check .
 
 # install latest version with poetry
 install:
@@ -27,6 +26,10 @@ check: check-fmt lint
 tag:
     @echo "Run \`git tag -a {{ VERSION }} -m <message>\` to tag the release"
     @echo "Then run \`git push origin {{ VERSION }}\` to push the tag"
+
+# recreate the poetry lock file
+relock:
+    poetry lock --no-interaction
 
 # build a python release
 build:

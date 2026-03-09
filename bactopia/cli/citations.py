@@ -62,11 +62,11 @@ def citations(bactopia_path: str, name: str, plain_text: bool) -> None:
     else:
         for group, refs in citations.items():
             if group.startswith("datasets"):
-                markdown.append(f'# {group.replace("_", " ").title()}')
+                markdown.append(f"# {group.replace('_', ' ').title()}")
             else:
                 markdown.append(f"# {group.title()}")
             for ref, vals in refs.items():
-                markdown.append(f'{vals["name"]}  ')
+                markdown.append(f"{vals['name']}  ")
                 markdown.append(vals["cite"])
 
     md = None

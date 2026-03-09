@@ -1,0 +1,32 @@
+# bactopia-py
+
+> Python CLI tools for working with Bactopia, a Nextflow pipeline for complete analysis of bacterial genomes.
+
+bactopia-py provides 13 command-line tools that support the Bactopia ecosystem: preparing sample inputs (FOFN creation from FASTQ/FASTA files), querying public databases (ENA/SRA), building execution environments (Conda/Docker/Singularity), downloading supplementary datasets, generating result summaries with quality rankings (Gold/Silver/Bronze/Exclude), working with AllTheBacteria pre-assembled genomes, and building PubMLST MLST databases.
+
+Built with Python 3.9+, Poetry, and rich-click for CLI. Integrates with ENA, NCBI, and PubMLST REST APIs.
+
+## Documentation
+
+- [README](https://github.com/bactopia/bactopia-py/blob/main/README.md): Full documentation with CLI help output for all commands
+- [CHANGELOG](https://github.com/bactopia/bactopia-py/blob/main/CHANGELOG.md): Version history
+- [Bactopia Documentation](https://bactopia.github.io/): Main Bactopia pipeline documentation
+
+## Source Code
+
+- [CLI Commands](https://github.com/bactopia/bactopia-py/tree/main/bactopia/cli): All 13 CLI command implementations
+- [Database Clients](https://github.com/bactopia/bactopia-py/tree/main/bactopia/databases): ENA, NCBI, PubMLST API clients
+- [Parsers](https://github.com/bactopia/bactopia-py/tree/main/bactopia/parsers): Output parsers for bioinformatics tools
+- [pyproject.toml](https://github.com/bactopia/bactopia-py/blob/main/pyproject.toml): Build configuration and entry points
+- [catalog.json](https://github.com/bactopia/bactopia-py/blob/main/catalog.json): Machine-readable command catalog
+
+## Related Projects
+
+- [bactopia](https://github.com/bactopia/bactopia): Main Bactopia Nextflow pipeline
+- [nf-bactopia](https://github.com/bactopia/nf-bactopia): Nextflow plugin providing utility functions for Bactopia pipelines
+
+## Optional
+
+- [AllTheBacteria](https://github.com/iqbal-lab-org/AllTheBacteria): ~2M pre-assembled bacterial genomes
+- [PubMLST API Docs](https://bigsdb.readthedocs.io/en/latest/rest.html): Authentication setup for PubMLST commands
+- [Citation](https://doi.org/10.1128/mSystems.00190-20): Petit III RA, Read TD, mSystems 2020

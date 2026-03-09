@@ -1,6 +1,7 @@
 """
 Parsers for QC (FASTQ) related results.
 """
+
 from pathlib import Path
 
 from bactopia.parsers.generic import parse_json

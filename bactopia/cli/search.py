@@ -124,7 +124,7 @@ def parse_accessions(
                     if float(result["base_count"]) < min_base_count:
                         passes = False
                         reason.append(
-                            f'Failed base count ({result["base_count"]} bp) filter, expected > {min_base_count} bp'
+                            f"Failed base count ({result['base_count']} bp) filter, expected > {min_base_count} bp"
                         )
                         filtered["min_base_count"] += 1
 
@@ -418,9 +418,9 @@ def search(
                 filtered["min_read_length"] += query_filtered["min_read_length"]
                 filtered["technical"] += query_filtered["technical"]
                 for filtered_sample in query_filtered["filtered"]:
-                    filtered["filtered"][
-                        filtered_sample["accession"]
-                    ] = filtered_sample["reason"]
+                    filtered["filtered"][filtered_sample["accession"]] = (
+                        filtered_sample["reason"]
+                    )
             else:
                 if query_results:
                     WARNING_MESSAGE = f"WARNING: {query} did not return any Illumina or Ont results from ENA."
@@ -455,19 +455,19 @@ def search(
                 summary.append(f"\t{WARNING_MESSAGE}")
 
             if min_read_length or min_base_count:
-                summary.append(f'FILTERED ACCESSIONS: {len(filtered["filtered"])}')
+                summary.append(f"FILTERED ACCESSIONS: {len(filtered['filtered'])}")
                 if min_read_length:
                     summary.append(
-                        f'\tFAILED MIN READ LENGTH ({min_read_length} bp): {query_filtered["min_read_length"]}'
+                        f"\tFAILED MIN READ LENGTH ({min_read_length} bp): {query_filtered['min_read_length']}"
                     )
                 if min_base_count:
                     summary.append(
-                        f'\tFAILED MIN BASE COUNT ({min_base_count} bp): {query_filtered["min_base_count"]}'
+                        f"\tFAILED MIN BASE COUNT ({min_base_count} bp): {query_filtered['min_base_count']}"
                     )
             else:
                 summary.append("FILTERED ACCESSIONS: no filters applied")
 
-            summary.append(f'\tMISSING FASTQS: {filtered["technical"]}')
+            summary.append(f"\tMISSING FASTQS: {filtered['technical']}")
             summary.append("")
         else:
             logging.error(f"ERROR: Unable to retrieve metadata for query ({query})")

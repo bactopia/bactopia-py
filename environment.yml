@@ -3,6 +3,7 @@ channels:
   - bioconda
 dependencies:
   - blast
+  - just
   - pigz
   - poetry
   - python >=3.9

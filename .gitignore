@@ -8,7 +8,6 @@ bactopia-filtered.txt
 bactopia-metadata.txt
 bactopia-search.txt
 species_genome_size.txt.gz
-.vscode/settings.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -139,3 +138,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Ruff
+.ruff_cache/

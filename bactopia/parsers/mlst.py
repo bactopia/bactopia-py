@@ -1,6 +1,7 @@
 """
 Parsers for MLST related results.
 """
+
 from bactopia.parsers.generic import parse_table
 
 

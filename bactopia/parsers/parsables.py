@@ -1,6 +1,7 @@
 """
 A list of files that can be parsed by Bactopia
 """
+
 import logging
 from pathlib import Path
 

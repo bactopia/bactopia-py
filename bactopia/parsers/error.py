@@ -1,6 +1,7 @@
 """
 Parsers for Error related results.
 """
+
 ERROR_TYPES = {
     "assembly": "Assembled size was not withing an acceptable range",
     "different-read-count": "Paired-end read count mismatch",

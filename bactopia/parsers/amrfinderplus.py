@@ -1,6 +1,7 @@
 """
 Parsers for Antimicrobial Resistance related results.
 """
+
 from .generic import parse_table
 
 

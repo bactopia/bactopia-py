@@ -508,7 +508,7 @@ def download_database(
         database_text = database if i == 0 else f"{database}_{mlst_scheme_id}"
         if len(mlst_scheme_ids) > 1:
             logging.info(
-                f"Working on {database_text} (schema {i+1} of {len(mlst_scheme_ids)})"
+                f"Working on {database_text} (schema {i + 1} of {len(mlst_scheme_ids)})"
             )
         # Gather Profiles
         profiles_url = f"{BASE_API_URL[site]}/db/pubmlst_{database}_seqdef/schemes/{mlst_scheme_id}/profiles_csv"

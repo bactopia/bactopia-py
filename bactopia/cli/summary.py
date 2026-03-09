@@ -465,7 +465,7 @@ def summary(
             summary_fh.write(
                 textwrap.dedent(
                     f"""
-                Total Samples: {COUNTS['total']}
+                Total Samples: {COUNTS["total"]}
 
                 Passed: {COUNTS["pass"]}
                     Gold: {COUNTS["gold"]}
@@ -477,7 +477,7 @@ def summary(
                 )
             )
             summary_fh.write(f"{print_cutoffs(cutoff_counts)}\n")
-            summary_fh.write(f'    QC Failure: {COUNTS["qc-failure"]}\n')
+            summary_fh.write(f"    QC Failure: {COUNTS['qc-failure']}\n")
             summary_fh.write(f"{print_failed(FAILED)}\n")
             summary_fh.write(
                 textwrap.dedent(
@@ -489,24 +489,24 @@ def summary(
 
                 Rank Cutoffs:
                     Gold:
-                        Coverage >= {RANK_CUTOFF['gold']['coverage']}x
-                        Quality >= Q{RANK_CUTOFF['gold']['quality']}
-                        Read Length >= {RANK_CUTOFF['gold']['length']}bp
-                        Total Contigs < {RANK_CUTOFF['gold']['contigs']}
+                        Coverage >= {RANK_CUTOFF["gold"]["coverage"]}x
+                        Quality >= Q{RANK_CUTOFF["gold"]["quality"]}
+                        Read Length >= {RANK_CUTOFF["gold"]["length"]}bp
+                        Total Contigs < {RANK_CUTOFF["gold"]["contigs"]}
                     Silver:
-                        Coverage >= {RANK_CUTOFF['silver']['coverage']}x
-                        Quality >= Q{RANK_CUTOFF['silver']['quality']}
-                        Read Length >= {RANK_CUTOFF['silver']['length']}bp
-                        Total Contigs < {RANK_CUTOFF['silver']['contigs']}
+                        Coverage >= {RANK_CUTOFF["silver"]["coverage"]}x
+                        Quality >= Q{RANK_CUTOFF["silver"]["quality"]}
+                        Read Length >= {RANK_CUTOFF["silver"]["length"]}bp
+                        Total Contigs < {RANK_CUTOFF["silver"]["contigs"]}
                     Bronze:
-                        Coverage >= {RANK_CUTOFF['bronze']['coverage']}x
-                        Quality >= Q{RANK_CUTOFF['bronze']['quality']}
-                        Read Length >= {RANK_CUTOFF['bronze']['length']}bp
-                        Total Contigs < {RANK_CUTOFF['bronze']['contigs']}
+                        Coverage >= {RANK_CUTOFF["bronze"]["coverage"]}x
+                        Quality >= Q{RANK_CUTOFF["bronze"]["quality"]}
+                        Read Length >= {RANK_CUTOFF["bronze"]["length"]}bp
+                        Total Contigs < {RANK_CUTOFF["bronze"]["contigs"]}
 
                 Assembly Length Exclusions:
-                    Minimum: {RANK_CUTOFF['min-assembled-size']}
-                    Maximum: {RANK_CUTOFF['min-assembled-size']}
+                    Minimum: {RANK_CUTOFF["min-assembled-size"]}
+                    Maximum: {RANK_CUTOFF["min-assembled-size"]}
             """
                 )
             )

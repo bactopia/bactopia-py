@@ -262,7 +262,7 @@ def atb_downloader(
     if not dry_run:
         logging.info(f"Moving {len(matched_samples)} samples to: {outdir}")
         for i, sample in enumerate(matched_samples):
-            logging.debug(f"Moving sample {i+1} of {len(matched_samples)}: {sample}")
+            logging.debug(f"Moving sample {i + 1} of {len(matched_samples)}: {sample}")
             info = samples[sample]
             species = info["species_sylph"].lower().replace(" ", "_")
             if species not in species_dirs:

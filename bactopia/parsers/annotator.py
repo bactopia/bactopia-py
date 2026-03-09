@@ -1,6 +1,7 @@
 """
 Parsers for Annotation related results.
 """
+
 BAKTA_METADATA = [
     "tRNAs",
     "tmRNAs",

@@ -1,6 +1,7 @@
 """
 Parse the versions.yml files produced by Bactopia
 """
+
 from bactopia.parsers.generic import parse_yaml
 
 

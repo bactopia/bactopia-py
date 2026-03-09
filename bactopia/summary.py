@@ -138,7 +138,7 @@ def print_failed(failed: list, spaces: int = 8) -> str:
     lines = []
     for key, val in sorted(failed.items()):
         if key != "failed-cutoff":
-            lines.append(f'{spaces * " "}{key.replace("-", " ").title()}: {len(val)}')
+            lines.append(f"{spaces * ' '}{key.replace('-', ' ').title()}: {len(val)}")
     return "\n".join(lines) if lines else ""
 
 
@@ -155,5 +155,5 @@ def print_cutoffs(cutoffs: list, spaces: int = 8) -> str:
     """
     lines = []
     for key, val in sorted(cutoffs.items()):
-        lines.append(f'{spaces * " "}{key}: {val}')
+        lines.append(f"{spaces * ' '}{key}: {val}")
     return "\n".join(lines) if lines else ""

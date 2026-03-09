@@ -169,9 +169,9 @@ def parse_workflows(bactopia_path, input_wf, include_merlin=False, build_all=Fal
             for module in modules:
                 # Convert module name to path (underscore to slash)
                 module_path = f"modules/{module.replace('_', '/')}"
-                final_workflows[wf][
-                    module
-                ] = f"{bactopia_path}/{module_path}/process.config"
+                final_workflows[wf][module] = (
+                    f"{bactopia_path}/{module_path}/process.config"
+                )
 
     return final_workflows
 
@@ -278,9 +278,9 @@ def build_env(
         )
         with open(conda_complete, "w") as f:
             f.write(f"{datetime.now().isoformat()}\n")
-        BUILT_ALREADY["conda"][
-            conda_prefix
-        ] = f"Already built {envname} ({conda_prefix}) this run, skipping rebuild"
+        BUILT_ALREADY["conda"][conda_prefix] = (
+            f"Already built {envname} ({conda_prefix}) this run, skipping rebuild"
+        )
 
     if build_docker:
         # Pull necessary Docker containers
@@ -311,9 +311,9 @@ def build_env(
                     force=force,
                     use_build=use_build,
                 )
-            BUILT_ALREADY["singularity"][
-                singularity_img
-            ] = f"Already built {envname} ({singularity_img}) this run, skipping rebuild"
+            BUILT_ALREADY["singularity"][singularity_img] = (
+                f"Already built {envname} ({singularity_img}) this run, skipping rebuild"
+            )
 
 
 def check_md5sum(expected_md5, current_md5):

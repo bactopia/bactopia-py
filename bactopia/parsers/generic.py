@@ -1,6 +1,7 @@
 """
 Shared functions used by parsers.
 """
+
 import csv
 import json
 import logging

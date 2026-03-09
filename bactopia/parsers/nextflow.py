@@ -1,6 +1,7 @@
 """
 Parsers for Nextflow related files.
 """
+
 import logging
 
 from bactopia.utils import validate_file

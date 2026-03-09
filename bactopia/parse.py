@@ -3,6 +3,7 @@ Bactopia's parser entry-point.
 
 Example: bactopia.parse(result_type, filename)
 """
+
 from pathlib import Path
 
 IGNORE_LIST = [

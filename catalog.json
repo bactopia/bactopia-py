@@ -1,0 +1,102 @@
+{
+  "name": "bactopia-py",
+  "version": "1.7.0",
+  "description": "Python CLI tools for working with Bactopia",
+  "repository": "https://github.com/bactopia/bactopia-py",
+  "license": "MIT",
+  "python_requires": ">=3.9",
+  "command_count": 13,
+  "commands": [
+    {
+      "name": "bactopia-citations",
+      "description": "Print out tools and citations used throughout Bactopia",
+      "entry_point": "bactopia.cli.citations:main",
+      "category": "documentation",
+      "tags": ["citations", "references", "tools"]
+    },
+    {
+      "name": "bactopia-datasets",
+      "description": "Download optional datasets to supplement analyses",
+      "entry_point": "bactopia.cli.datasets:main",
+      "category": "data",
+      "tags": ["download", "datasets", "supplementary"]
+    },
+    {
+      "name": "bactopia-download",
+      "description": "Build Conda/Docker/Singularity environments for Bactopia",
+      "entry_point": "bactopia.cli.download:main",
+      "category": "environment",
+      "tags": ["conda", "docker", "singularity", "environments"]
+    },
+    {
+      "name": "bactopia-prepare",
+      "description": "Create a file of filenames (FOFN) of samples for Bactopia",
+      "entry_point": "bactopia.cli.prepare:main",
+      "category": "input",
+      "tags": ["FOFN", "samples", "FASTQ", "FASTA", "input"]
+    },
+    {
+      "name": "bactopia-search",
+      "description": "Query ENA and SRA for public accessions to process",
+      "entry_point": "bactopia.cli.search:main",
+      "category": "input",
+      "tags": ["ENA", "SRA", "search", "accessions", "public-data"]
+    },
+    {
+      "name": "bactopia-summary",
+      "description": "Generate summary table with quality rankings from results",
+      "entry_point": "bactopia.cli.summary:main",
+      "category": "analysis",
+      "tags": ["summary", "QC", "quality", "ranking", "Gold", "Silver", "Bronze"]
+    },
+    {
+      "name": "bactopia-update",
+      "description": "Check for newer versions of modules used by Bactopia Tools",
+      "entry_point": "bactopia.cli.update:main",
+      "category": "maintenance",
+      "tags": ["update", "versions", "modules"]
+    },
+    {
+      "name": "bactopia-workflows",
+      "description": "List available Bactopia workflows and output paths",
+      "entry_point": "bactopia.cli.workflows:main",
+      "category": "documentation",
+      "tags": ["workflows", "list", "tools"]
+    },
+    {
+      "name": "bactopia-merge-schemas",
+      "description": "Merge Nextflow schemas for Bactopia workflows",
+      "entry_point": "bactopia.cli.helpers.merge_schemas:main",
+      "category": "utility",
+      "tags": ["schema", "merge", "nextflow"]
+    },
+    {
+      "name": "bactopia-atb-formatter",
+      "description": "Restructure AllTheBacteria assemblies for Bactopia Tools",
+      "entry_point": "bactopia.cli.atb.atb_formatter:main",
+      "category": "atb",
+      "tags": ["AllTheBacteria", "assemblies", "restructure", "directory"]
+    },
+    {
+      "name": "bactopia-atb-downloader",
+      "description": "Download assemblies from AllTheBacteria database",
+      "entry_point": "bactopia.cli.atb.atb_downloader:main",
+      "category": "atb",
+      "tags": ["AllTheBacteria", "download", "assemblies"]
+    },
+    {
+      "name": "bactopia-pubmlst-setup",
+      "description": "One-time setup for PubMLST REST API credentials",
+      "entry_point": "bactopia.cli.pubmlst.setup:main",
+      "category": "pubmlst",
+      "tags": ["PubMLST", "setup", "OAuth", "credentials"]
+    },
+    {
+      "name": "bactopia-pubmlst-build",
+      "description": "Build PubMLST MLST databases for Bactopia",
+      "entry_point": "bactopia.cli.pubmlst.build:main",
+      "category": "pubmlst",
+      "tags": ["PubMLST", "MLST", "database", "build"]
+    }
+  ]
+}
