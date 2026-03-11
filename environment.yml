@@ -6,5 +6,6 @@ dependencies:
   - just
   - pigz
   - poetry
+  - pyyaml
   - python >=3.9
   - wget

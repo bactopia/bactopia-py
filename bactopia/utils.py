@@ -227,6 +227,44 @@ def download_url(url: str, save_path: str, show_progress: bool) -> str:
     return validate_file(save_path)
 
 
+def get_git_info(repo_path: Path) -> dict:
+    """Get git branch, short commit hash, and modified file count for a repo.
+
+    Args:
+        repo_path: Path to a git repository.
+
+    Returns:
+        A dict with branch, commit, and modified keys.
+    """
+    info = {"branch": "unknown", "commit": "unknown", "modified": 0}
+    try:
+        info["branch"] = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        info["commit"] = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        porcelain = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=repo_path,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        info["modified"] = len(porcelain.splitlines()) if porcelain else 0
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+    return info
+
+
 def chunk_list(lst: list, n: int) -> list:
     """
     Yield successive n-sized chunks from input list.

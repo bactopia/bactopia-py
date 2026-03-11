@@ -4,36 +4,17 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-import yaml
 from rich.console import Console
 from rich.markdown import Markdown
 
 import bactopia
+from bactopia.parsers.citations import parse_citations
 from bactopia.utils import validate_file
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
 rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
 click.rich_click.USE_RICH_MARKUP = True
-
-
-def parse_citations(yml: str) -> list:
-    """
-    Parse the citations.yml file from Bactopia's repository
-
-    Args:
-        yml (str): A yaml file containing citations
-
-    Returns:
-        list: A list of dictionaries containing citation information
-    """
-    module_citations = {}
-    with open(yml, "rt") as yml_fh:
-        citations = yaml.safe_load(yml_fh)
-        for group, refs in citations.items():
-            for ref, vals in refs.items():
-                module_citations[ref.lower()] = vals
-        return [citations, module_citations]
 
 
 @click.command()

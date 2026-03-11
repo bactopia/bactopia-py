@@ -11,6 +11,7 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
+from bactopia.nf import parse_dataset_urls
 from bactopia.utils import execute
 
 BACTOPIA_CACHEDIR = os.getenv("BACTOPIA_CACHEDIR", f"{Path.home()}/.bactopia")
@@ -42,30 +43,6 @@ click.rich_click.OPTION_GROUPS = {
         },
     ]
 }
-
-
-def parse_urls(bactopia_path, datasets_path):
-    """Parse Bactopia's workflows.conf to get modules per-workflow"""
-    urls = []
-    nf_config, stderr = execute(
-        f"nextflow config -flat {bactopia_path}/main.nf", capture=True
-    )
-    for line in nf_config.split("\n"):
-        if "_url =" in line:
-            param, val = line.split(" = ")
-            param = param.replace("params.", "")
-            val = val.replace("'", "")
-            urls.append(
-                {
-                    "dataset": param.split("_")[0],
-                    "url": val,
-                    "save_path": val.replace(
-                        "https://datasets.bactopia.com/datasets/", f"{datasets_path}/"
-                    ),
-                }
-            )
-
-    return urls
 
 
 def download_file(url, save_path, max_retry=5):
@@ -152,7 +129,7 @@ def datasets(
     datasets_path = f"{datasets_path}/datasets"
 
     # Current Bactopia workflows
-    workflow_urls = parse_urls(bactopia_path, datasets_path)
+    workflow_urls = parse_dataset_urls(bactopia_path, datasets_path)
     for url in workflow_urls:
         if Path(url["save_path"]).exists() and not force:
             logging.warn(
