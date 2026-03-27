@@ -27,6 +27,9 @@ bactopia-merge-schemas = "bactopia.cli.helpers.merge_schemas:main"
 bactopia-pubmlst-setup = "bactopia.cli.pubmlst.setup:main"
 bactopia-prune = "bactopia.cli.prune:main"
 bactopia-pubmlst-build = "bactopia.cli.pubmlst.build:main"
+bactopia-test = "bactopia.cli.testing:main"
+bactopia-lint = "bactopia.cli.lint:main"
+bactopia-review-tests = "bactopia.cli.review:main"
 
 [tool.poetry.dependencies]
 python = "^3.9.0"

@@ -1,5 +1,6 @@
 """Nextflow repo introspection utilities for Bactopia."""
 
+import json
 import logging
 import re
 import sys
@@ -413,3 +414,307 @@ def get_empty_placeholders(bactopia_path: Path) -> list:
     return sorted(
         str(f.relative_to(empty_dir)) for f in empty_dir.iterdir() if f.is_file()
     )
+
+
+# ---------------------------------------------------------------------------
+# Enhanced parsing functions for the linter
+# ---------------------------------------------------------------------------
+
+
+def _read_lines(path: Path) -> list[str]:
+    """Read file lines, returning empty list on error."""
+    try:
+        return path.read_text().splitlines(keepends=True)
+    except OSError:
+        return []
+
+
+def _extract_doc_block(lines: list[str]) -> list[str] | None:
+    """Extract the /** ... */ block from the first two lines of a file."""
+    doc_start = None
+    for i in range(min(2, len(lines))):
+        if lines[i].strip().startswith("/**"):
+            doc_start = i
+            break
+    if doc_start is None:
+        return None
+
+    doc_lines = []
+    for line in lines[doc_start:]:
+        doc_lines.append(line)
+        if "*/" in line:
+            break
+
+    if not any("*/" in line for line in doc_lines):
+        return None
+    return doc_lines
+
+
+def parse_groovydoc_full(main_nf: Path) -> dict:
+    """Parse a GroovyDoc block, returning tag names and their values.
+
+    Args:
+        main_nf: Path to a main.nf file.
+
+    Returns:
+        A dict with:
+            - has_doc: True if a GroovyDoc block was found
+            - tags: dict mapping tag names to their values
+            - raw_lines: the raw doc block lines
+            - links: list of URLs found in the doc block
+    """
+    result = {"has_doc": False, "tags": {}, "raw_lines": [], "links": []}
+    lines = _read_lines(main_nf)
+    if not lines:
+        return result
+
+    doc_lines = _extract_doc_block(lines)
+    if doc_lines is None:
+        return result
+
+    result["raw_lines"] = doc_lines
+
+    # Extract tags with their values
+    tag_pattern = re.compile(r"\*\s*@(\w+)\s*(.*)")
+    for line in doc_lines:
+        m = tag_pattern.search(line)
+        if m:
+            tag_name = m.group(1)
+            tag_value = m.group(2).strip()
+            # For tags that can appear multiple times (input, output, note),
+            # store as a list
+            if tag_name in ("input", "output", "note", "publish", "section"):
+                result["tags"].setdefault(tag_name, [])
+                result["tags"][tag_name].append(tag_value)
+            else:
+                result["tags"][tag_name] = tag_value
+
+    # Extract URLs
+    url_pattern = re.compile(r"https?://[^\s\)>]+")
+    for line in doc_lines:
+        for url_match in url_pattern.finditer(line):
+            result["links"].append(url_match.group(0))
+
+    result["has_doc"] = "status" in result["tags"]
+    return result
+
+
+def parse_main_nf_structure(main_nf: Path) -> dict:
+    """Extract structural information from a main.nf file.
+
+    Args:
+        main_nf: Path to a main.nf file.
+
+    Returns:
+        A dict with structural info about the file.
+    """
+    result = {
+        "has_types_preview": False,
+        "process_name": None,
+        "output_record_fields": [],
+        "has_versions_yml": False,
+        "links": [],
+        "emit_channels": [],
+        "has_comment_markers": False,
+        "has_tuple_references": False,
+        "has_blank_before_main": None,
+        "has_blank_before_emit": None,
+        "emit_has_published_comment": False,
+        "emit_has_sample_outputs": False,
+        "emit_has_run_outputs": False,
+    }
+
+    lines = _read_lines(main_nf)
+    if not lines:
+        return result
+
+    full_text = "".join(lines)
+
+    # Check for nextflow.preview.types = true
+    types_pattern = re.compile(r"nextflow\.preview\.types\s*=\s*true")
+    result["has_types_preview"] = bool(types_pattern.search(full_text))
+
+    # Extract process name (process UPPER_CASE {)
+    process_pattern = re.compile(r"^\s*process\s+([A-Z_0-9]+)\s*\{", re.MULTILINE)
+    pm = process_pattern.search(full_text)
+    if pm:
+        result["process_name"] = pm.group(1)
+
+    # Check for any process definition (including non-uppercase)
+    any_process_pattern = re.compile(r"^\s*process\s+(\w+)\s*\{", re.MULTILINE)
+    apm = any_process_pattern.search(full_text)
+    if apm and not pm:
+        # There's a process but it's not UPPER_CASE
+        result["process_name"] = apm.group(1)
+
+    # Extract output record fields from record(...) in output block
+    # The record() block contains nested parens (file(), files()), so we
+    # can't use a simple regex. Instead, find "record(" after "output:" and
+    # use balanced parenthesis counting to extract the full block.
+    output_block = re.search(
+        r"\boutput:\s*\n(.*?)(?=\n\s*(?:script:|exec:|shell:|stub:|\Z))",
+        full_text,
+        re.DOTALL,
+    )
+    if output_block:
+        output_text = output_block.group(1)
+        record_start = output_text.find("record(")
+        if record_start != -1:
+            # Find matching closing paren using balanced counting
+            depth = 0
+            start_idx = record_start + len("record(")
+            end_idx = start_idx
+            for i in range(record_start, len(output_text)):
+                if output_text[i] == "(":
+                    depth += 1
+                elif output_text[i] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        end_idx = i
+                        break
+            record_text = output_text[start_idx:end_idx]
+            # Extract field names -- look for "word:" at start of line
+            # (after optional whitespace and comment lines)
+            field_pattern = re.compile(r"^\s*(\w+)\s*:", re.MULTILINE)
+            for fm in field_pattern.finditer(record_text):
+                field_name = fm.group(1)
+                # Skip comments that happen to match (e.g., "// Named fields")
+                line_start = record_text.rfind("\n", 0, fm.start()) + 1
+                prefix_text = record_text[line_start : fm.start()].strip()
+                if not prefix_text.startswith("//"):
+                    result["output_record_fields"].append(field_name)
+
+    # Check for versions.yml in script block
+    result["has_versions_yml"] = "versions.yml" in full_text
+
+    # Extract emit channels (for subworkflows/workflows)
+    emit_block = re.search(r"\bemit:\s*\n(.*?)(?=\n\s*\}|\Z)", full_text, re.DOTALL)
+    if emit_block:
+        channel_pattern = re.compile(r"^\s*(\w+)\s*=", re.MULTILINE)
+        for cm in channel_pattern.finditer(emit_block.group(1)):
+            result["emit_channels"].append(cm.group(1))
+
+    # Check for comment markers like // ---
+    result["has_comment_markers"] = bool(re.search(r"//\s*-{3,}", full_text))
+
+    # Check for tuple references (should be record instead)
+    result["has_tuple_references"] = bool(
+        re.search(r"\btuple\b", full_text, re.IGNORECASE)
+    )
+
+    # Check for blank lines before main: and emit: blocks
+    stripped_lines = [ln.rstrip() for ln in lines]
+    for i, line in enumerate(stripped_lines):
+        stripped = line.strip()
+        if stripped == "main:":
+            result["has_blank_before_main"] = (
+                i > 0 and stripped_lines[i - 1].strip() == ""
+            )
+        elif stripped == "emit:":
+            result["has_blank_before_emit"] = (
+                i > 0 and stripped_lines[i - 1].strip() == ""
+            )
+
+    # Check emit block structure (sample_outputs, run_outputs, comments)
+    if emit_block:
+        emit_text = emit_block.group(1)
+        result["emit_has_sample_outputs"] = bool(
+            re.search(r"^\s*sample_outputs\s*=", emit_text, re.MULTILINE)
+        )
+        result["emit_has_run_outputs"] = bool(
+            re.search(r"^\s*run_outputs\s*=", emit_text, re.MULTILINE)
+        )
+        result["emit_has_published_comment"] = bool(
+            re.search(r"//\s*Published outputs", emit_text)
+        )
+
+    return result
+
+
+def parse_module_config_full(config_path: Path) -> dict:
+    """Parse a module.config file for all ext.* properties and params.
+
+    Args:
+        config_path: Path to a module.config file.
+
+    Returns:
+        A dict with:
+            - ext: dict of ext.* property names to their raw values
+            - params: list of parameter names defined in params {} block
+            - exists: whether the file exists
+    """
+    result = {"ext": {}, "params": [], "exists": False}
+    if not config_path.exists():
+        return result
+    result["exists"] = True
+
+    text = config_path.read_text()
+
+    # Extract ext.* properties
+    ext_pattern = re.compile(r"ext\.(\w+)\s*=\s*(.*)")
+    for m in ext_pattern.finditer(text):
+        result["ext"][m.group(1)] = m.group(2).strip()
+
+    # Extract params from the params {} block, tracking per-line ignores
+    ignore_pattern = re.compile(r"//\s*bactopia-lint:\s*ignore\s+([\w, ]+)")
+    params_block = re.search(r"params\s*\{([^}]*)\}", text, re.DOTALL)
+    if params_block:
+        for line in params_block.group(1).splitlines():
+            param_match = re.match(r"^\s*(\w+)\s*=", line)
+            if not param_match:
+                continue
+            name = param_match.group(1)
+            if name.startswith("//"):
+                continue
+            # Check for inline ignore on same line
+            inline_ignores = set()
+            ig = ignore_pattern.search(line)
+            if ig:
+                for rule_id in ig.group(1).split(","):
+                    rule_id = rule_id.strip()
+                    if rule_id:
+                        inline_ignores.add(rule_id)
+            result["params"].append({"name": name, "ignores": inline_ignores})
+
+    return result
+
+
+def parse_schema_json(schema_path: Path) -> dict:
+    """Parse a schema.json file and validate its structure.
+
+    Args:
+        schema_path: Path to a schema.json file.
+
+    Returns:
+        A dict with structural validation results.
+    """
+    result = {
+        "exists": False,
+        "valid_json": False,
+        "required_keys": {},
+        "defs_keys": [],
+        "param_names": [],
+    }
+
+    if not schema_path.exists():
+        return result
+    result["exists"] = True
+
+    try:
+        data = json.loads(schema_path.read_text())
+        result["valid_json"] = True
+    except (json.JSONDecodeError, OSError):
+        return result
+
+    # Check for required top-level keys
+    for key in ("$schema", "$id", "title", "description", "type", "$defs", "allOf"):
+        result["required_keys"][key] = key in data
+
+    # Extract $defs keys and parameter names
+    if "$defs" in data and isinstance(data["$defs"], dict):
+        result["defs_keys"] = list(data["$defs"].keys())
+        for def_key, def_val in data["$defs"].items():
+            if isinstance(def_val, dict) and "properties" in def_val:
+                result["param_names"].extend(def_val["properties"].keys())
+
+    return result
