@@ -1,3 +1,4 @@
+import json
 import logging
 import sys
 from pathlib import Path
@@ -9,7 +10,6 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
-from bactopia.parsers.generic import parse_yaml
 from bactopia.templates.logos import BACTOPIA_LOGO
 
 # Set up Rich
@@ -94,14 +94,15 @@ def download(
         sys.exit(1)
     bactopia_path = str(Path(bactopia_path).absolute().resolve())
 
-    # Load the workflows.yml file
-    workflows = None
-    if Path(f"{bactopia_path}/data/workflows.yml").exists():
-        workflows_yaml = parse_yaml(f"{bactopia_path}/data/workflows.yml")
-        workflows = workflows_yaml["workflows"]
+    # Load catalog.json
+    catalog_path = Path(f"{bactopia_path}/data/catalog.json")
+    if catalog_path.exists():
+        with open(catalog_path) as fh:
+            catalog = json.load(fh)
+        workflows = catalog["workflows"]
     else:
         logging.error(
-            f"'workflows.yml' could not be found in {bactopia_path}/data/, is this a valid Bactopia installation?"
+            f"'catalog.json' could not be found in {bactopia_path}/data/, is this a valid Bactopia installation?"
         )
         sys.exit(1)
 
@@ -111,18 +112,17 @@ def download(
         table = rich.table.Table(title="Available Workflows")
         table.add_column("Name", style="bold", width=15)
         table.add_column("Description", style="dim", width=65)
-        for workflow in workflows:
-            if "is_workflow" in workflows[workflow]:
-                if workflows[workflow]["is_workflow"]:
-                    table.add_row(workflow, workflows[workflow]["description"])
+        for name, info in workflows.items():
+            if info.get("type") == "named":
+                table.add_row(name, info["description"])
         rich.print(table)
 
         table = rich.table.Table(title="Available Bactopia Tools")
         table.add_column("Name", style="bold", width=15)
         table.add_column("Description", style="dim", width=65)
-        for workflow in workflows:
-            if "is_workflow" not in workflows[workflow]:
-                table.add_row(workflow, workflows[workflow]["description"])
+        for name, info in workflows.items():
+            if info.get("type") == "tool":
+                table.add_row(name, info["description"])
         rich.print(table)
 
         sys.exit(0)
@@ -132,7 +132,7 @@ def download(
         if wf == "bactopia":
             print(f"{bactopia_path}/main.nf")
         else:
-            print(f"{bactopia_path}/{workflows[wf]['path']}/main.nf")
+            print(f"{bactopia_path}/{workflows[wf]['path']}main.nf")
     else:
         logging.error(f"'{wf}' is not a known workflow, please verify workflow name")
         sys.exit(1)

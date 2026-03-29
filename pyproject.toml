@@ -29,6 +29,7 @@ bactopia-prune = "bactopia.cli.prune:main"
 bactopia-pubmlst-build = "bactopia.cli.pubmlst.build:main"
 bactopia-test = "bactopia.cli.testing:main"
 bactopia-lint = "bactopia.cli.lint:main"
+bactopia-catalog = "bactopia.cli.catalog:main"
 bactopia-review-tests = "bactopia.cli.review:main"
 
 [tool.poetry.dependencies]

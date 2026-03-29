@@ -100,6 +100,78 @@ def rule_w007(component: str, ctx: dict) -> list[LintResult]:
     return [_pass(rid, component, "No tuple type references found")]
 
 
+# Controlled vocabulary for params.workflow.ext values
+VALID_EXT_KEYS = {
+    "fna",  # assembled genome
+    "fna_anno",  # annotator-formatted assembly
+    "faa",  # protein sequences
+    "gff",  # gene coordinates
+    "gbk",  # GenBank file
+    "tsv_meta",  # analysis metadata TSV
+    "blastdb",  # BLAST database
+    "r1",  # forward reads (Illumina PE)
+    "r2",  # reverse reads (Illumina PE)
+    "se",  # single-end reads (Illumina SE)
+    "lr",  # long reads (ONT/PacBio)
+    "fastq",  # alias: expands to r1, r2, se, lr
+}
+
+
+def _is_bactopia_tool(component: str) -> bool:
+    """Check if a workflow component is a bactopia-tool (not a named workflow)."""
+    return "bactopia-tools/" in component
+
+
+def rule_w008(component: str, ctx: dict) -> list[LintResult]:
+    """params.workflow.ext is a list (bactopia-tools only)."""
+    rid = "W008"
+    if not _is_bactopia_tool(component):
+        return []  # Named workflows don't use ext
+    wc = ctx.get("workflow_config")
+    if not wc or not wc["exists"]:
+        return [_fail(rid, component, "nextflow.config is missing")]
+    if wc["ext"] is not None:
+        return [_pass(rid, component, "params.workflow.ext is a list")]
+    if wc["ext_raw"] is not None:
+        return [
+            _fail(
+                rid,
+                component,
+                f"params.workflow.ext is a string ('{wc['ext_raw']}'), must be a list",
+            )
+        ]
+    return [_fail(rid, component, "params.workflow.ext is missing")]
+
+
+def rule_w009(component: str, ctx: dict) -> list[LintResult]:
+    """params.workflow.ext values are from controlled vocabulary."""
+    rid = "W009"
+    if not _is_bactopia_tool(component):
+        return []
+    wc = ctx.get("workflow_config")
+    if not wc or not wc["exists"] or wc["ext"] is None:
+        return []  # W008 covers missing/invalid ext
+    invalid = [v for v in wc["ext"] if v not in VALID_EXT_KEYS]
+    if not invalid:
+        return [_pass(rid, component, "All ext values are valid")]
+    return [_fail(rid, component, f"Invalid ext values: {', '.join(invalid)}")]
+
+
+def rule_w010(component: str, ctx: dict) -> list[LintResult]:
+    """params.workflow.ext is not empty."""
+    rid = "W010"
+    if not _is_bactopia_tool(component):
+        return []
+    wc = ctx.get("workflow_config")
+    if not wc or not wc["exists"] or wc["ext"] is None:
+        return []  # W008 covers missing/invalid ext
+    if len(wc["ext"]) > 0:
+        return [
+            _pass(rid, component, f"params.workflow.ext has {len(wc['ext'])} value(s)")
+        ]
+    return [_fail(rid, component, "params.workflow.ext is an empty list")]
+
+
 WORKFLOW_RULES = [
     rule_w001,
     rule_w002,
@@ -108,4 +180,7 @@ WORKFLOW_RULES = [
     rule_w005,
     rule_w006,
     rule_w007,
+    rule_w008,
+    rule_w009,
+    rule_w010,
 ]

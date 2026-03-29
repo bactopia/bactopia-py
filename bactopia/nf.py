@@ -238,13 +238,18 @@ def parse_module_config(module_config: str, registry: str) -> dict:
 
 
 def parse_workflows(bactopia_path, input_wf, include_merlin=False, build_all=False):
-    """Parse Bactopia's workflows.yml to get modules per-workflow"""
-    from bactopia.parsers.generic import parse_yaml
+    """Parse Bactopia's catalog.json to get modules per-workflow."""
+    import json
 
-    # Load the workflows.yml file
-    logging.debug(f"Loading workflows from {bactopia_path}/data/workflows.yml")
-    workflows_yaml = parse_yaml(f"{bactopia_path}/data/workflows.yml")
-    workflows = workflows_yaml["workflows"]
+    from bactopia.parsers.workflows import get_modules_by_workflow
+
+    # Load catalog.json
+    catalog_path = f"{bactopia_path}/data/catalog.json"
+    logging.debug(f"Loading catalog from {catalog_path}")
+    with open(catalog_path) as fh:
+        catalog = json.load(fh)
+
+    workflows = catalog["workflows"]
 
     if input_wf not in workflows and not build_all:
         # Let nextflow handle unknown workflows
@@ -257,37 +262,29 @@ def parse_workflows(bactopia_path, input_wf, include_merlin=False, build_all=Fal
         if input_wf == wf or build_all:
             logging.debug(f"Processing workflow: {wf}")
             final_workflows[wf] = {}
-            modules = {}
 
-            # Get modules from includes
-            if "includes" in wf_info:
-                for include in wf_info["includes"]:
-                    if include in workflows and "modules" in workflows[include]:
-                        if include == "merlin" and not include_merlin:
-                            logging.debug(
-                                "Skipping merlin modules since --include_merlin not set"
-                            )
-                            continue
-                        else:
-                            for module in workflows[include]["modules"]:
-                                logging.debug(
-                                    f"Adding module {module} from include {include}"
-                                )
-                                modules[module] = True
+            # Optionally skip merlin subworkflow
+            if not include_merlin and "merlin" in wf_info.get("subworkflows", []):
+                logging.debug("Skipping merlin modules since --include_merlin not set")
+                # Temporarily remove merlin to exclude its modules
+                orig_subs = wf_info["subworkflows"]
+                wf_info["subworkflows"] = [s for s in orig_subs if s != "merlin"]
+                modules = get_modules_by_workflow(wf, catalog)
+                wf_info["subworkflows"] = orig_subs
+            else:
+                modules = get_modules_by_workflow(wf, catalog)
 
-            # Get direct modules
-            if "modules" in wf_info:
-                for module in wf_info["modules"]:
-                    logging.debug(f"Adding module {module}")
-                    modules[module] = True
-
-            # Parse each module
+            # Map each module key to its module.config path
             for module in modules:
-                # Convert module name to path (underscore to slash)
-                module_path = f"modules/{module.replace('_', '/')}"
-                final_workflows[wf][module] = (
-                    f"{bactopia_path}/{module_path}/module.config"
-                )
+                module_meta = catalog["modules"].get(module)
+                if module_meta:
+                    config_path = f"{bactopia_path}/{module_meta['path']}module.config"
+                else:
+                    # Fallback: derive path from key
+                    module_path = f"modules/{module.replace('_', '/')}"
+                    config_path = f"{bactopia_path}/{module_path}/module.config"
+                logging.debug(f"Adding module {module}: {config_path}")
+                final_workflows[wf][module] = config_path
 
     return final_workflows
 
@@ -1105,4 +1102,46 @@ def check_file_whitespace(path: Path) -> dict:
             result["whitespace_only_lines"].append(i)
         elif stripped != stripped.rstrip():
             result["trailing_whitespace_lines"].append(i)
+    return result
+
+
+def parse_workflow_config(config_path: Path) -> dict:
+    """Parse a workflow nextflow.config for params.workflow fields.
+
+    Extracts the ext value from params.workflow block. The ext should be a
+    Groovy list literal (e.g., ["fna", "faa", "gff"]).
+
+    Args:
+        config_path: Path to the nextflow.config file.
+
+    Returns:
+        A dict with:
+            - exists: bool
+            - ext: list[str] | None (parsed ext values, or None if not found)
+            - ext_raw: str | None (raw ext value string)
+    """
+    result = {"exists": False, "ext": None, "ext_raw": None}
+    if not config_path.exists():
+        return result
+    result["exists"] = True
+
+    try:
+        text = config_path.read_text()
+    except OSError:
+        return result
+
+    # Match ext = ["fna", "faa", "gff"] or ext = ["fna"]
+    ext_match = re.search(r"ext\s*=\s*\[([^\]]*)\]", text)
+    if ext_match:
+        raw = ext_match.group(1)
+        result["ext_raw"] = raw
+        # Parse quoted strings from the list
+        result["ext"] = re.findall(r'"([^"]*)"', raw)
+        return result
+
+    # Check for old string format: ext = "fna"
+    ext_str_match = re.search(r'ext\s*=\s*"([^"]*)"', text)
+    if ext_str_match:
+        result["ext_raw"] = ext_str_match.group(1)
+        result["ext"] = None  # String format is invalid -- rule will flag this
     return result

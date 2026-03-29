@@ -12,7 +12,7 @@ from rich.logging import RichHandler
 
 import bactopia
 import bactopia.parsers.nextflow as nf_parsers
-from bactopia.parsers.generic import parse_json, parse_yaml
+from bactopia.parsers.generic import parse_json
 from bactopia.parsers.workflows import get_modules_by_workflow
 
 MODULE_PRIORITY = [
@@ -139,21 +139,22 @@ def merge_schemas(
             )
             sys.exit(1)
 
-    # parse the workflows
-    workflows = parse_yaml(f"{bactopia_path}/data/workflows.yml")
+    # parse the catalog
+    with open(f"{bactopia_path}/data/catalog.json") as fh:
+        catalog = json.load(fh)
 
-    if wf not in workflows["workflows"]:
+    if wf not in catalog["workflows"]:
         # Let nextflow handle unknown workflows
         logging.error(f"{wf} is not a known workflow, skipping")
         sys.exit()
 
     # Get the modules associated with the workflow
-    modules = get_modules_by_workflow(wf, workflows)
+    modules = get_modules_by_workflow(wf, catalog)
     logging.info(f"Modules associated with {wf}: {', '.join(modules)}")
 
     final_schema = None
     # determine if this is Bactopia, named workflow or a Bactopia Tool
-    is_workflow = workflows["workflows"][wf].get("is_workflow", False)
+    is_workflow = catalog["workflows"][wf].get("type") == "named"
     if is_workflow:
         # This is a named workflow
         final_schema = parse_json(f"{bactopia_path}/conf/schema/{wf}.json")
@@ -163,14 +164,17 @@ def merge_schemas(
 
     # Set some defaults
     final_schema["title"] = wf
-    final_schema["description"] = workflows["workflows"][wf]["description"]
+    final_schema["description"] = catalog["workflows"][wf]["description"]
 
     for module in modules:
-        # Get the schema for each module
-        # Modules follow a standard path pattern where underscores become slashes
-        # e.g., abricate_run -> abricate/run, mlst -> mlst
-        module_path = f"modules/{module.replace('_', '/')}"
-        schema = parse_json(f"{bactopia_path}/{module_path}/schema.json")
+        # Get the schema for each module using catalog path
+        module_meta = catalog["modules"].get(module)
+        if module_meta:
+            schema_path = f"{bactopia_path}/{module_meta['path']}schema.json"
+        else:
+            module_path = f"modules/{module.replace('_', '/')}"
+            schema_path = f"{bactopia_path}/{module_path}/schema.json"
+        schema = parse_json(schema_path)
 
         # determine if the module schema has a required field, that should be moved to
         # final_schema['$defs']['input_parameters']['properties'], then removed from the
@@ -223,11 +227,18 @@ def merge_schemas(
 
     # Build module paths dictionary
     module_paths = {}
-    depth = len(workflows["workflows"][wf]["path"].split("/"))
+    wf_path = catalog["workflows"][wf]["path"].rstrip("/")
+    depth = len(wf_path.split("/"))
     include_prefix = "./" if depth == 1 else "../" * depth
     logging.debug(f"Include prefix: {include_prefix} ({depth})")
     for module in modules:
-        module_paths[module] = f"{include_prefix}modules/{module.replace('_', '/')}"
+        module_meta = catalog["modules"].get(module)
+        if module_meta:
+            # path already ends with /, strip it for the include path
+            mod_dir = module_meta["path"].rstrip("/")
+            module_paths[module] = f"{include_prefix}{mod_dir}"
+        else:
+            module_paths[module] = f"{include_prefix}modules/{module.replace('_', '/')}"
 
     # Reorder modules list based on priority
     config_modules = []
@@ -263,8 +274,8 @@ def merge_schemas(
     nf_config_content = nf_template.render(
         workflow_name=wf,
         logo_name=logo_name,
-        description=workflows["workflows"][wf]["description"],
-        ext=workflows["workflows"][wf].get("ext", None),
+        description=catalog["workflows"][wf]["description"],
+        ext=catalog["workflows"][wf].get("ext", None),
         generic_params=generic_params,
         modules=config_modules,
         module_paths=module_paths,

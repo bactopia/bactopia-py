@@ -15,6 +15,7 @@ from bactopia.nf import (
     parse_main_nf_structure,
     parse_module_config_full,
     parse_schema_json,
+    parse_workflow_config,
 )
 
 # Pattern: // bactopia-lint: ignore RULE1,RULE2  or  // bactopia-lint: ignore RULE1
@@ -92,12 +93,17 @@ def _build_module_context(main_nf: Path, citation_keys: set[str] | None = None) 
 
 def _build_simple_context(main_nf: Path) -> dict:
     """Build a context dict for subworkflow/workflow components (no module.config/schema)."""
-    return {
+    ctx = {
         "main_nf_path": main_nf,
         "component_dir": main_nf.parent,
         "groovydoc": parse_groovydoc_full(main_nf),
         "structure": parse_main_nf_structure(main_nf),
     }
+    # Add workflow config if nextflow.config exists (bactopia-tools)
+    config_path = main_nf.parent / "nextflow.config"
+    if config_path.exists():
+        ctx["workflow_config"] = parse_workflow_config(config_path)
+    return ctx
 
 
 def _run_rules(

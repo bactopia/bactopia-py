@@ -1,33 +1,49 @@
 """
-Parse the workflows.yml files produced by Bactopia
+Parse the catalog.json produced by bactopia-catalog.
 """
 
 
-def get_modules_by_workflow(wf: str, workflows: dict) -> list:
+def get_modules_by_workflow(wf: str, catalog: dict) -> list:
     """
-    Recursively get the modules associated with a workflow
+    Collect all module keys reachable from a workflow by walking the
+    subworkflow graph in catalog.json.
 
     Args:
-        wf (str): The name of the workflow
-        workflows (dict): The parsed workflows.yml file
+        wf: The name of the workflow (e.g., "bactopia", "abricate").
+        catalog: The full parsed catalog.json dict.
 
     Returns:
-        list: A list of modules associated with the workflow
+        A deduplicated list of module keys (e.g., ["abricate_run", "csvtk_concat"]).
     """
+    if wf not in catalog["workflows"]:
+        return []
+
     modules = []
-    if wf not in workflows["workflows"]:
-        return modules
+    seen_modules = set()
+    visited_subworkflows = set()
 
-    if "includes" in workflows["workflows"][wf]:
-        for workflow in workflows["workflows"][wf]["includes"]:
-            wf_modules = get_modules_by_workflow(workflow, workflows)
-            for module in wf_modules:
-                if module not in modules:
-                    modules.append(module)
+    def _walk_subworkflow(sw_name: str):
+        if sw_name in visited_subworkflows:
+            return
+        visited_subworkflows.add(sw_name)
 
-    if "modules" in workflows["workflows"][wf]:
-        for module in workflows["workflows"][wf]["modules"]:
-            if module not in modules:
-                modules.append(module)
+        sw = catalog["subworkflows"].get(sw_name)
+        if sw is None:
+            return
+
+        calls = sw.get("calls", {})
+
+        # Collect modules from this subworkflow
+        for mod in calls.get("modules", []):
+            if mod not in seen_modules:
+                seen_modules.add(mod)
+                modules.append(mod)
+
+        # Recurse into nested subworkflows
+        for nested_sw in calls.get("subworkflows", []):
+            _walk_subworkflow(nested_sw)
+
+    for sw_name in catalog["workflows"][wf].get("subworkflows", []):
+        _walk_subworkflow(sw_name)
 
     return modules
