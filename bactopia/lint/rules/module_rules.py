@@ -872,7 +872,16 @@ def rule_fmt002(component: str, ctx: dict) -> list[LintResult]:
 STANDARD_OUTPUT_FIELDS = {"meta", "results", "logs", "nf_logs", "versions"}
 
 # Expected tag ordering in GroovyDoc
-TAG_ORDER = ["status", "keywords", "tags", "citation", "note", "input", "output", "results"]
+TAG_ORDER = [
+    "status",
+    "keywords",
+    "tags",
+    "citation",
+    "note",
+    "input",
+    "output",
+    "results",
+]
 
 
 def rule_m031(component: str, ctx: dict) -> list[LintResult]:
