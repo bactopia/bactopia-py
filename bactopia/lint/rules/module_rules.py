@@ -1093,6 +1093,29 @@ def rule_m037(component: str, ctx: dict) -> list[LintResult]:
     return [_pass(rid, component, "GroovyDoc section spacing is correct")]
 
 
+def rule_m038(component: str, ctx: dict) -> list[LintResult]:
+    """GroovyDoc does not contain '*/' inside the comment block (e.g., glob patterns with */)."""
+    rid = "M038"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    raw_lines = doc.get("raw_lines", [])
+    if not raw_lines:
+        return []
+    # Check all lines except the last (which legitimately ends with */)
+    for i, line in enumerate(raw_lines[:-1]):
+        if "*/" in line:
+            return [
+                _fail(
+                    rid,
+                    component,
+                    f"GroovyDoc line {i + 1} contains '*/' which prematurely closes the comment block "
+                    "(likely a glob pattern like 'dir/*/file' -- use directory names instead)",
+                )
+            ]
+    return [_pass(rid, component, "No premature */ in GroovyDoc block")]
+
+
 # ---------------------------------------------------------------------------
 # Rule registry
 # ---------------------------------------------------------------------------
@@ -1159,6 +1182,7 @@ MODULE_RULES = [
     rule_m035,
     rule_m036,
     rule_m037,
+    rule_m038,
     # file formatting
     rule_fmt001,
     rule_fmt002,
