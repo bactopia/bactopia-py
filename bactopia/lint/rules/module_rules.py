@@ -866,6 +866,225 @@ def rule_fmt002(component: str, ctx: dict) -> list[LintResult]:
 
 
 # ---------------------------------------------------------------------------
+# GroovyDoc accuracy rules (M031-M037)
+# ---------------------------------------------------------------------------
+
+STANDARD_OUTPUT_FIELDS = {"meta", "results", "logs", "nf_logs", "versions"}
+
+# Expected tag ordering in GroovyDoc
+TAG_ORDER = ["status", "keywords", "tags", "citation", "note", "input", "output", "results"]
+
+
+def rule_m031(component: str, ctx: dict) -> list[LintResult]:
+    """@output record(...) fields match actual record() output fields."""
+    rid = "M031"
+    doc = ctx["groovydoc"]
+    struct = ctx["structure"]
+    if not doc["has_doc"]:
+        return []  # M006 covers this
+    doc_fields = doc.get("doc_output_fields", [])
+    actual_fields = struct.get("output_record_fields", [])
+    if not doc_fields and not actual_fields:
+        return []  # No output to check (e.g., download modules without @output)
+    if not doc_fields:
+        return []  # No @output record() in doc -- could be intentional
+    if not actual_fields:
+        return [
+            _fail(
+                rid,
+                component,
+                "@output documents fields but no record() found in output block",
+            )
+        ]
+    if doc_fields == actual_fields:
+        return [_pass(rid, component, "@output fields match actual record() output")]
+    # Show the difference
+    doc_set = set(doc_fields)
+    actual_set = set(actual_fields)
+    extra_in_doc = sorted(doc_set - actual_set)
+    missing_in_doc = sorted(actual_set - doc_set)
+    if extra_in_doc or missing_in_doc:
+        msgs = []
+        if extra_in_doc:
+            msgs.append(f"in @output but not in code: {', '.join(extra_in_doc)}")
+        if missing_in_doc:
+            msgs.append(f"in code but not in @output: {', '.join(missing_in_doc)}")
+        return [_fail(rid, component, f"@output field mismatch: {'; '.join(msgs)}")]
+    # Same fields but different order -- style issue, not correctness
+    return [_warn(rid, component, "@output fields match but order differs from code")]
+
+
+def rule_m032(component: str, ctx: dict) -> list[LintResult]:
+    """@input record(...) fields match actual input Record fields."""
+    rid = "M032"
+    doc = ctx["groovydoc"]
+    struct = ctx["structure"]
+    if not doc["has_doc"]:
+        return []
+    doc_records = doc.get("doc_input_records", [])
+    actual_fields = struct.get("input_record_fields", [])
+    if not doc_records and not actual_fields:
+        return []  # No record inputs
+    if not doc_records:
+        return []  # No @input record() in doc -- might use different syntax
+    if not actual_fields:
+        return []  # No Record input in code -- might be a download module
+    # Compare the first @input record against actual input record
+    doc_fields = doc_records[0]["fields"]
+    if doc_fields == actual_fields:
+        return [_pass(rid, component, "@input record fields match actual input")]
+    doc_set = set(doc_fields)
+    actual_set = set(actual_fields)
+    extra_in_doc = sorted(doc_set - actual_set)
+    missing_in_doc = sorted(actual_set - doc_set)
+    msgs = []
+    if extra_in_doc:
+        msgs.append(f"in @input but not in code: {', '.join(extra_in_doc)}")
+    if missing_in_doc:
+        msgs.append(f"in code but not in @input: {', '.join(missing_in_doc)}")
+    if not msgs:
+        msgs.append(
+            f"field order differs: doc=[{', '.join(doc_fields)}] vs code=[{', '.join(actual_fields)}]"
+        )
+    return [_fail(rid, component, f"@input record field mismatch: {'; '.join(msgs)}")]
+
+
+def rule_m033(component: str, ctx: dict) -> list[LintResult]:
+    """@input uses record(meta, ...) syntax, not raw (_meta: Map, ...)."""
+    rid = "M033"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    if doc.get("doc_input_uses_raw_syntax", False):
+        return [
+            _warn(
+                rid,
+                component,
+                "@input uses raw (_meta: Map, ...) syntax -- use record(meta, ...) instead",
+            )
+        ]
+    if doc.get("doc_input_records"):
+        return [_pass(rid, component, "@input uses record() syntax")]
+    return []  # No record inputs to check
+
+
+def rule_m034(component: str, ctx: dict) -> list[LintResult]:
+    """@output does not describe standard fields (meta, results, logs, nf_logs, versions)."""
+    rid = "M034"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    described = doc.get("doc_output_described_fields", [])
+    if not described:
+        return []  # No field descriptions at all
+    bad_fields = sorted(set(described) & STANDARD_OUTPUT_FIELDS)
+    if bad_fields:
+        return [
+            _warn(
+                rid,
+                component,
+                f"@output describes standard fields that should be skipped: {', '.join(bad_fields)}",
+            )
+        ]
+    return [_pass(rid, component, "@output only describes tool-specific fields")]
+
+
+def rule_m035(component: str, ctx: dict) -> list[LintResult]:
+    """@citation keys exist in data/citations.yml."""
+    rid = "M035"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    citation_value = doc["tags"].get("citation", "")
+    if not citation_value:
+        return []  # M007 covers missing @citation
+    citation_keys = ctx.get("citation_keys", set())
+    if not citation_keys:
+        return []  # citations.yml not available -- skip check
+    keys = [k.strip() for k in citation_value.split(",")]
+    invalid = [k for k in keys if k and k not in citation_keys]
+    if invalid:
+        return [
+            _fail(
+                rid,
+                component,
+                f"@citation keys not in citations.yml: {', '.join(invalid)}",
+            )
+        ]
+    return [_pass(rid, component, "All @citation keys are valid")]
+
+
+def rule_m036(component: str, ctx: dict) -> list[LintResult]:
+    """GroovyDoc tag ordering: @status -> @keywords -> @tags -> @citation -> @note -> @input -> @output."""
+    rid = "M036"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    actual_order = doc.get("doc_tag_order", [])
+    if not actual_order:
+        return []
+    # Filter to only known ordered tags
+    known_order = [t for t in actual_order if t in TAG_ORDER]
+    expected_positions = {t: i for i, t in enumerate(TAG_ORDER)}
+    # Check that known tags appear in the correct relative order
+    for i in range(len(known_order) - 1):
+        curr = known_order[i]
+        nxt = known_order[i + 1]
+        if expected_positions[curr] > expected_positions[nxt]:
+            return [
+                _warn(
+                    rid,
+                    component,
+                    f"Tag ordering incorrect: @{curr} appears before @{nxt} "
+                    f"(expected: {' -> '.join('@' + t for t in TAG_ORDER if t in known_order)})",
+                )
+            ]
+    return [_pass(rid, component, "GroovyDoc tag ordering is correct")]
+
+
+def rule_m037(component: str, ctx: dict) -> list[LintResult]:
+    """Blank lines between GroovyDoc sections."""
+    rid = "M037"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    raw_lines = doc.get("raw_lines", [])
+    if not raw_lines:
+        return []
+
+    # Check for blank line (just " *" or " * ") before first tag
+    # and between tag groups (tags/note, note/input, input/output)
+    tag_line_pattern = re.compile(r"\*\s*@(\w+)")
+    blank_line_pattern = re.compile(r"^\s*\*\s*$")
+
+    issues = []
+    prev_tag = None
+    # Track transitions that need blank lines between them
+    needs_blank = {
+        ("citation", "note"),
+        ("citation", "input"),
+        ("note", "input"),
+        ("input", "output"),
+    }
+
+    for i, line in enumerate(raw_lines):
+        m = tag_line_pattern.search(line)
+        if m:
+            curr_tag = m.group(1)
+            if prev_tag and (prev_tag, curr_tag) in needs_blank:
+                # Check that the previous line is blank
+                if i > 0 and not blank_line_pattern.match(raw_lines[i - 1]):
+                    issues.append(f"missing blank line before @{curr_tag}")
+            # For multi-valued tags (input appearing twice), skip check
+            if curr_tag != prev_tag:
+                prev_tag = curr_tag
+
+    if issues:
+        return [_warn(rid, component, f"GroovyDoc formatting: {'; '.join(issues)}")]
+    return [_pass(rid, component, "GroovyDoc section spacing is correct")]
+
+
+# ---------------------------------------------------------------------------
 # Rule registry
 # ---------------------------------------------------------------------------
 
@@ -923,6 +1142,14 @@ MODULE_RULES = [
     rule_js003,
     rule_js004,
     rule_js005,
+    # GroovyDoc accuracy
+    rule_m031,
+    rule_m032,
+    rule_m033,
+    rule_m034,
+    rule_m035,
+    rule_m036,
+    rule_m037,
     # file formatting
     rule_fmt001,
     rule_fmt002,

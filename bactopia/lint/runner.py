@@ -1,7 +1,10 @@
 """Lint runner: discovers components, builds contexts, and executes rules."""
 
+import logging
 import re
 from pathlib import Path
+
+import yaml
 
 from bactopia.lint.models import LintResult
 from bactopia.lint.rules import MODULE_RULES, SUBWORKFLOW_RULES, WORKFLOW_RULES
@@ -39,7 +42,33 @@ def _collect_ignores(component_dir: Path) -> set[str]:
     return ignored
 
 
-def _build_module_context(main_nf: Path) -> dict:
+def _load_citation_keys(bactopia_path: Path) -> set[str]:
+    """Load all citation keys from data/citations.yml.
+
+    Args:
+        bactopia_path: Root path of the Bactopia repo.
+
+    Returns:
+        Set of all citation key names across all sections.
+    """
+    citations_path = bactopia_path / "data" / "citations.yml"
+    if not citations_path.exists():
+        logging.debug("citations.yml not found at %s", citations_path)
+        return set()
+    try:
+        with open(citations_path) as f:
+            data = yaml.safe_load(f)
+        keys = set()
+        for section, entries in data.items():
+            if isinstance(entries, dict):
+                keys.update(entries.keys())
+        return keys
+    except Exception as e:
+        logging.debug("Failed to parse citations.yml: %s", e)
+        return set()
+
+
+def _build_module_context(main_nf: Path, citation_keys: set[str] | None = None) -> dict:
     """Build a context dict for a module component."""
     component_dir = main_nf.parent
     # Check whitespace for all component files
@@ -47,7 +76,7 @@ def _build_module_context(main_nf: Path) -> dict:
     for filename in ("main.nf", "module.config", "schema.json"):
         filepath = component_dir / filename
         whitespace[filename] = check_file_whitespace(filepath)
-    return {
+    ctx = {
         "main_nf_path": main_nf,
         "component_dir": component_dir,
         "groovydoc": parse_groovydoc_full(main_nf),
@@ -56,6 +85,9 @@ def _build_module_context(main_nf: Path) -> dict:
         "schema": parse_schema_json(component_dir / "schema.json"),
         "whitespace": whitespace,
     }
+    if citation_keys is not None:
+        ctx["citation_keys"] = citation_keys
+    return ctx
 
 
 def _build_simple_context(main_nf: Path) -> dict:
@@ -133,6 +165,9 @@ def run_lint(
     all_results: list[LintResult] = []
     components_by_tier: dict[str, list[dict]] = {}
 
+    # Load citation keys once for M035
+    citation_keys = _load_citation_keys(bactopia_path)
+
     # Modules
     if lint_modules:
         tier_name = "modules"
@@ -150,7 +185,7 @@ def run_lint(
                 ):
                     continue
 
-            ctx = _build_module_context(main_nf)
+            ctx = _build_module_context(main_nf, citation_keys=citation_keys)
             ignored = _collect_ignores(main_nf.parent)
             results = _run_rules(component_name, ctx, MODULE_RULES, ignored)
             all_results.extend(results)

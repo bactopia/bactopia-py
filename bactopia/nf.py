@@ -463,7 +463,19 @@ def parse_groovydoc_full(main_nf: Path) -> dict:
             - raw_lines: the raw doc block lines
             - links: list of URLs found in the doc block
     """
-    result = {"has_doc": False, "tags": {}, "raw_lines": [], "links": []}
+    result = {
+        "has_doc": False,
+        "tags": {},
+        "raw_lines": [],
+        "links": [],
+        # Parsed GroovyDoc fields for lint rules M031-M037
+        "doc_output_fields": [],  # field names from @output record(...)
+        "doc_input_records": [],  # list of {fields: [...]} per @input record(...)
+        "doc_input_params": [],  # non-record @input names
+        "doc_output_described_fields": [],  # fields with description lines
+        "doc_input_uses_raw_syntax": False,  # True if @input uses (_meta: Map, ...)
+        "doc_tag_order": [],  # ordered list of tag names as they appear
+    }
     lines = _read_lines(main_nf)
     if not lines:
         return result
@@ -483,7 +495,7 @@ def parse_groovydoc_full(main_nf: Path) -> dict:
             tag_value = m.group(2).strip()
             # For tags that can appear multiple times (input, output, note),
             # store as a list
-            if tag_name in ("input", "output", "note", "publish", "section"):
+            if tag_name in ("input", "output", "note", "publish", "section", "results"):
                 result["tags"].setdefault(tag_name, [])
                 result["tags"][tag_name].append(tag_value)
             else:
@@ -496,6 +508,73 @@ def parse_groovydoc_full(main_nf: Path) -> dict:
             result["links"].append(url_match.group(0))
 
     result["has_doc"] = "status" in result["tags"]
+
+    # --- Parse GroovyDoc fields for lint rules M031-M037 ---
+
+    # Track tag ordering from raw lines
+    seen_tags = []
+    tag_order_pattern = re.compile(r"\*\s*@(\w+)")
+    for line in doc_lines:
+        m = tag_order_pattern.search(line)
+        if m:
+            tag_name = m.group(1)
+            if tag_name not in seen_tags:
+                seen_tags.append(tag_name)
+    result["doc_tag_order"] = seen_tags
+
+    # Parse @output record(...) fields
+    output_tags = result["tags"].get("output", [])
+    for oval in output_tags:
+        record_match = re.match(r"record\(([^)]+)\)", oval)
+        if record_match:
+            fields = [f.strip() for f in record_match.group(1).split(",")]
+            result["doc_output_fields"] = fields
+
+    # Parse @input blocks
+    input_tags = result["tags"].get("input", [])
+    for ival in input_tags:
+        # Check for record(meta, ...) syntax
+        record_match = re.match(r"record\(([^)]+)\)", ival)
+        if record_match:
+            fields = [f.strip() for f in record_match.group(1).split(",")]
+            result["doc_input_records"].append({"fields": fields})
+        # Check for raw (_meta: Map, ...) syntax
+        elif re.match(r"\(_meta\s*:", ival):
+            result["doc_input_uses_raw_syntax"] = True
+            # Still extract field names for comparison
+            raw_match = re.match(r"\(([^)]+)\)", ival)
+            if raw_match:
+                fields = []
+                for part in raw_match.group(1).split(","):
+                    part = part.strip()
+                    name = part.split(":")[0].strip()
+                    # Normalize _meta -> meta
+                    if name == "_meta":
+                        name = "meta"
+                    fields.append(name)
+                result["doc_input_records"].append({"fields": fields})
+        else:
+            # Non-record input (e.g., "db", "proteins")
+            param_name = ival.split()[0] if ival.strip() else ""
+            if param_name:
+                result["doc_input_params"].append(param_name)
+
+    # Parse @output description lines to find which fields are described
+    # Pattern: * - `field`: description
+    desc_pattern = re.compile(r"\*\s*-\s*`(\w+)`\s*:")
+    in_output_section = False
+    for line in doc_lines:
+        if re.search(r"\*\s*@output", line):
+            in_output_section = True
+            continue
+        if re.search(r"\*\s*@\w+", line) and not re.search(r"\*\s*@output", line):
+            in_output_section = False
+            continue
+        if in_output_section:
+            dm = desc_pattern.search(line)
+            if dm:
+                result["doc_output_described_fields"].append(dm.group(1))
+
     return result
 
 
@@ -546,6 +625,9 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         "output_has_nf_logs": False,
         "output_versions_uses_files": False,
         "output_generic_using_file": [],
+        # Input parsing for M031/M032
+        "input_record_fields": [],  # fields from (_meta: Map, field: Type): Record
+        "input_params": [],  # non-record input names (db, proteins, etc.)
     }
 
     lines = _read_lines(main_nf)
@@ -701,6 +783,37 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
                 )
                 for gfm in generic_field_pat.finditer(generic_section):
                     result["output_generic_using_file"].append(gfm.group(1))
+
+    # Extract input block fields
+    input_block = re.search(
+        r"\binput:\s*\n(.*?)(?=\n\s*(?:output:|script:|exec:|shell:|stub:|\Z))",
+        full_text,
+        re.DOTALL,
+    )
+    if input_block:
+        input_text = input_block.group(1)
+        # Match Record input: (_meta: Map, field1: Type, field2: Type?): Record
+        record_input_match = re.search(r"\(([^)]+)\)\s*:\s*Record", input_text)
+        if record_input_match:
+            for part in record_input_match.group(1).split(","):
+                part = part.strip()
+                name = part.split(":")[0].strip()
+                # Normalize leading underscore (e.g., _meta -> meta, _vcf -> vcf)
+                if name.startswith("_"):
+                    name = name[1:]
+                result["input_record_fields"].append(name)
+        # Match non-record inputs: name: Type (one per line, not inside parens)
+        for line in input_text.split("\n"):
+            stripped = line.strip()
+            # Skip empty lines, comments, and the Record line
+            if not stripped or stripped.startswith("//") or "Record" in stripped:
+                continue
+            if stripped.startswith("("):
+                continue
+            # Match "name: Type" or "name   : Type"
+            param_match = re.match(r"(\w+)\s*:\s*\w+", stripped)
+            if param_match:
+                result["input_params"].append(param_match.group(1))
 
     # Check for versions.yml in script block
     result["has_versions_yml"] = "versions.yml" in full_text
