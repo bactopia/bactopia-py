@@ -107,6 +107,12 @@ def print_rich(
         f"[red]{s['fail']} FAIL[/red]"
     )
 
+    # Show ignore hint if there are any failures or warnings
+    if s["fail"] > 0 or s["warn"] > 0:
+        console.print(
+            "\n[dim]Ignore rules with: // bactopia-lint: ignore RULE_ID[/dim]"
+        )
+
 
 @click.command()
 @click.version_option(bactopia.__version__, "--version")

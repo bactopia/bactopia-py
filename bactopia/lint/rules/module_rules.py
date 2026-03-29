@@ -1,4 +1,4 @@
-"""Lint rules for Bactopia modules (M001-M015, MC001-MC009, JS001-JS004)."""
+"""Lint rules for Bactopia modules (M001-M030, MC001-MC015, JS001-JS005, FMT001-FMT002)."""
 
 import re
 from pathlib import Path
@@ -285,6 +285,211 @@ def rule_m016(component: str, ctx: dict) -> list[LintResult]:
     return [_pass(rid, component, "No tuple references found")]
 
 
+REQUIRED_META_FIELDS = {"id", "name", "scope", "output_dir", "logs_dir", "process_name"}
+GENERIC_OUTPUT_FIELDS = {"results", "logs", "nf_logs", "versions"}
+PASSTHROUGH_OUTPUT_FIELDS = {"r1", "r2", "se", "lr"}
+
+
+def rule_m017(component: str, ctx: dict) -> list[LintResult]:
+    """prefix = task.ext.prefix ?: "${_meta.name}" present."""
+    rid = "M017"
+    if ctx["structure"]["has_prefix_definition"]:
+        return [_pass(rid, component, "prefix definition present")]
+    return [
+        _fail(
+            rid,
+            component,
+            'Missing: prefix = task.ext.prefix ?: "${_meta.name}"',
+        )
+    ]
+
+
+def rule_m018(component: str, ctx: dict) -> list[LintResult]:
+    """meta = [:] initialized with all 6 required fields."""
+    rid = "M018"
+    if not ctx["structure"]["has_meta_init"]:
+        return [_fail(rid, component, "Missing meta initialization: meta = [:]")]
+    missing = sorted(REQUIRED_META_FIELDS - ctx["structure"]["meta_fields_set"])
+    if missing:
+        return [
+            _fail(
+                rid,
+                component,
+                f"Missing meta fields: meta.{', meta.'.join(missing)}",
+            )
+        ]
+    return [_pass(rid, component, "meta initialized with all required fields")]
+
+
+def rule_m019(component: str, ctx: dict) -> list[LintResult]:
+    """conda directive uses standard pattern."""
+    rid = "M019"
+    if ctx["structure"]["has_conda_directive"]:
+        return [_pass(rid, component, "conda directive present")]
+    return [
+        _fail(
+            rid,
+            component,
+            'Missing: conda "${task.ext.condaDir}/${task.ext.toolName}"',
+        )
+    ]
+
+
+def rule_m020(component: str, ctx: dict) -> list[LintResult]:
+    """container directive uses standard pattern."""
+    rid = "M020"
+    if ctx["structure"]["has_container_directive"]:
+        return [_pass(rid, component, "container directive present")]
+    return [
+        _fail(
+            rid,
+            component,
+            'Missing: container "${task.ext.container}"',
+        )
+    ]
+
+
+def rule_m021(component: str, ctx: dict) -> list[LintResult]:
+    """No ${meta.name} or ${_meta.name} interpolation -- use ${prefix}."""
+    rid = "M021"
+    if ctx["structure"]["has_meta_name_interpolation"]:
+        return [
+            _fail(
+                rid,
+                component,
+                "Found ${meta.name} or ${_meta.name} interpolation -- use ${prefix}",
+            )
+        ]
+    return [_pass(rid, component, "No meta.name interpolation found")]
+
+
+def rule_m022(component: str, ctx: dict) -> list[LintResult]:
+    """# Cleanup comment in script block."""
+    rid = "M022"
+    if ctx["structure"]["has_cleanup_comment"]:
+        return [_pass(rid, component, "# Cleanup comment found in script block")]
+    return [_warn(rid, component, "Missing '# Cleanup' comment in script block")]
+
+
+def rule_m023(component: str, ctx: dict) -> list[LintResult]:
+    """Output record has '// Named fields (used downstream)' comment."""
+    rid = "M023"
+    if ctx["structure"]["output_has_named_comment"]:
+        return [_pass(rid, component, "Named fields comment present in output record")]
+    return [
+        _fail(
+            rid,
+            component,
+            "Missing '// Named fields (used downstream)' comment in output record",
+        )
+    ]
+
+
+def rule_m024(component: str, ctx: dict) -> list[LintResult]:
+    """Output record has meta: meta field."""
+    rid = "M024"
+    if ctx["structure"]["output_has_meta_field"]:
+        return [_pass(rid, component, "meta: meta field present in output record")]
+    return [_fail(rid, component, "Missing 'meta: meta' field in output record")]
+
+
+def rule_m025(component: str, ctx: dict) -> list[LintResult]:
+    """Output record has '// Generic fields (used for publishing)' comment."""
+    rid = "M025"
+    if ctx["structure"]["output_has_generic_comment"]:
+        return [
+            _pass(rid, component, "Generic fields comment present in output record")
+        ]
+    return [
+        _fail(
+            rid,
+            component,
+            "Missing '// Generic fields (used for publishing)' comment in output record",
+        )
+    ]
+
+
+def rule_m026(component: str, ctx: dict) -> list[LintResult]:
+    """Output results is a multi-line list containing files() for every named field."""
+    rid = "M026"
+    struct = ctx["structure"]
+    if not struct["output_has_results"]:
+        return [_fail(rid, component, "Missing 'results' field in output record")]
+    if not struct["output_results_is_list"]:
+        return [_fail(rid, component, "results must be a multi-line list [...]")]
+    # Check that every named field pattern is represented in results
+    named_patterns = struct["output_named_field_patterns"]
+    results_fields = struct["output_results_fields"]
+    missing = []
+    for field_name, pattern in named_patterns.items():
+        if field_name in PASSTHROUGH_OUTPUT_FIELDS:
+            continue
+        if pattern not in results_fields:
+            missing.append(field_name)
+    if missing:
+        return [
+            _fail(
+                rid,
+                component,
+                f"results block missing entries for named fields: {', '.join(missing)}",
+            )
+        ]
+    return [_pass(rid, component, "results block contains all named field outputs")]
+
+
+def rule_m027(component: str, ctx: dict) -> list[LintResult]:
+    """Output record has logs field."""
+    rid = "M027"
+    if ctx["structure"]["output_has_logs"]:
+        return [_pass(rid, component, "logs field present in output record")]
+    return [
+        _fail(
+            rid,
+            component,
+            'Missing logs field: logs: files("*.{log,err}", optional: true)',
+        )
+    ]
+
+
+def rule_m028(component: str, ctx: dict) -> list[LintResult]:
+    """Output record has nf_logs field."""
+    rid = "M028"
+    if ctx["structure"]["output_has_nf_logs"]:
+        return [_pass(rid, component, "nf_logs field present in output record")]
+    return [
+        _fail(
+            rid,
+            component,
+            'Missing nf_logs field: nf_logs: files(".command.*")',
+        )
+    ]
+
+
+def rule_m029(component: str, ctx: dict) -> list[LintResult]:
+    """Output record versions uses files() not file()."""
+    rid = "M029"
+    if "versions" not in ctx["structure"]["output_record_fields"]:
+        return []  # M012 covers missing versions
+    if ctx["structure"]["output_versions_uses_files"]:
+        return [_pass(rid, component, "versions uses files()")]
+    return [_fail(rid, component, "versions must use files() not file()")]
+
+
+def rule_m030(component: str, ctx: dict) -> list[LintResult]:
+    """All generic fields use files() not file()."""
+    rid = "M030"
+    bad_fields = ctx["structure"]["output_generic_using_file"]
+    if bad_fields:
+        return [
+            _fail(
+                rid,
+                component,
+                f"Generic fields using file() instead of files(): {', '.join(bad_fields)}",
+            )
+        ]
+    return [_pass(rid, component, "All generic fields use files()")]
+
+
 # ---------------------------------------------------------------------------
 # module.config rules (MC001-MC009)
 # ---------------------------------------------------------------------------
@@ -414,6 +619,109 @@ def rule_mc009(component: str, ctx: dict) -> list[LintResult]:
     return [_pass(rid, component, "All params correctly prefixed")]
 
 
+def _module_name_from_component(component: str) -> str:
+    """Derive the expected params block module name from a component path.
+
+    modules/abricate/run -> abricate_run
+    modules/mlst -> mlst
+    """
+    return component.replace("modules/", "").replace("/", "_")
+
+
+def rule_mc010(component: str, ctx: dict) -> list[LintResult]:
+    """params block first line is // module_name or // No parameters."""
+    rid = "MC010"
+    if not ctx["config"]["exists"]:
+        return []
+    comment = ctx["config"]["params_comment"]
+    if comment is None:
+        return [_fail(rid, component, "No comment found in params block")]
+    expected_name = _module_name_from_component(component)
+    if comment == f"// {expected_name}" or comment == "// No parameters":
+        return [_pass(rid, component, f"params comment matches: {comment}")]
+    return [
+        _fail(
+            rid,
+            component,
+            f"params comment '{comment}' should be '// {expected_name}' or '// No parameters'",
+        )
+    ]
+
+
+def rule_mc011(component: str, ctx: dict) -> list[LintResult]:
+    """ext.args present (empty string or list+join pattern)."""
+    rid = "MC011"
+    if not ctx["config"]["exists"]:
+        return []
+    if ctx["config"]["has_ext_args"]:
+        return [_pass(rid, component, "ext.args is defined")]
+    return [_fail(rid, component, "module.config missing ext.args")]
+
+
+def rule_mc012(component: str, ctx: dict) -> list[LintResult]:
+    """// Tool arguments section comment present."""
+    rid = "MC012"
+    if not ctx["config"]["exists"]:
+        return []
+    if ctx["config"]["has_tool_arguments_comment"]:
+        return [_pass(rid, component, "'// Tool arguments' comment present")]
+    return [_fail(rid, component, "module.config missing '// Tool arguments' comment")]
+
+
+def rule_mc013(component: str, ctx: dict) -> list[LintResult]:
+    """// Environment information section comment present."""
+    rid = "MC013"
+    if not ctx["config"]["exists"]:
+        return []
+    if ctx["config"]["has_environment_comment"]:
+        return [_pass(rid, component, "'// Environment information' comment present")]
+    return [
+        _fail(
+            rid, component, "module.config missing '// Environment information' comment"
+        )
+    ]
+
+
+def rule_mc014(component: str, ctx: dict) -> list[LintResult]:
+    """Section ordering: identity -> tool args -> environment."""
+    rid = "MC014"
+    if not ctx["config"]["exists"]:
+        return []
+    # Only check if all three sections are present
+    cfg = ctx["config"]
+    if not (cfg["has_tool_arguments_comment"] and cfg["has_environment_comment"]):
+        return []  # MC012/MC013 cover missing sections
+    if cfg["section_order_correct"]:
+        return [_pass(rid, component, "Section ordering is correct")]
+    return [
+        _fail(
+            rid,
+            component,
+            "Sections out of order: expected identity -> tool args -> environment",
+        )
+    ]
+
+
+def rule_mc015(component: str, ctx: dict) -> list[LintResult]:
+    """params block entries in alphabetical order."""
+    rid = "MC015"
+    if not ctx["config"]["exists"]:
+        return []
+    params = ctx["config"]["params"]
+    if not params:
+        return []  # No params to check
+    if ctx["config"]["params_alphabetical"]:
+        return [_pass(rid, component, "params are in alphabetical order")]
+    names = [p["name"] for p in params]
+    return [
+        _fail(
+            rid,
+            component,
+            f"params not in alphabetical order: {', '.join(names)}",
+        )
+    ]
+
+
 # ---------------------------------------------------------------------------
 # schema.json rules (JS001-JS004)
 # ---------------------------------------------------------------------------
@@ -509,6 +817,54 @@ def rule_js004(component: str, ctx: dict) -> list[LintResult]:
     return [_pass(rid, component, "All schema params correctly prefixed")]
 
 
+def rule_js005(component: str, ctx: dict) -> list[LintResult]:
+    """type/default strict match: integer->int, number->float, string->str, boolean->bool."""
+    rid = "JS005"
+    if not ctx["schema"]["valid_json"]:
+        return []
+    mismatches = ctx["schema"]["type_default_mismatches"]
+    if not mismatches:
+        return [_pass(rid, component, "All type/default pairs are consistent")]
+    msgs = [
+        f"{m['param']}: type={m['type']} but default={m['default']!r}"
+        for m in mismatches
+    ]
+    return [_fail(rid, component, f"Type/default mismatches: {'; '.join(msgs)}")]
+
+
+# ---------------------------------------------------------------------------
+# File formatting rules (FMT001-FMT002)
+# ---------------------------------------------------------------------------
+
+
+def rule_fmt001(component: str, ctx: dict) -> list[LintResult]:
+    """No whitespace-only lines in component files."""
+    rid = "FMT001"
+    whitespace = ctx.get("whitespace", {})
+    issues = []
+    for filename, ws_data in whitespace.items():
+        lines = ws_data.get("whitespace_only_lines", [])
+        if lines:
+            issues.append(f"{filename} lines {', '.join(str(ln) for ln in lines)}")
+    if issues:
+        return [_warn(rid, component, f"Whitespace-only lines: {'; '.join(issues)}")]
+    return [_pass(rid, component, "No whitespace-only lines")]
+
+
+def rule_fmt002(component: str, ctx: dict) -> list[LintResult]:
+    """No trailing whitespace in component files."""
+    rid = "FMT002"
+    whitespace = ctx.get("whitespace", {})
+    issues = []
+    for filename, ws_data in whitespace.items():
+        lines = ws_data.get("trailing_whitespace_lines", [])
+        if lines:
+            issues.append(f"{filename} lines {', '.join(str(ln) for ln in lines)}")
+    if issues:
+        return [_warn(rid, component, f"Trailing whitespace: {'; '.join(issues)}")]
+    return [_pass(rid, component, "No trailing whitespace")]
+
+
 # ---------------------------------------------------------------------------
 # Rule registry
 # ---------------------------------------------------------------------------
@@ -531,6 +887,20 @@ MODULE_RULES = [
     rule_m014,
     rule_m015,
     rule_m016,
+    rule_m017,
+    rule_m018,
+    rule_m019,
+    rule_m020,
+    rule_m021,
+    rule_m022,
+    rule_m023,
+    rule_m024,
+    rule_m025,
+    rule_m026,
+    rule_m027,
+    rule_m028,
+    rule_m029,
+    rule_m030,
     # module.config
     rule_mc001,
     rule_mc002,
@@ -541,9 +911,19 @@ MODULE_RULES = [
     rule_mc007,
     rule_mc008,
     rule_mc009,
+    rule_mc010,
+    rule_mc011,
+    rule_mc012,
+    rule_mc013,
+    rule_mc014,
+    rule_mc015,
     # schema.json
     rule_js001,
     rule_js002,
     rule_js003,
     rule_js004,
+    rule_js005,
+    # file formatting
+    rule_fmt001,
+    rule_fmt002,
 ]

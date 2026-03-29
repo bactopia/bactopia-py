@@ -94,14 +94,14 @@ def download(
         sys.exit(1)
     bactopia_path = str(Path(bactopia_path).absolute().resolve())
 
-    # Load the workflows.yaml file
+    # Load the workflows.yml file
     workflows = None
-    if Path(f"{bactopia_path}/conf/workflows.yaml").exists():
-        workflows_yaml = parse_yaml(f"{bactopia_path}/conf/workflows.yaml")
+    if Path(f"{bactopia_path}/data/workflows.yml").exists():
+        workflows_yaml = parse_yaml(f"{bactopia_path}/data/workflows.yml")
         workflows = workflows_yaml["workflows"]
     else:
         logging.error(
-            f"'workflows.yaml' could not be found in {bactopia_path}/conf/, is this a valid Bactopia installation?"
+            f"'workflows.yml' could not be found in {bactopia_path}/data/, is this a valid Bactopia installation?"
         )
         sys.exit(1)
 

@@ -30,9 +30,9 @@ params.bactopia_cache = env("BACTOPIA_CACHEDIR") ? "${env('BACTOPIA_CACHEDIR')}"
 includeConfig "{{ config }}"
 {%- endfor %}
 
-// Module specific params.config
+// Module specific config
 {%- for module in modules %}
-includeConfig "{{ module_paths[module] }}/params.config"
+includeConfig "{{ module_paths[module] }}/module.config"
 {%- endfor %}
 
 {%- if extra_wf %}
@@ -44,18 +44,13 @@ includeConfig "{{ extra_wf }}"
 // Set output directory
 outputDir = params.outdir
 workflow.output.mode = params.publish_dir_mode
-workflow.output.overwrite = params.force 
+workflow.output.overwrite = params.force
 
 // Set up run directory
 params.singularity_cache = env("NXF_SINGULARITY_CACHEDIR") ? "${env('NXF_SINGULARITY_CACHEDIR')}" : "${params.singularity_cache}"
 params.run_timestamp = new java.util.Date().format('yyyyMMdd-HHmmss')
 params.rundir = params.is_ci ? "bactopia-runs/${params.run_name}" : "bactopia-runs/${params.run_name}-${params.run_timestamp}"
 params.infodir = "${params.outdir}/${params.rundir}/nf-reports"
-
-// Module specific process.config
-{%- for module in modules %}
-includeConfig "{{ module_paths[module] }}/process.config"
-{%- endfor %}
 
 // Load nf-core custom profiles from different Institutions
 includeConfig !env('NXF_OFFLINE') && params.custom_config_base ? "${params.custom_config_base}/nfcore_custom.config" : "/dev/null"
@@ -98,7 +93,7 @@ dag {
 
 // Plugins
 plugins {
-    id 'nf-bactopia@1.0.0'
+    id 'nf-bactopia@1.1.0'
 }
 
 bactopia {

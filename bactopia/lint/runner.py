@@ -6,6 +6,7 @@ from pathlib import Path
 from bactopia.lint.models import LintResult
 from bactopia.lint.rules import MODULE_RULES, SUBWORKFLOW_RULES, WORKFLOW_RULES
 from bactopia.nf import (
+    check_file_whitespace,
     find_main_nf,
     parse_groovydoc_full,
     parse_main_nf_structure,
@@ -41,6 +42,11 @@ def _collect_ignores(component_dir: Path) -> set[str]:
 def _build_module_context(main_nf: Path) -> dict:
     """Build a context dict for a module component."""
     component_dir = main_nf.parent
+    # Check whitespace for all component files
+    whitespace = {}
+    for filename in ("main.nf", "module.config", "schema.json"):
+        filepath = component_dir / filename
+        whitespace[filename] = check_file_whitespace(filepath)
     return {
         "main_nf_path": main_nf,
         "component_dir": component_dir,
@@ -48,6 +54,7 @@ def _build_module_context(main_nf: Path) -> dict:
         "structure": parse_main_nf_structure(main_nf),
         "config": parse_module_config_full(component_dir / "module.config"),
         "schema": parse_schema_json(component_dir / "schema.json"),
+        "whitespace": whitespace,
     }
 
 

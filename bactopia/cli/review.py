@@ -552,6 +552,25 @@ def print_rich(console: rich.console.Console, data: dict):
     console.print(header)
     console.print()
 
+    # Run parameters
+    params = data.get("params", {})
+    if params:
+        params_table = rich.table.Table(
+            title="Run Parameters", show_header=False, box=None
+        )
+        params_table.add_row("Generate:", str(params.get("generate", False)))
+        params_table.add_row("Profile:", str(params.get("profile", "unknown")))
+        params_table.add_row("Tier:", str(params.get("tier", "all")))
+        params_table.add_row("Jobs:", str(params.get("jobs", "unknown")))
+        params_table.add_row("Fail fast:", str(params.get("fail_fast", False)))
+        params_table.add_row("Cleanup:", str(params.get("cleanup", False)))
+        if params.get("include"):
+            params_table.add_row("Include:", str(params["include"]))
+        if params.get("exclude"):
+            params_table.add_row("Exclude:", str(params["exclude"]))
+        console.print(params_table)
+        console.print()
+
     # Status counts
     status_table = rich.table.Table(title="Status Breakdown", box=None)
     status_table.add_column("Status", style="bold")

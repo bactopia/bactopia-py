@@ -238,7 +238,7 @@ def parse_module_config(module_config: str, registry: str) -> dict:
 
 
 def parse_workflows(bactopia_path, input_wf, include_merlin=False, build_all=False):
-    """Parse Bactopia's workflows.yaml to get modules per-workflow"""
+    """Parse Bactopia's workflows.yml to get modules per-workflow"""
     from bactopia.parsers.generic import parse_yaml
 
     # Load the workflows.yml file
@@ -522,6 +522,30 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         "emit_has_published_comment": False,
         "emit_has_sample_outputs": False,
         "emit_has_run_outputs": False,
+        # prefix/meta (M017, M018)
+        "has_prefix_definition": False,
+        "has_meta_init": False,
+        "meta_fields_set": set(),
+        # process directives (M019, M020)
+        "has_conda_directive": False,
+        "has_container_directive": False,
+        # meta.name interpolation (M021)
+        "has_meta_name_interpolation": False,
+        # script block (M022)
+        "has_cleanup_comment": False,
+        # output record details (M023-M030)
+        "output_has_named_comment": False,
+        "output_has_generic_comment": False,
+        "output_has_meta_field": False,
+        "output_has_results": False,
+        "output_results_is_list": False,
+        "output_results_fields": [],
+        "output_named_fields": [],
+        "output_named_field_patterns": {},
+        "output_has_logs": False,
+        "output_has_nf_logs": False,
+        "output_versions_uses_files": False,
+        "output_generic_using_file": [],
     }
 
     lines = _read_lines(main_nf)
@@ -584,6 +608,100 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
                 if not prefix_text.startswith("//"):
                     result["output_record_fields"].append(field_name)
 
+            # --- Output record detail parsing (M023-M030) ---
+
+            # Check for section comments
+            result["output_has_named_comment"] = (
+                "// Named fields (used downstream)" in record_text
+            )
+            result["output_has_generic_comment"] = (
+                "// Generic fields (used for publishing)" in record_text
+            )
+
+            # Check for meta: meta field
+            result["output_has_meta_field"] = bool(
+                re.search(r"^\s*meta\s*:\s*meta\s*,?\s*$", record_text, re.MULTILINE)
+            )
+
+            # Split record into named and generic sections
+            generic_marker = "// Generic fields (used for publishing)"
+            named_marker = "// Named fields (used downstream)"
+            named_section = ""
+            generic_section = ""
+            if generic_marker in record_text:
+                parts = record_text.split(generic_marker, 1)
+                named_section = parts[0]
+                generic_section = parts[1]
+            elif named_marker in record_text:
+                named_section = record_text
+
+            # Extract named fields (between Named and Generic comments, excl meta)
+            if named_section:
+                # Find fields after the Named comment
+                after_named = named_section
+                if named_marker in named_section:
+                    after_named = named_section.split(named_marker, 1)[1]
+                named_field_pat = re.compile(
+                    r"^\s*(\w+)\s*:\s*(files?)\((.+?)\)", re.MULTILINE
+                )
+                for nfm in named_field_pat.finditer(after_named):
+                    fname = nfm.group(1)
+                    if fname != "meta":
+                        result["output_named_fields"].append(fname)
+                        result["output_named_field_patterns"][fname] = nfm.group(
+                            3
+                        ).strip()
+
+            # Parse results block
+            results_match = re.search(r"results\s*:\s*\[", record_text, re.MULTILINE)
+            if results_match:
+                result["output_has_results"] = True
+                # Extract the results list content using balanced brackets
+                bracket_start = results_match.end() - 1
+                depth = 0
+                bracket_end = bracket_start
+                for i in range(bracket_start, len(record_text)):
+                    if record_text[i] == "[":
+                        depth += 1
+                    elif record_text[i] == "]":
+                        depth -= 1
+                        if depth == 0:
+                            bracket_end = i
+                            break
+                results_content = record_text[bracket_start + 1 : bracket_end]
+                # Check if multi-line
+                result["output_results_is_list"] = "\n" in results_content
+                # Extract files() patterns from results block
+                results_files_pat = re.compile(r"files\((.+?)\)")
+                for rfm in results_files_pat.finditer(results_content):
+                    result["output_results_fields"].append(rfm.group(1).strip())
+
+            # Check logs, nf_logs, versions in generic section
+            check_text = generic_section if generic_section else record_text
+            result["output_has_logs"] = bool(
+                re.search(r"^\s*logs\s*:", check_text, re.MULTILINE)
+            )
+            result["output_has_nf_logs"] = bool(
+                re.search(r"^\s*nf_logs\s*:", check_text, re.MULTILINE)
+            )
+
+            # Check if versions uses files() vs file()
+            versions_match = re.search(
+                r"^\s*versions\s*:\s*(files?)\(", check_text, re.MULTILINE
+            )
+            if versions_match:
+                result["output_versions_uses_files"] = (
+                    versions_match.group(1) == "files"
+                )
+
+            # Check all generic fields use files() not file()
+            if generic_section:
+                generic_field_pat = re.compile(
+                    r"^\s*(\w+)\s*:\s*(file)\(", re.MULTILINE
+                )
+                for gfm in generic_field_pat.finditer(generic_section):
+                    result["output_generic_using_file"].append(gfm.group(1))
+
     # Check for versions.yml in script block
     result["has_versions_yml"] = "versions.yml" in full_text
 
@@ -601,6 +719,49 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
     result["has_tuple_references"] = bool(
         re.search(r"\btuple\b", full_text, re.IGNORECASE)
     )
+
+    # Check for prefix = task.ext.prefix ?: "${_meta.name}" (M017)
+    result["has_prefix_definition"] = bool(
+        re.search(
+            r'prefix\s*=\s*task\.ext\.prefix\s*\?:\s*"\$\{_meta\.name\}"', full_text
+        )
+    )
+
+    # Check for meta = [:] initialization and meta.X field assignments (M018)
+    result["has_meta_init"] = bool(re.search(r"meta\s*=\s*\[:\]", full_text))
+    meta_field_pattern = re.compile(r"meta\.(\w+)\s*=")
+    result["meta_fields_set"] = {
+        m.group(1) for m in meta_field_pattern.finditer(full_text)
+    }
+
+    # Check for conda/container directives (M019, M020)
+    result["has_conda_directive"] = bool(
+        re.search(
+            r'conda\s+"\$\{task\.ext\.condaDir\}/\$\{task\.ext\.toolName\}"', full_text
+        )
+    )
+    result["has_container_directive"] = bool(
+        re.search(r'container\s+"\$\{task\.ext\.container\}"', full_text)
+    )
+
+    # Check for ${meta.name} or ${_meta.name} interpolation (M021)
+    # Exclude assignment lines like "meta.name = prefix"
+    has_interpolation = False
+    for line in lines:
+        stripped = line.strip()
+        if re.search(r"meta\.name\s*=", stripped):
+            continue  # skip assignment lines (meta.name = prefix)
+        if re.search(r"task\.ext\.prefix", stripped):
+            continue  # skip prefix definition line
+        if re.search(r"\$\{_?meta\.name\}", stripped):
+            has_interpolation = True
+            break
+    result["has_meta_name_interpolation"] = has_interpolation
+
+    # Check for # Cleanup comment (M022)
+    # Search full text -- the comment is unambiguous and scoping to the script
+    # block is fragile due to nested braces in Groovy maps/closures.
+    result["has_cleanup_comment"] = bool(re.search(r"#\s*Cleanup", full_text))
 
     # Check for blank lines before main: and emit: blocks
     stripped_lines = [ln.rstrip() for ln in lines]
@@ -643,29 +804,82 @@ def parse_module_config_full(config_path: Path) -> dict:
             - params: list of parameter names defined in params {} block
             - exists: whether the file exists
     """
-    result = {"ext": {}, "params": [], "exists": False}
+    result = {
+        "ext": {},
+        "params": [],
+        "exists": False,
+        # New fields (MC010-MC015)
+        "has_tool_arguments_comment": False,
+        "has_environment_comment": False,
+        "section_order_correct": False,
+        "has_ext_args": False,
+        "params_comment": None,
+        "params_alphabetical": True,
+    }
     if not config_path.exists():
         return result
     result["exists"] = True
 
     text = config_path.read_text()
+    text_lines = text.splitlines()
 
     # Extract ext.* properties
     ext_pattern = re.compile(r"ext\.(\w+)\s*=\s*(.*)")
     for m in ext_pattern.finditer(text):
         result["ext"][m.group(1)] = m.group(2).strip()
 
+    # Check for ext.args (any variant: args, args2, args3, ...)
+    result["has_ext_args"] = any(
+        k == "args" or (k.startswith("args") and k[4:].isdigit()) for k in result["ext"]
+    )
+
+    # Check for section comments and ordering (MC012-MC014)
+    tool_args_line = None
+    env_info_line = None
+    first_identity_line = None
+    for i, line in enumerate(text_lines):
+        stripped = line.strip()
+        if stripped == "// Tool arguments":
+            result["has_tool_arguments_comment"] = True
+            tool_args_line = i
+        elif stripped == "// Environment information":
+            result["has_environment_comment"] = True
+            env_info_line = i
+        elif first_identity_line is None and re.match(r"ext\.(wf|scope)\s*=", stripped):
+            first_identity_line = i
+
+    # Section ordering: identity < tool args < environment
+    if (
+        first_identity_line is not None
+        and tool_args_line is not None
+        and env_info_line is not None
+    ):
+        result["section_order_correct"] = (
+            first_identity_line < tool_args_line < env_info_line
+        )
+
     # Extract params from the params {} block, tracking per-line ignores
     ignore_pattern = re.compile(r"//\s*bactopia-lint:\s*ignore\s+([\w, ]+)")
     params_block = re.search(r"params\s*\{([^}]*)\}", text, re.DOTALL)
     if params_block:
-        for line in params_block.group(1).splitlines():
+        params_content = params_block.group(1)
+        param_names_ordered = []
+
+        # Extract params comment (first // comment line in block)
+        for line in params_content.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("//"):
+                result["params_comment"] = stripped
+                break
+
+        for line in params_content.splitlines():
             param_match = re.match(r"^\s*(\w+)\s*=", line)
             if not param_match:
                 continue
             name = param_match.group(1)
             if name.startswith("//"):
                 continue
+            param_names_ordered.append(name)
             # Check for inline ignore on same line
             inline_ignores = set()
             ig = ignore_pattern.search(line)
@@ -675,6 +889,12 @@ def parse_module_config_full(config_path: Path) -> dict:
                     if rule_id:
                         inline_ignores.add(rule_id)
             result["params"].append({"name": name, "ignores": inline_ignores})
+
+        # Check alphabetical order
+        if param_names_ordered:
+            result["params_alphabetical"] = param_names_ordered == sorted(
+                param_names_ordered
+            )
 
     return result
 
@@ -694,6 +914,7 @@ def parse_schema_json(schema_path: Path) -> dict:
         "required_keys": {},
         "defs_keys": [],
         "param_names": [],
+        "type_default_mismatches": [],
     }
 
     if not schema_path.exists():
@@ -716,5 +937,59 @@ def parse_schema_json(schema_path: Path) -> dict:
         for def_key, def_val in data["$defs"].items():
             if isinstance(def_val, dict) and "properties" in def_val:
                 result["param_names"].extend(def_val["properties"].keys())
+                # Check type/default consistency (JS005)
+                for param_name, param_val in def_val["properties"].items():
+                    if not isinstance(param_val, dict):
+                        continue
+                    param_type = param_val.get("type")
+                    if "default" not in param_val or param_type is None:
+                        continue
+                    default = param_val["default"]
+                    mismatch = False
+                    if param_type == "integer":
+                        # Must be int, not float or bool
+                        mismatch = not (
+                            isinstance(default, int) and not isinstance(default, bool)
+                        )
+                    elif param_type == "number":
+                        # Must be float
+                        mismatch = not isinstance(default, float)
+                    elif param_type == "string":
+                        mismatch = not isinstance(default, str)
+                    elif param_type == "boolean":
+                        mismatch = not isinstance(default, bool)
+                    if mismatch:
+                        result["type_default_mismatches"].append(
+                            {
+                                "param": param_name,
+                                "type": param_type,
+                                "default": default,
+                            }
+                        )
 
+    return result
+
+
+def check_file_whitespace(path: Path) -> dict:
+    """Check a file for whitespace-only lines and trailing whitespace.
+
+    Args:
+        path: Path to the file to check.
+
+    Returns:
+        A dict with lists of 1-based line numbers for each issue type.
+    """
+    result = {"whitespace_only_lines": [], "trailing_whitespace_lines": []}
+    if not path.exists():
+        return result
+    try:
+        lines = path.read_text().splitlines(keepends=True)
+    except OSError:
+        return result
+    for i, line in enumerate(lines, 1):
+        stripped = line.rstrip("\n\r")
+        if stripped and stripped.isspace():
+            result["whitespace_only_lines"].append(i)
+        elif stripped != stripped.rstrip():
+            result["trailing_whitespace_lines"].append(i)
     return result

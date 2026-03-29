@@ -140,7 +140,7 @@ def merge_schemas(
             sys.exit(1)
 
     # parse the workflows
-    workflows = parse_yaml(f"{bactopia_path}/conf/workflows.yaml")
+    workflows = parse_yaml(f"{bactopia_path}/data/workflows.yml")
 
     if wf not in workflows["workflows"]:
         # Let nextflow handle unknown workflows
