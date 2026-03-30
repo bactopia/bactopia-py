@@ -625,6 +625,21 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         # Input parsing for M031/M032
         "input_record_fields": [],  # fields from (_meta: Map, field: Type): Record
         "input_params": [],  # non-record input names (db, proteins, etc.)
+        # Workflow-specific fields (W011-W020)
+        "first_line": "",
+        "todos": [],  # list of {"line_num": int, "text": str}
+        "channel_operators": [],  # list of {"operator": str, "line_num": int, "line_text": str}
+        "has_collect_nf_logs_import": False,
+        "wf_output_block_text": "",  # top-level output {} block (not process output:)
+        "publish_block_lines": [],  # lines from publish: section
+        "wf_params_block": {  # top-level params {} block in workflows
+            "exists": False,
+            "first_param": None,
+            "first_param_line": "",
+            "params": [],  # list of {"name": str, "colon_col": int, "line_num": int}
+        },
+        "includes": [],  # list of {"name": str, "source": str, "line_num": int, "brace_col": int}
+        "mix_sources": {"sample": [], "run": []},
     }
 
     lines = _read_lines(main_nf)
@@ -898,6 +913,169 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         result["emit_has_published_comment"] = bool(
             re.search(r"//\s*Published outputs", emit_text)
         )
+
+    # --- Workflow-specific parsing (W011-W020) ---
+
+    # W011: First line
+    result["first_line"] = lines[0].rstrip() if lines else ""
+
+    # Determine GroovyDoc line range to skip for TODOs/channel ops
+    doc_block = _extract_doc_block(lines)
+    doc_end_line = 0
+    if doc_block:
+        doc_end_line = len(doc_block)  # 0-indexed end (exclusive)
+
+    # W012: TODOs (skip GroovyDoc block)
+    todo_pattern = re.compile(r"(//\s*TODO|#\s*TODO)(.*)", re.IGNORECASE)
+    for i, line in enumerate(lines):
+        if i < doc_end_line:
+            continue
+        m = todo_pattern.search(line)
+        if m:
+            result["todos"].append({"line_num": i + 1, "text": m.group(0).strip()})
+
+    # W013: Disallowed channel operators (skip GroovyDoc and comment-only lines)
+    disallowed_ops = re.compile(
+        r"\.(join|map|combine|collect|filter|flatMap|groupTuple|"
+        r"branch|multiMap|toList|toSortedList|unique|distinct|first|last|"
+        r"take|until|cross|spread|tap|set|merge|transpose)\s*[\({]"
+    )
+    for i, line in enumerate(lines):
+        if i < doc_end_line:
+            continue
+        stripped = line.strip()
+        if stripped.startswith("//") or stripped.startswith("*"):
+            continue
+        m = disallowed_ops.search(line)
+        if m:
+            result["channel_operators"].append(
+                {"operator": m.group(1), "line_num": i + 1, "line_text": line.rstrip()}
+            )
+
+    # W014: collectNextflowLogs import
+    result["has_collect_nf_logs_import"] = bool(
+        re.search(
+            r"include\s*\{\s*collectNextflowLogs\s*\}\s*from\s*['\"]plugin/nf-bactopia['\"]",
+            full_text,
+        )
+    )
+
+    # W018: Parse include statements
+    for i, line in enumerate(lines):
+        m = re.match(r"include\s*\{\s*(\w+)(\s*)\}\s*from\s*['\"]([^'\"]+)['\"]", line)
+        if m:
+            name = m.group(1)
+            brace_col = line.index("}")
+            result["includes"].append(
+                {
+                    "name": name,
+                    "source": m.group(3),
+                    "line_num": i + 1,
+                    "brace_col": brace_col,
+                }
+            )
+
+    # W017/W019: Parse top-level params block
+    params_start = None
+    for i, line in enumerate(lines):
+        if re.match(r"^params\s*\{", line):
+            params_start = i
+            break
+    if params_start is not None:
+        # Find closing brace using balanced counting
+        depth = 0
+        params_end = params_start
+        for i in range(params_start, len(lines)):
+            depth += lines[i].count("{") - lines[i].count("}")
+            if depth == 0:
+                params_end = i
+                break
+        params_lines = lines[params_start + 1 : params_end]
+        result["wf_params_block"]["exists"] = True
+        param_decl_pattern = re.compile(r"^(\s*)(\w+)(\s*):(\s*)")
+        first_found = False
+        for j, pline in enumerate(params_lines):
+            pm = param_decl_pattern.match(pline)
+            if pm:
+                name = pm.group(2)
+                colon_col = len(pm.group(1)) + len(name) + len(pm.group(3))
+                actual_line_num = params_start + 1 + j + 1  # 1-indexed
+                if not first_found:
+                    result["wf_params_block"]["first_param"] = name
+                    result["wf_params_block"]["first_param_line"] = pline.rstrip()
+                    first_found = True
+                result["wf_params_block"]["params"].append(
+                    {"name": name, "colon_col": colon_col, "line_num": actual_line_num}
+                )
+
+    # W015: Top-level output block
+    for i, line in enumerate(lines):
+        if re.match(r"^output\s*\{", line):
+            depth = 0
+            output_lines = []
+            for j in range(i, len(lines)):
+                depth += lines[j].count("{") - lines[j].count("}")
+                output_lines.append(lines[j].rstrip())
+                if depth == 0:
+                    break
+            result["wf_output_block_text"] = "\n".join(output_lines)
+            break
+
+    # W016: Publish block lines
+    in_workflow = False
+    workflow_depth = 0
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if re.match(r"^workflow\s*\{", line):
+            in_workflow = True
+            workflow_depth = 1
+            continue
+        if in_workflow:
+            workflow_depth += line.count("{") - line.count("}")
+            if stripped == "publish:":
+                # Collect lines after publish: until closing brace
+                for k in range(i + 1, len(lines)):
+                    pline = lines[k].strip()
+                    if pline == "}":
+                        break
+                    result["publish_block_lines"].append(pline)
+                break
+            if workflow_depth <= 0:
+                break
+
+    # W020: Mix source parsing -- state-based to handle chained .mix() lines
+    mix_arg_re = re.compile(r"\.mix\(([^)]+)\)")
+    current_mix_key = None  # "sample" or "run"
+    for line in lines:
+        stripped = line.strip()
+        # Check for assignment start
+        sample_m = re.match(r"ch_sample_outputs\s*=\s*(.+)", stripped)
+        run_m = re.match(r"ch_run_outputs\s*=\s*(.+)", stripped)
+        if sample_m:
+            current_mix_key = "sample"
+            rhs = sample_m.group(1)
+            first_source = rhs.split(".mix(")[0].strip()
+            # Skip self-references (reassignment patterns)
+            if first_source != "ch_sample_outputs":
+                result["mix_sources"]["sample"].append(first_source)
+            for mix_m in mix_arg_re.finditer(rhs):
+                result["mix_sources"]["sample"].append(mix_m.group(1).strip())
+        elif run_m:
+            current_mix_key = "run"
+            rhs = run_m.group(1)
+            first_source = rhs.split(".mix(")[0].strip()
+            if first_source != "ch_run_outputs":
+                result["mix_sources"]["run"].append(first_source)
+            for mix_m in mix_arg_re.finditer(rhs):
+                result["mix_sources"]["run"].append(mix_m.group(1).strip())
+        elif stripped.startswith(".mix(") and current_mix_key:
+            # Continuation line for the current chain
+            mix_m = mix_arg_re.search(stripped)
+            if mix_m:
+                result["mix_sources"][current_mix_key].append(mix_m.group(1).strip())
+        elif current_mix_key and stripped and not stripped.startswith(".mix("):
+            # Non-continuation line ends the chain
+            current_mix_key = None
 
     return result
 

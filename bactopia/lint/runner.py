@@ -243,6 +243,7 @@ def run_lint(
 
         for component_name, main_nf in components:
             ctx = _build_simple_context(main_nf)
+            ctx["bactopia_path"] = bactopia_path
             ignored = _collect_ignores(main_nf.parent)
             results = _run_rules(component_name, ctx, WORKFLOW_RULES, ignored)
             all_results.extend(results)
