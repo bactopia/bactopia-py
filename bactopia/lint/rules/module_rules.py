@@ -291,7 +291,7 @@ PASSTHROUGH_OUTPUT_FIELDS = {"r1", "r2", "se", "lr"}
 
 
 def rule_m017(component: str, ctx: dict) -> list[LintResult]:
-    """prefix = task.ext.prefix ?: "${_meta.name}" present."""
+    """prefix = task.ext.prefix ?: "${meta.name}" present."""
     rid = "M017"
     if ctx["structure"]["has_prefix_definition"]:
         return [_pass(rid, component, "prefix definition present")]
@@ -299,7 +299,7 @@ def rule_m017(component: str, ctx: dict) -> list[LintResult]:
         _fail(
             rid,
             component,
-            'Missing: prefix = task.ext.prefix ?: "${_meta.name}"',
+            'Missing: prefix = task.ext.prefix ?: "${meta.name}"',
         )
     ]
 
@@ -350,14 +350,14 @@ def rule_m020(component: str, ctx: dict) -> list[LintResult]:
 
 
 def rule_m021(component: str, ctx: dict) -> list[LintResult]:
-    """No ${meta.name} or ${_meta.name} interpolation -- use ${prefix}."""
+    """No ${meta.name} interpolation -- use ${prefix}."""
     rid = "M021"
     if ctx["structure"]["has_meta_name_interpolation"]:
         return [
             _fail(
                 rid,
                 component,
-                "Found ${meta.name} or ${_meta.name} interpolation -- use ${prefix}",
+                "Found ${meta.name} interpolation -- use ${prefix}",
             )
         ]
     return [_pass(rid, component, "No meta.name interpolation found")]
@@ -958,25 +958,6 @@ def rule_m032(component: str, ctx: dict) -> list[LintResult]:
     return [_fail(rid, component, f"@input record field mismatch: {'; '.join(msgs)}")]
 
 
-def rule_m033(component: str, ctx: dict) -> list[LintResult]:
-    """@input uses record(meta, ...) syntax, not raw (_meta: Map, ...)."""
-    rid = "M033"
-    doc = ctx["groovydoc"]
-    if not doc["has_doc"]:
-        return []
-    if doc.get("doc_input_uses_raw_syntax", False):
-        return [
-            _warn(
-                rid,
-                component,
-                "@input uses raw (_meta: Map, ...) syntax -- use record(meta, ...) instead",
-            )
-        ]
-    if doc.get("doc_input_records"):
-        return [_pass(rid, component, "@input uses record() syntax")]
-    return []  # No record inputs to check
-
-
 def rule_m034(component: str, ctx: dict) -> list[LintResult]:
     """@output does not describe standard fields (meta, results, logs, nf_logs, versions)."""
     rid = "M034"
@@ -1177,7 +1158,6 @@ MODULE_RULES = [
     # GroovyDoc accuracy
     rule_m031,
     rule_m032,
-    rule_m033,
     rule_m034,
     rule_m035,
     rule_m036,

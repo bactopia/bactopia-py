@@ -470,7 +470,6 @@ def parse_groovydoc_full(main_nf: Path) -> dict:
         "doc_input_records": [],  # list of {fields: [...]} per @input record(...)
         "doc_input_params": [],  # non-record @input names
         "doc_output_described_fields": [],  # fields with description lines
-        "doc_input_uses_raw_syntax": False,  # True if @input uses (_meta: Map, ...)
         "doc_tag_order": [],  # ordered list of tag names as they appear
     }
     lines = _read_lines(main_nf)
@@ -535,21 +534,6 @@ def parse_groovydoc_full(main_nf: Path) -> dict:
         if record_match:
             fields = [f.strip() for f in record_match.group(1).split(",")]
             result["doc_input_records"].append({"fields": fields})
-        # Check for raw (_meta: Map, ...) syntax
-        elif re.match(r"\(_meta\s*:", ival):
-            result["doc_input_uses_raw_syntax"] = True
-            # Still extract field names for comparison
-            raw_match = re.match(r"\(([^)]+)\)", ival)
-            if raw_match:
-                fields = []
-                for part in raw_match.group(1).split(","):
-                    part = part.strip()
-                    name = part.split(":")[0].strip()
-                    # Normalize _meta -> meta
-                    if name == "_meta":
-                        name = "meta"
-                    fields.append(name)
-                result["doc_input_records"].append({"fields": fields})
         else:
             # Non-record input (e.g., "db", "proteins")
             param_name = ival.split()[0] if ival.strip() else ""
@@ -623,7 +607,7 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         "output_versions_uses_files": False,
         "output_generic_using_file": [],
         # Input parsing for M031/M032
-        "input_record_fields": [],  # fields from (_meta: Map, field: Type): Record
+        "input_record_fields": [],  # fields from (meta: Map, field: Type): Record
         "input_params": [],  # non-record input names (db, proteins, etc.)
         # Workflow-specific fields (W011-W020)
         "first_line": "",
@@ -810,15 +794,12 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
     )
     if input_block:
         input_text = input_block.group(1)
-        # Match Record input: (_meta: Map, field1: Type, field2: Type?): Record
+        # Match Record input: (meta: Map, field1: Type, field2: Type?): Record
         record_input_match = re.search(r"\(([^)]+)\)\s*:\s*Record", input_text)
         if record_input_match:
             for part in record_input_match.group(1).split(","):
                 part = part.strip()
                 name = part.split(":")[0].strip()
-                # Normalize leading underscore (e.g., _meta -> meta, _vcf -> vcf)
-                if name.startswith("_"):
-                    name = name[1:]
                 result["input_record_fields"].append(name)
         # Match non-record inputs: name: Type (one per line, not inside parens)
         for line in input_text.split("\n"):
@@ -851,10 +832,10 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         re.search(r"\btuple\b", full_text, re.IGNORECASE)
     )
 
-    # Check for prefix = task.ext.prefix ?: "${_meta.name}" (M017)
+    # Check for prefix = task.ext.prefix ?: "${meta.name}" (M017)
     result["has_prefix_definition"] = bool(
         re.search(
-            r'prefix\s*=\s*task\.ext\.prefix\s*\?:\s*"\$\{_meta\.name\}"', full_text
+            r'prefix\s*=\s*task\.ext\.prefix\s*\?:\s*"\$\{meta\.name\}"', full_text
         )
     )
 
@@ -875,7 +856,7 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         re.search(r'container\s+"\$\{task\.ext\.container\}"', full_text)
     )
 
-    # Check for ${meta.name} or ${_meta.name} interpolation (M021)
+    # Check for ${meta.name} interpolation (M021)
     # Exclude assignment lines like "meta.name = prefix"
     has_interpolation = False
     for line in lines:
@@ -884,7 +865,7 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
             continue  # skip assignment lines (meta.name = prefix)
         if re.search(r"task\.ext\.prefix", stripped):
             continue  # skip prefix definition line
-        if re.search(r"\$\{_?meta\.name\}", stripped):
+        if re.search(r"\$\{meta\.name\}", stripped):
             has_interpolation = True
             break
     result["has_meta_name_interpolation"] = has_interpolation

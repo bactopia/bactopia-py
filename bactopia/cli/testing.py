@@ -538,7 +538,7 @@ def save_summary(run_dir: Path, results: list, params: dict):
     logging.info(f"Logs saved to {run_dir}")
 
 
-def print_results(console: rich.console.Console, results: list, use_json: bool):
+def print_results(console: rich.console.Console, results: list, use_json: bool, tier: str = "all"):
     """Display test results as a Rich table or JSON.
 
     Args:
@@ -591,6 +591,7 @@ def print_results(console: rich.console.Console, results: list, use_json: bool):
     for status_key in [
         PASSED,
         TOOL_ERROR,
+        ASSERTION_FAILED,
         TIMEOUT,
         SYNTAX_ERROR,
         SNAPSHOT_MISMATCH,
@@ -604,6 +605,14 @@ def print_results(console: rich.console.Console, results: list, use_json: bool):
             parts.append(f"[{style}]{count} {status_key}[/{style}]")
 
     console.print(f"Summary: {', '.join(parts)}")
+
+    # Celebratory message when all tests pass across all tiers
+    all_passed = all(r["status"] == PASSED for r in results)
+    if all_passed and tier == "all" and len(results) > 0:
+        total = len(results)
+        tiers_seen = sorted(set(r["tier"] for r in results))
+        console.print()
+        console.print(f"[bold green]🎉🎉🎉 All {total} tests passed across {', '.join(tiers_seen)}! 🎉🎉🎉[/bold green]")
 
 
 @click.command()
@@ -850,7 +859,7 @@ def testing(
 
     # Display results
     console = rich.console.Console()
-    print_results(console, results, use_json)
+    print_results(console, results, use_json, tier=tier)
 
     # Exit with non-zero if any test failed
     if failed or any(r["status"] != PASSED for r in results):
