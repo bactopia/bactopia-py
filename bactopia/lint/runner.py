@@ -217,6 +217,8 @@ def run_lint(
         tier_results = []
 
         for component_name, main_nf in components:
+            if "/utils/" in component_name:
+                continue
             ctx = _build_simple_context(main_nf)
             ignored = _collect_ignores(main_nf.parent)
             results = _run_rules(component_name, ctx, SUBWORKFLOW_RULES, ignored)

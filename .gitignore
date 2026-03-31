@@ -141,6 +141,3 @@ dmypy.json
 
 # Ruff
 .ruff_cache/
-
-# Poetry local config
-poetry.toml

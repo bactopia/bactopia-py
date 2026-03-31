@@ -640,6 +640,12 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         },
         "includes": [],  # list of {"name": str, "source": str, "line_num": int, "brace_col": int}
         "mix_sources": {"sample": [], "run": []},
+        # Subworkflow-specific fields (S011-S016)
+        "workflow_name": None,
+        "workflow_declaration_line_num": None,
+        "gather_csvtk_calls": [],  # list of {"name": str, "is_dynamic": bool, "line_num": int, "receiver": str}
+        "csvtk_concat_aliases": set(),  # include names resolving to CSVTK_CONCAT
+        "emit_mix_sources": {"sample": [], "run": []},
     }
 
     lines = _read_lines(main_nf)
@@ -960,20 +966,113 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         )
     )
 
-    # W018: Parse include statements
+    # W018: Parse include statements (handles both plain and "as" aliases)
+    include_re = re.compile(
+        r"include\s*\{\s*(\w+(?:\s+as\s+\w+)?)\s*\}\s*from\s*['\"]([^'\"]+)['\"]"
+    )
     for i, line in enumerate(lines):
-        m = re.match(r"include\s*\{\s*(\w+)(\s*)\}\s*from\s*['\"]([^'\"]+)['\"]", line)
+        m = include_re.match(line)
         if m:
-            name = m.group(1)
+            # Content is the full text between braces (e.g. "CSVTK_CONCAT as GENES_CONCAT")
+            content = m.group(1)
+            name = content.split()[-1]  # effective name (alias or original)
             brace_col = line.index("}")
             result["includes"].append(
                 {
                     "name": name,
-                    "source": m.group(3),
+                    "source": m.group(2),
                     "line_num": i + 1,
                     "brace_col": brace_col,
+                    "content_len": len(content),
                 }
             )
+
+    # S014: Track CSVTK_CONCAT aliases (including "as" aliases)
+    # The includes list only captures simple includes, not "as" aliases, so
+    # scan the raw lines for all CSVTK_CONCAT imports.
+    csvtk_alias_re = re.compile(
+        r"include\s*\{\s*CSVTK_CONCAT(?:\s+as\s+(\w+))?\s*\}\s*from"
+    )
+    for line in lines:
+        am = csvtk_alias_re.search(line)
+        if am:
+            result["csvtk_concat_aliases"].add(am.group(1) or "CSVTK_CONCAT")
+
+    # S012: Parse workflow declaration line
+    for i, line in enumerate(lines):
+        wf_m = re.match(r"workflow\s+(\w+)\s*\{", line)
+        if wf_m:
+            result["workflow_declaration_line_num"] = i + 1  # 1-indexed
+            result["workflow_name"] = wf_m.group(1)
+            break
+
+    # S013/S014: Parse gatherCsvtk calls
+    gather_recv_re = re.compile(r"(\w+)\s*\(\s*gatherCsvtk\s*\(")
+    name_re_single = re.compile(r"\[name:\s*'([^']+)'\]")
+    name_re_double = re.compile(r'\[name:\s*"([^"]+)"\]')
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if "gatherCsvtk(" not in stripped:
+            continue
+        recv_m = gather_recv_re.search(stripped)
+        receiver = recv_m.group(1) if recv_m else "unknown"
+        name_m = name_re_single.search(stripped)
+        is_dynamic = False
+        name_val = None
+        if name_m:
+            name_val = name_m.group(1)
+        else:
+            name_m = name_re_double.search(stripped)
+            if name_m:
+                name_val = name_m.group(1)
+                is_dynamic = "${" in name_val
+        if name_val is not None:
+            result["gather_csvtk_calls"].append(
+                {
+                    "name": name_val,
+                    "is_dynamic": is_dynamic,
+                    "line_num": i + 1,
+                    "receiver": receiver,
+                }
+            )
+
+    # S015/S016: Parse emit-block mix sources for subworkflows
+    if emit_block:
+        emit_text = emit_block.group(1)
+
+        def _collect_emit_assignment(text: str, var_name: str) -> str:
+            """Collect a possibly multi-line assignment from emit text."""
+            emit_lines = text.split("\n")
+            collecting = False
+            paren_depth = 0
+            full_rhs = ""
+            for eline in emit_lines:
+                stripped_e = eline.strip()
+                if not collecting:
+                    em = re.match(rf"{var_name}\s*=\s*(.+)", stripped_e)
+                    if em:
+                        collecting = True
+                        rhs_start = em.group(1)
+                        full_rhs = rhs_start
+                        paren_depth += rhs_start.count("(") - rhs_start.count(")")
+                        if paren_depth <= 0:
+                            break
+                else:
+                    full_rhs += " " + stripped_e
+                    paren_depth += stripped_e.count("(") - stripped_e.count(")")
+                    if paren_depth <= 0:
+                        break
+            return full_rhs
+
+        sample_rhs = _collect_emit_assignment(emit_text, "sample_outputs")
+        run_rhs = _collect_emit_assignment(emit_text, "run_outputs")
+
+        def _extract_emit_processes(rhs: str) -> list[str]:
+            """Extract process names from .out references, preserving order."""
+            return [m.group(1) for m in re.finditer(r"(\w+)\.out", rhs)]
+
+        result["emit_mix_sources"]["sample"] = _extract_emit_processes(sample_rhs)
+        result["emit_mix_sources"]["run"] = _extract_emit_processes(run_rhs)
 
     # W017/W019: Parse top-level params block
     params_start = None

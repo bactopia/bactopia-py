@@ -1,4 +1,4 @@
-"""Lint rules for Bactopia subworkflows (S001-S006)."""
+"""Lint rules for Bactopia subworkflows (S001-S016)."""
 
 import re
 
@@ -15,11 +15,6 @@ def _warn(rule_id: str, component: str, msg: str) -> LintResult:
 
 def _fail(rule_id: str, component: str, msg: str) -> LintResult:
     return LintResult(rule_id, "FAIL", component, msg)
-
-
-def _is_tool_subworkflow(component: str) -> bool:
-    """Tool subworkflows live under subworkflows/bactopia/ (not utils/)."""
-    return "/bactopia/" in component and "/utils/" not in component
 
 
 def _parse_tags_field(tags_value: str) -> dict[str, str]:
@@ -89,10 +84,8 @@ def rule_s004(component: str, ctx: dict) -> list[LintResult]:
 
 
 def rule_s005(component: str, ctx: dict) -> list[LintResult]:
-    """Emits sample_outputs and run_outputs (tool subworkflows only)."""
+    """Emits sample_outputs and run_outputs."""
     rid = "S005"
-    if not _is_tool_subworkflow(component):
-        return []  # Skip for utils/ subworkflows
     missing = []
     if not ctx["structure"]["emit_has_sample_outputs"]:
         missing.append("sample_outputs")
@@ -148,11 +141,148 @@ def rule_s009(component: str, ctx: dict) -> list[LintResult]:
 def rule_s010(component: str, ctx: dict) -> list[LintResult]:
     """Emit block has '// Published outputs' comment."""
     rid = "S010"
-    if not _is_tool_subworkflow(component):
-        return []
     if ctx["structure"]["emit_has_published_comment"]:
         return [_pass(rid, component, "'// Published outputs' comment present")]
     return [_fail(rid, component, "Emit block missing '// Published outputs' comment")]
+
+
+def rule_s011(component: str, ctx: dict) -> list[LintResult]:
+    """All include statement closing braces must be vertically aligned."""
+    rid = "S011"
+    includes = ctx["structure"].get("includes", [])
+    if not includes:
+        return []
+    # content_len accounts for "as" aliases (e.g. "CSVTK_CONCAT as GENES_CONCAT")
+    max_content_len = max(inc.get("content_len", len(inc["name"])) for inc in includes)
+    # "include { " is 10 chars, then content, then space(s), then "}"
+    expected_col = 10 + max_content_len + 1
+    misaligned = []
+    for inc in includes:
+        if inc["brace_col"] != expected_col:
+            misaligned.append(
+                f"line {inc['line_num']}: '{inc['name']}' brace at col"
+                f" {inc['brace_col']}, expected {expected_col}"
+            )
+    if not misaligned:
+        return [_pass(rid, component, "All include braces are aligned")]
+    return [
+        _fail(rid, component, f"Misaligned include braces: {'; '.join(misaligned)}")
+    ]
+
+
+def rule_s012(component: str, ctx: dict) -> list[LintResult]:
+    """Single blank line between last include and workflow declaration."""
+    rid = "S012"
+    includes = ctx["structure"].get("includes", [])
+    wf_line = ctx["structure"].get("workflow_declaration_line_num")
+    if not includes or wf_line is None:
+        return []
+    last_include_line = max(inc["line_num"] for inc in includes)
+    gap = wf_line - last_include_line - 1
+    if gap == 1:
+        return [
+            _pass(rid, component, "Single blank line between includes and workflow")
+        ]
+    return [
+        _fail(
+            rid,
+            component,
+            f"Expected 1 blank line between includes (line {last_include_line})"
+            f" and workflow (line {wf_line}), found {gap}",
+        )
+    ]
+
+
+def rule_s013(component: str, ctx: dict) -> list[LintResult]:
+    """gatherCsvtk name must start with lowercase workflow name."""
+    rid = "S013"
+    calls = ctx["structure"].get("gather_csvtk_calls", [])
+    wf_name = ctx["structure"].get("workflow_name")
+    if not calls or not wf_name:
+        return []
+    wf_lower = wf_name.lower()
+    mismatched = []
+    for call in calls:
+        if call["is_dynamic"]:
+            continue
+        if not call["name"].startswith(wf_lower):
+            mismatched.append(
+                f"line {call['line_num']}: name '{call['name']}'"
+                f" should start with '{wf_lower}'"
+            )
+    if not mismatched:
+        return [_pass(rid, component, "All gatherCsvtk names match workflow name")]
+    return [
+        _warn(
+            rid,
+            component,
+            f"gatherCsvtk name mismatch: {'; '.join(mismatched)}",
+        )
+    ]
+
+
+def rule_s014(component: str, ctx: dict) -> list[LintResult]:
+    """gatherCsvtk must only be used with CSVTK_CONCAT."""
+    rid = "S014"
+    calls = ctx["structure"].get("gather_csvtk_calls", [])
+    if not calls:
+        return []
+    aliases = ctx["structure"].get("csvtk_concat_aliases", set())
+    non_csvtk = []
+    for call in calls:
+        if call["receiver"] not in aliases:
+            non_csvtk.append(
+                f"line {call['line_num']}: gatherCsvtk output goes to"
+                f" {call['receiver']}, not CSVTK_CONCAT"
+            )
+    if not non_csvtk:
+        return [_pass(rid, component, "All gatherCsvtk calls feed into CSVTK_CONCAT")]
+    return [_fail(rid, component, f"Invalid gatherCsvtk usage: {'; '.join(non_csvtk)}")]
+
+
+def rule_s015(component: str, ctx: dict) -> list[LintResult]:
+    """Emit mix sources must match between sample_outputs and run_outputs."""
+    rid = "S015"
+    mix = ctx["structure"].get("emit_mix_sources", {"sample": [], "run": []})
+    sample_list = mix["sample"]
+    run_list = mix["run"]
+    # Only check when mix is used (more than 1 source on either side)
+    if len(sample_list) <= 1 and len(run_list) <= 1:
+        return []
+    sample_set = set(sample_list)
+    run_set = set(run_list)
+    if sample_set == run_set:
+        return [_pass(rid, component, "Emit mix sources match")]
+    only_sample = sample_set - run_set
+    only_run = run_set - sample_set
+    parts = []
+    if only_sample:
+        parts.append(f"in sample but not run: {', '.join(sorted(only_sample))}")
+    if only_run:
+        parts.append(f"in run but not sample: {', '.join(sorted(only_run))}")
+    return [_warn(rid, component, f"Emit mix source mismatch -- {'; '.join(parts)}")]
+
+
+def rule_s016(component: str, ctx: dict) -> list[LintResult]:
+    """Emit mix order must match between sample_outputs and run_outputs."""
+    rid = "S016"
+    mix = ctx["structure"].get("emit_mix_sources", {"sample": [], "run": []})
+    sample_list = mix["sample"]
+    run_list = mix["run"]
+    if len(sample_list) <= 1 and len(run_list) <= 1:
+        return []
+    # Only check order if the sets match (S015 handles mismatches)
+    if set(sample_list) != set(run_list):
+        return []
+    if sample_list == run_list:
+        return [_pass(rid, component, "Emit mix order matches")]
+    return [
+        _warn(
+            rid,
+            component,
+            f"Emit mix order differs: sample={sample_list}, run={run_list}",
+        )
+    ]
 
 
 SUBWORKFLOW_RULES = [
@@ -166,4 +296,10 @@ SUBWORKFLOW_RULES = [
     rule_s008,
     rule_s009,
     rule_s010,
+    rule_s011,
+    rule_s012,
+    rule_s013,
+    rule_s014,
+    rule_s015,
+    rule_s016,
 ]

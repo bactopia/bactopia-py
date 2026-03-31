@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -57,6 +58,7 @@ click.rich_click.OPTION_GROUPS = {
                 "--generate",
                 "--jobs",
                 "--fail-fast",
+                "--timeout",
             ],
         },
         {
@@ -89,6 +91,7 @@ SYNTAX_ERROR = "syntax_error"
 TOOL_ERROR = "tool_error"
 ASSERTION_FAILED = "assertion_failed"
 SKIPPED = "skipped"
+TIMEOUT = "timeout"
 
 STATUS_STYLES = {
     PASSED: "green",
@@ -99,6 +102,7 @@ STATUS_STYLES = {
     TOOL_ERROR: "red",
     ASSERTION_FAILED: "yellow",
     SKIPPED: "dim",
+    TIMEOUT: "red bold",
 }
 
 
@@ -321,6 +325,53 @@ def cleanup_all(bactopia_path: Path, dry_run: bool = False):
         logging.info(f"Cleaned up {count} nf-test artifact(s)")
 
 
+def _run_with_timeout(cmd, cwd, env, timeout):
+    """Run a command with timeout, killing the entire process group on timeout.
+
+    Uses start_new_session so the child becomes its own process group leader.
+    On timeout, sends SIGTERM to the group (nf-test + Nextflow + Java children),
+    waits briefly, then SIGKILL if still alive.
+
+    Args:
+        cmd: Command list to execute.
+        cwd: Working directory.
+        env: Environment variables.
+        timeout: Timeout in seconds, or None for no timeout.
+
+    Returns:
+        Tuple of (stdout, stderr, returncode, timed_out).
+    """
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=env,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
+        return stdout, stderr, proc.returncode, False
+    except subprocess.TimeoutExpired:
+        # Kill the entire process group (nf-test + nextflow + java children)
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except OSError:
+            pass
+        # Give processes a moment to clean up, then force kill
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except OSError:
+                pass
+        # Drain any remaining output
+        stdout, stderr = proc.communicate()
+        return stdout or "", stderr or "", proc.returncode or -1, True
+
+
 def run_single_test(
     test_dir: Path,
     test_data: Path,
@@ -328,6 +379,7 @@ def run_single_test(
     condadir: str,
     singularity_cache: str,
     generate: bool,
+    timeout: int,
 ) -> dict:
     """Execute nf-test for a single component.
 
@@ -338,6 +390,7 @@ def run_single_test(
         condadir: Path to Conda environment cache directory.
         singularity_cache: Path to Singularity image cache directory.
         generate: If True, delete snapshot and run twice for reproducibility.
+        timeout: Per-subprocess timeout in seconds. 0 means no timeout.
 
     Returns:
         Dict with status, duration, stdout, and stderr.
@@ -356,30 +409,46 @@ def run_single_test(
             snap_file.unlink()
 
     start = time.monotonic()
+    effective_timeout = timeout if timeout > 0 else None
 
     # First run (generate mode: create snapshot; normal mode: verify test passes)
-    result = subprocess.run(
-        cmd,
-        cwd=test_dir,
-        capture_output=True,
-        text=True,
-        env=env,
+    stdout, stderr, returncode, timed_out = _run_with_timeout(
+        cmd, test_dir, env, effective_timeout
     )
 
-    status = classify_result(result.stdout, result.stderr, result.returncode)
+    if timed_out:
+        duration = time.monotonic() - start
+        return {
+            "status": TIMEOUT,
+            "duration": round(duration, 1),
+            "stdout": stdout,
+            "stderr": stderr + f"\n[timed out after {timeout}s]",
+            "cmd": " ".join(cmd),
+            "cwd": str(test_dir),
+        }
+
+    status = classify_result(stdout, stderr, returncode)
 
     # Generate mode: if first run passed, run again to verify reproducibility
     if generate and status == PASSED:
-        result2 = subprocess.run(
-            cmd,
-            cwd=test_dir,
-            capture_output=True,
-            text=True,
-            env=env,
+        stdout2, stderr2, returncode2, timed_out2 = _run_with_timeout(
+            cmd, test_dir, env, effective_timeout
         )
-        if result2.returncode != 0:
+        if timed_out2:
+            duration = time.monotonic() - start
+            return {
+                "status": TIMEOUT,
+                "duration": round(duration, 1),
+                "stdout": stdout2,
+                "stderr": stderr2
+                + f"\n[timed out after {timeout}s on reproducibility run]",
+                "cmd": " ".join(cmd),
+                "cwd": str(test_dir),
+            }
+        if returncode2 != 0:
             status = NON_REPRODUCIBLE
-            result = result2
+            stdout = stdout2
+            stderr = stderr2
 
     duration = time.monotonic() - start
 
@@ -390,41 +459,52 @@ def run_single_test(
     return {
         "status": status,
         "duration": round(duration, 1),
-        "stdout": result.stdout,
-        "stderr": result.stderr,
+        "stdout": stdout,
+        "stderr": stderr,
         "cmd": " ".join(cmd),
         "cwd": str(test_dir),
     }
 
 
-def save_logs(results: list, logs_dir: Path, params: dict):
-    """Write per-component log files and summary to the logs directory.
-
-    Creates a timestamped subdirectory with tier-based organization:
-        logs/{timestamp}/{tier}/{component}.stdout.txt
-        logs/{timestamp}/{tier}/{component}.stderr.txt
-        logs/{timestamp}/summary.json
-        logs/{timestamp}/summary.tsv
+def create_log_dir(logs_dir: Path) -> Path:
+    """Create a timestamped log directory for the current run.
 
     Args:
-        results: List of result dicts from test execution.
         logs_dir: Base logs directory.
+
+    Returns:
+        Path to the created run directory.
     """
     from datetime import datetime, timezone
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     run_dir = logs_dir / timestamp
     run_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir
 
-    # Write per-component logs organized by tier
-    for r in results:
-        tier_dir = run_dir / r["tier"]
-        tier_dir.mkdir(parents=True, exist_ok=True)
-        name = r["component"]
-        (tier_dir / f"{name}.stdout.txt").write_text(r.get("stdout", ""))
-        (tier_dir / f"{name}.stderr.txt").write_text(r.get("stderr", ""))
 
-    # Build summary data
+def save_test_log(run_dir: Path, result: dict):
+    """Write stdout/stderr for a single test result to the log directory.
+
+    Args:
+        run_dir: Timestamped run directory.
+        result: Result dict with component, tier, stdout, and stderr.
+    """
+    tier_dir = run_dir / result["tier"]
+    tier_dir.mkdir(parents=True, exist_ok=True)
+    name = result["component"]
+    (tier_dir / f"{name}.stdout.txt").write_text(result.get("stdout", ""))
+    (tier_dir / f"{name}.stderr.txt").write_text(result.get("stderr", ""))
+
+
+def save_summary(run_dir: Path, results: list, params: dict):
+    """Write summary JSON and TSV files to the log directory.
+
+    Args:
+        run_dir: Timestamped run directory.
+        results: List of result dicts from test execution.
+        params: Parameters used for the test run.
+    """
     summary_counts = {}
     for r in results:
         summary_counts[r["status"]] = summary_counts.get(r["status"], 0) + 1
@@ -511,6 +591,7 @@ def print_results(console: rich.console.Console, results: list, use_json: bool):
     for status_key in [
         PASSED,
         TOOL_ERROR,
+        TIMEOUT,
         SYNTAX_ERROR,
         SNAPSHOT_MISMATCH,
         NON_REPRODUCIBLE,
@@ -589,6 +670,13 @@ def print_results(console: rich.console.Console, results: list, use_json: bool):
     help="Stop on the first test failure instead of continuing.",
 )
 @click.option(
+    "--timeout",
+    default=90,
+    type=int,
+    show_default=True,
+    help="Per-test timeout in minutes. Each nf-test subprocess is killed after this duration. Set to 0 to disable.",
+)
+@click.option(
     "--cleanup",
     is_flag=True,
     help="Find and remove all .nf-test/ temp files, then exit (no tests run).",
@@ -619,6 +707,7 @@ def testing(
     generate,
     jobs,
     fail_fast,
+    timeout,
     cleanup,
     dry_run,
     outdir,
@@ -678,6 +767,11 @@ def testing(
     # Execute tests in parallel
     results = []
     failed = False
+    timeout_seconds = timeout * 60
+
+    # Create log directory upfront so per-test logs are written as they complete
+    logs_dir = Path(outdir).absolute().resolve() / "logs"
+    run_dir = create_log_dir(logs_dir)
 
     with ProcessPoolExecutor(max_workers=jobs) as executor:
         future_to_test = {}
@@ -690,9 +784,12 @@ def testing(
                 str(Path(condadir).absolute()),
                 str(Path(singularity_cache).absolute()),
                 generate,
+                timeout_seconds,
             )
             future_to_test[future] = t
 
+        total = len(future_to_test)
+        completed = 0
         for future in as_completed(future_to_test):
             t = future_to_test[future]
             try:
@@ -709,11 +806,15 @@ def testing(
             result["component"] = t["component"]
             result["tier"] = t["tier"]
             results.append(result)
+            completed += 1
+
+            # Write per-test logs immediately
+            save_test_log(run_dir, result)
 
             logging.debug(f"    cwd: {result.get('cwd', 'N/A')}")
             logging.debug(f"Command: {result.get('cmd', 'N/A')}")
             logging.info(
-                f"{t['component']} ({t['tier']}): {result['status']} [{result['duration']}s]"
+                f"({completed} of {total}) {t['component']} ({t['tier']}): {result['status']} [{result['duration']}s]"
             )
 
             if fail_fast and result["status"] != PASSED:
@@ -724,8 +825,7 @@ def testing(
     # Sort results by tier then component name
     results.sort(key=lambda r: (r["tier"], r["component"]))
 
-    # Save logs
-    logs_dir = Path(outdir).absolute().resolve() / "logs"
+    # Save summary (per-test logs already written above)
     params = {
         "bactopia_path": str(bp),
         "test_data": str(td),
@@ -738,6 +838,7 @@ def testing(
         "generate": generate,
         "jobs": jobs,
         "fail_fast": fail_fast,
+        "timeout": timeout,
         "cleanup": cleanup,
         "dry_run": dry_run,
         "outdir": str(Path(outdir).absolute()),
@@ -745,7 +846,7 @@ def testing(
         "verbose": verbose,
         "silent": silent,
     }
-    save_logs(results, logs_dir, params)
+    save_summary(run_dir, results, params)
 
     # Display results
     console = rich.console.Console()

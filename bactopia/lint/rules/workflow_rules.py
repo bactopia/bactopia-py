@@ -392,11 +392,10 @@ def rule_w018(component: str, ctx: dict) -> list[LintResult]:
     includes = ctx["structure"].get("includes", [])
     if not includes:
         return []  # No includes to check
-    # Expected brace column based on longest name
-    max_name_len = max(len(inc["name"]) for inc in includes)
-    # Format: "include { NAME<spaces>} from ..."
-    # "include { " is 10 chars, then name, then space(s), then "}"
-    expected_col = 10 + max_name_len + 1  # +1 for the space before }
+    # content_len accounts for "as" aliases (e.g. "CSVTK_CONCAT as GENES_CONCAT")
+    max_content_len = max(inc.get("content_len", len(inc["name"])) for inc in includes)
+    # "include { " is 10 chars, then content, then space(s), then "}"
+    expected_col = 10 + max_content_len + 1  # +1 for the space before }
     misaligned = []
     for inc in includes:
         if inc["brace_col"] != expected_col:
