@@ -265,6 +265,26 @@ def get_git_info(repo_path: Path) -> dict:
     return info
 
 
+def is_local(filename: str) -> bool:
+    """
+    Check if a filename is a local path (not cloud or remote storage).
+
+    Args:
+        filename (str): The filename or path to check
+
+    Returns:
+        bool: True if the path is local, False if it is a cloud/remote path
+    """
+    if (
+        filename.startswith("gs://")
+        or filename.startswith("s3://")
+        or filename.startswith("az://")
+        or filename.startswith("https://")
+    ):
+        return False
+    return True
+
+
 def chunk_list(lst: list, n: int) -> list:
     """
     Yield successive n-sized chunks from input list.

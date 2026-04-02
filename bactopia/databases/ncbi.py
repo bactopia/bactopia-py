@@ -1,7 +1,9 @@
 import gzip
 import logging
+import os
 import re
 import sys
+import time
 
 import requests
 
@@ -164,3 +166,43 @@ def taxid2name(taxids: list, ncbi_api_key: str, chunk_size: int) -> dict:
 
     logging.info(f"Converted {len(tax_names)} TaxIDs to species names")
     return tax_names
+
+
+def check_assembly_version(accession):
+    """Verify an NCBI Assembly accession is latest and still available.
+
+    Args:
+        accession (str): The assembly accession (without version) to check.
+
+    Returns:
+        list: A two-element list of [result_string, is_excluded_bool].
+    """
+    from Bio import Entrez
+
+    Entrez.email = os.environ.get("ENTREZ_EMAIL", "robert.petit@emory.edu")
+    Entrez.tool = os.environ.get("ENTREZ_TOOL", "BactopiaCheckAssemblyAccession")
+
+    handle = Entrez.esearch(db="assembly", term=accession, retmax="500")
+    record = Entrez.read(handle, validate=False)
+    time.sleep(1)
+
+    if len(record["IdList"]):
+        handle = Entrez.esummary(db="assembly", id=",".join(record["IdList"]))
+        record = Entrez.read(handle, validate=False)
+        time.sleep(1)
+
+        records = []
+        excluded = set()
+        for assembly in record["DocumentSummarySet"]["DocumentSummary"]:
+            if assembly["ExclFromRefSeq"]:
+                for reason in assembly["ExclFromRefSeq"]:
+                    excluded.add(reason)
+            else:
+                records.append(assembly["AssemblyAccession"])
+
+        if excluded:
+            return [",".join(list(excluded)), True]
+        else:
+            return [sorted(records, reverse=True)[0], False]
+    else:
+        return [f"No records found for {accession}", True]

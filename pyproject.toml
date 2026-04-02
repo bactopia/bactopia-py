@@ -31,6 +31,16 @@ bactopia-test = "bactopia.cli.testing:main"
 bactopia-lint = "bactopia.cli.lint:main"
 bactopia-catalog = "bactopia.cli.catalog:main"
 bactopia-review-tests = "bactopia.cli.review:main"
+# Pipeline utility scripts (called from Nextflow module shell blocks)
+bactopia-check-fastqs = "bactopia.cli.pipeline.check_fastqs:main"
+bactopia-check-assembly-accession = "bactopia.cli.pipeline.check_assembly_accession:main"
+bactopia-cleanup-coverage = "bactopia.cli.pipeline.cleanup_coverage:main"
+bactopia-mask-consensus = "bactopia.cli.pipeline.mask_consensus:main"
+bactopia-kraken-bracken-summary = "bactopia.cli.pipeline.kraken_bracken_summary:main"
+bactopia-scrubber-summary = "bactopia.cli.pipeline.scrubber_summary:main"
+bactopia-midas-summary = "bactopia.cli.pipeline.midas_summary:main"
+bactopia-teton-prepare = "bactopia.cli.pipeline.teton_prepare:main"
+bactopia-bracken-to-excel = "bactopia.cli.pipeline.bracken_to_excel:main"
 
 [tool.poetry.dependencies]
 python = "^3.9.0"

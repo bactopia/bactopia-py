@@ -18,7 +18,7 @@ def parse_table(
 
     Args:
         csvfile (str): input delimited file to be parsed
-        delimiter (str, optional): delimter used to separate column values. Defaults to '\t'.
+        delimiter (str, optional): delimiter used to separate column values. Defaults to '\t'.
         has_header (bool, optional): the first line should be treated as a header. Defaults to True.
 
     Returns:
@@ -62,3 +62,43 @@ def parse_yaml(yamlfile: str) -> dict:
     """
     with open(yamlfile, "rt") as fh:
         return yaml.safe_load(fh)
+
+
+def read_vcf(vcf: str) -> dict:
+    """
+    Get positions with a substitution from a VCF file.
+
+    Args:
+        vcf (str): input VCF file to be parsed
+
+    Returns:
+        dict: substitution positions keyed by contig then position
+    """
+    subs = {}
+    with open(vcf, "rt") as vcf_fh:
+        for line in vcf_fh:
+            if not line.startswith("#"):
+                line = line.split("\t")
+                if line[0] not in subs:
+                    subs[line[0]] = {}
+                subs[line[0]][line[1]] = True
+    return subs
+
+
+def read_fasta(fasta: str) -> dict:
+    """
+    Parse the input FASTA file.
+
+    Args:
+        fasta (str): input FASTA file to be parsed
+
+    Returns:
+        dict: sequences keyed by record name
+    """
+    from Bio import SeqIO
+
+    seqs = {}
+    with open(fasta, "r") as fasta_fh:
+        for record in SeqIO.parse(fasta_fh, "fasta"):
+            seqs[record.name] = str(record.seq)
+    return seqs

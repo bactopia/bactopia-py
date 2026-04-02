@@ -39,7 +39,7 @@ click.rich_click.OPTION_GROUPS = {
         },
         {
             "name": "Cleanup",
-            "options": ["--cleanup", "--dry-run"],
+            "options": ["--cleanup", "--dry-run", "--keep"],
         },
         {
             "name": "Test Selection",
@@ -380,6 +380,7 @@ def run_single_test(
     singularity_cache: str,
     generate: bool,
     timeout: int,
+    keep: bool = False,
 ) -> dict:
     """Execute nf-test for a single component.
 
@@ -453,7 +454,7 @@ def run_single_test(
     duration = time.monotonic() - start
 
     # Always clean up on pass; keep on failure for debugging
-    if status == PASSED:
+    if status == PASSED and not keep:
         _cleanup_test_dir(test_dir)
 
     return {
@@ -538,7 +539,9 @@ def save_summary(run_dir: Path, results: list, params: dict):
     logging.info(f"Logs saved to {run_dir}")
 
 
-def print_results(console: rich.console.Console, results: list, use_json: bool, tier: str = "all"):
+def print_results(
+    console: rich.console.Console, results: list, use_json: bool, tier: str = "all"
+):
     """Display test results as a Rich table or JSON.
 
     Args:
@@ -612,7 +615,9 @@ def print_results(console: rich.console.Console, results: list, use_json: bool, 
         total = len(results)
         tiers_seen = sorted(set(r["tier"] for r in results))
         console.print()
-        console.print(f"[bold green]🎉🎉🎉 All {total} tests passed across {', '.join(tiers_seen)}! 🎉🎉🎉[/bold green]")
+        console.print(
+            f"[bold green]🎉🎉🎉 All {total} tests passed across {', '.join(tiers_seen)}! 🎉🎉🎉[/bold green]"
+        )
 
 
 @click.command()
@@ -701,6 +706,11 @@ def print_results(console: rich.console.Console, results: list, use_json: bool, 
     show_default=True,
     help="Directory to write the logs/ folder into.",
 )
+@click.option(
+    "--keep",
+    is_flag=True,
+    help="Keep .nf-test/ directories and logs after tests pass (useful for debugging).",
+)
 @click.option("--json", "use_json", is_flag=True, help="Output results as JSON.")
 @click.option("--verbose", is_flag=True, help="Print debug related text.")
 @click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
@@ -719,6 +729,7 @@ def testing(
     timeout,
     cleanup,
     dry_run,
+    keep,
     outdir,
     use_json,
     verbose,
@@ -794,6 +805,7 @@ def testing(
                 str(Path(singularity_cache).absolute()),
                 generate,
                 timeout_seconds,
+                keep,
             )
             future_to_test[future] = t
 
@@ -848,6 +860,7 @@ def testing(
         "jobs": jobs,
         "fail_fast": fail_fast,
         "timeout": timeout,
+        "keep": keep,
         "cleanup": cleanup,
         "dry_run": dry_run,
         "outdir": str(Path(outdir).absolute()),
