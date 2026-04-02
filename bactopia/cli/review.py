@@ -393,6 +393,30 @@ def analyze_run(run_dir: Path, baselines_path: Path | None, tolerance: float) ->
     failure_details = []
 
     for r in failed_results:
+        # Undeclared outputs are classified by bactopia-test directly, not
+        # from stdout analysis.  Read the .outputs.txt file for details.
+        if r["status"] == "undeclared_outputs":
+            outputs_path = run_dir / r["tier"] / f"{r['component']}.outputs.txt"
+            undeclared = r.get("undeclared_outputs", [])
+            if not undeclared and outputs_path.exists():
+                undeclared = [
+                    line
+                    for line in outputs_path.read_text().splitlines()
+                    if line and not line.startswith("#")
+                ]
+            message = ", ".join(undeclared) if undeclared else "see .outputs.txt"
+            failure_details.append(
+                {
+                    "component": r["component"],
+                    "tier": r["tier"],
+                    "status": r["status"],
+                    "duration": r["duration"],
+                    "pattern": "undeclared_outputs",
+                    "message": message,
+                }
+            )
+            continue
+
         stdout_path = run_dir / r["tier"] / f"{r['component']}.stdout.txt"
         if stdout_path.exists():
             raw = stdout_path.read_text(errors="replace")
@@ -442,6 +466,7 @@ def analyze_run(run_dir: Path, baselines_path: Path | None, tolerance: float) ->
         "missing_config": "Missing config/include errors",
         "syntax_error": "Compilation/syntax errors",
         "undeclared_parameter": "Undeclared parameter errors",
+        "undeclared_outputs": "Undeclared output files",
         "process_failure": "Process execution failures",
         "abort_error": "Execution aborted unexpectedly",
         "assertion_failure": "Test assertion failures (workflow completed)",
@@ -453,6 +478,7 @@ def analyze_run(run_dir: Path, baselines_path: Path | None, tolerance: float) ->
         "missing_config": "Config file referenced by includeConfig does not exist",
         "syntax_error": "Nextflow script failed to compile",
         "undeclared_parameter": "Parameter specified but not declared in script or config",
+        "undeclared_outputs": "Files produced by the tool but not in results/logs/versions/nf_logs (add to results or .outputs-ignore)",
         "process_failure": "A Nextflow process terminated with a non-zero exit status",
         "abort_error": "Nextflow execution aborted due to an unexpected error",
         "assertion_failure": "Workflow ran successfully but test assertions did not match",
@@ -461,6 +487,7 @@ def analyze_run(run_dir: Path, baselines_path: Path | None, tolerance: float) ->
 
     # Build ordered failure groups
     pattern_order = [
+        "undeclared_outputs",
         "undeclared_parameter",
         "missing_config",
         "process_failure",

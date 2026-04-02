@@ -92,6 +92,7 @@ TOOL_ERROR = "tool_error"
 ASSERTION_FAILED = "assertion_failed"
 SKIPPED = "skipped"
 TIMEOUT = "timeout"
+UNDECLARED_OUTPUTS = "undeclared_outputs"
 
 STATUS_STYLES = {
     PASSED: "green",
@@ -103,6 +104,7 @@ STATUS_STYLES = {
     ASSERTION_FAILED: "yellow",
     SKIPPED: "dim",
     TIMEOUT: "red bold",
+    UNDECLARED_OUTPUTS: "yellow bold",
 }
 
 
@@ -453,7 +455,17 @@ def run_single_test(
 
     duration = time.monotonic() - start
 
-    # Always clean up on pass; keep on failure for debugging
+    # Scan for undeclared outputs (must happen before cleanup)
+    undeclared = []
+    if status == PASSED:
+        from bactopia.outputs import scan_test_outputs
+
+        scan_result = scan_test_outputs(test_dir)
+        undeclared = scan_result.get("undeclared_outputs", [])
+        if undeclared:
+            status = UNDECLARED_OUTPUTS
+
+    # Always clean up on pass; keep on failure/undeclared for debugging
     if status == PASSED and not keep:
         _cleanup_test_dir(test_dir)
 
@@ -464,6 +476,7 @@ def run_single_test(
         "stderr": stderr,
         "cmd": " ".join(cmd),
         "cwd": str(test_dir),
+        "undeclared_outputs": undeclared,
     }
 
 
@@ -485,17 +498,31 @@ def create_log_dir(logs_dir: Path) -> Path:
 
 
 def save_test_log(run_dir: Path, result: dict):
-    """Write stdout/stderr for a single test result to the log directory.
+    """Write stdout/stderr/outputs for a single test result to the log directory.
 
     Args:
         run_dir: Timestamped run directory.
-        result: Result dict with component, tier, stdout, and stderr.
+        result: Result dict with component, tier, stdout, stderr, and
+            undeclared_outputs.
     """
     tier_dir = run_dir / result["tier"]
     tier_dir.mkdir(parents=True, exist_ok=True)
     name = result["component"]
     (tier_dir / f"{name}.stdout.txt").write_text(result.get("stdout", ""))
     (tier_dir / f"{name}.stderr.txt").write_text(result.get("stderr", ""))
+
+    # Write output scan results
+    undeclared = result.get("undeclared_outputs", [])
+    lines = [f"# Test output scan for {name}"]
+    if undeclared:
+        lines.append(
+            "# Undeclared outputs (not in results/logs/versions/nf_logs,"
+            " not in .outputs-ignore):"
+        )
+        lines.extend(undeclared)
+    else:
+        lines.append("# All outputs declared -- OK")
+    (tier_dir / f"{name}.outputs.txt").write_text("\n".join(lines) + "\n")
 
 
 def save_summary(run_dir: Path, results: list, params: dict):
@@ -516,6 +543,7 @@ def save_summary(run_dir: Path, results: list, params: dict):
             "tier": r["tier"],
             "status": r["status"],
             "duration": r["duration"],
+            "undeclared_outputs": r.get("undeclared_outputs", []),
         }
         for r in results
     ]
@@ -563,6 +591,7 @@ def print_results(
                     "tier": r["tier"],
                     "status": r["status"],
                     "duration": r["duration"],
+                    "undeclared_outputs": r.get("undeclared_outputs", []),
                 }
                 for r in results
             ],
@@ -575,14 +604,23 @@ def print_results(
     table.add_column("Component", style="bold")
     table.add_column("Tier")
     table.add_column("Status")
+    table.add_column("Outputs")
     table.add_column("Duration", justify="right")
 
     for r in results:
         style = STATUS_STYLES.get(r["status"], "")
+        undeclared = r.get("undeclared_outputs", [])
+        if undeclared:
+            outputs_cell = f"[yellow bold]{len(undeclared)} undeclared[/yellow bold]"
+        elif r["status"] == PASSED:
+            outputs_cell = "[green]OK[/green]"
+        else:
+            outputs_cell = "-"
         table.add_row(
             r["component"],
             r["tier"],
             f"[{style}]{r['status']}[/{style}]",
+            outputs_cell,
             f"{r['duration']}s",
         )
 
@@ -593,6 +631,7 @@ def print_results(
     parts = []
     for status_key in [
         PASSED,
+        UNDECLARED_OUTPUTS,
         TOOL_ERROR,
         ASSERTION_FAILED,
         TIMEOUT,
