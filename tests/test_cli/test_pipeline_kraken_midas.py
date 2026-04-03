@@ -9,7 +9,9 @@ from bactopia.cli.pipeline.midas_summary import midas_summary
 
 
 class TestKrakenBrackenSummary:
-    def test_happy_path(self, tmp_path, parser_fixtures, pipeline_fixtures, monkeypatch):
+    def test_happy_path(
+        self, tmp_path, parser_fixtures, pipeline_fixtures, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         runner = CliRunner()
         result = runner.invoke(
@@ -30,7 +32,9 @@ class TestKrakenBrackenSummary:
         assert "Staphylococcus aureus" in lines[1]
 
         # Check adjusted abundances (should include unclassified row)
-        adj = pd.read_csv(tmp_path / "testprefix.bracken.adjusted.abundances.txt", sep="\t")
+        adj = pd.read_csv(
+            tmp_path / "testprefix.bracken.adjusted.abundances.txt", sep="\t"
+        )
         assert "sample" in adj.columns
         assert "unclassified" in adj["name"].values
 
@@ -38,7 +42,9 @@ class TestKrakenBrackenSummary:
         clf = (tmp_path / "testprefix.bracken.classification.txt").read_text()
         assert "classification" in clf
 
-    def test_no_unclassified(self, tmp_path, parser_fixtures, pipeline_fixtures, monkeypatch):
+    def test_no_unclassified(
+        self, tmp_path, parser_fixtures, pipeline_fixtures, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         # Create a kraken2 report with no U line (100% classified)
         no_u_report = tmp_path / "kraken2_no_u.txt"
@@ -56,7 +62,9 @@ class TestKrakenBrackenSummary:
         assert result.exit_code == 0
 
         # Adjusted abundances should not have unclassified row
-        adj = pd.read_csv(tmp_path / "testprefix.bracken.adjusted.abundances.txt", sep="\t")
+        adj = pd.read_csv(
+            tmp_path / "testprefix.bracken.adjusted.abundances.txt", sep="\t"
+        )
         assert "unclassified" not in adj["name"].values
 
         # Summary should have empty unclassified abundance
@@ -69,7 +77,9 @@ class TestKrakenBrackenSummary:
         uncl_val = data_cols[uncl_idx] if uncl_idx < len(data_cols) else ""
         assert uncl_val.strip() == ""
 
-    def test_high_secondary_unknown(self, tmp_path, parser_fixtures, pipeline_fixtures, monkeypatch):
+    def test_high_secondary_unknown(
+        self, tmp_path, parser_fixtures, pipeline_fixtures, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         runner = CliRunner()
         result = runner.invoke(
@@ -79,7 +89,8 @@ class TestKrakenBrackenSummary:
                 str(parser_fixtures / "kraken2_report.txt"),
                 str(parser_fixtures / "bracken_report.txt"),
                 str(pipeline_fixtures / "bracken_abundances.tsv"),
-                "--max_secondary_percent", "0.001",
+                "--max_secondary_percent",
+                "0.001",
             ],
         )
         assert result.exit_code == 0
@@ -189,7 +200,8 @@ class TestBrackenToExcel:
             [
                 "testprefix",
                 str(pipeline_fixtures / "bracken_adjusted_abundances.tsv"),
-                "--limit", "1",
+                "--limit",
+                "1",
             ],
         )
         assert result.exit_code == 0

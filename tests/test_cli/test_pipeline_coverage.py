@@ -65,7 +65,8 @@ class TestMaskConsensus:
                 str(pipeline_fixtures / "mask_ref.fasta"),
                 str(pipeline_fixtures / "mask_subs.vcf"),
                 str(pipeline_fixtures / "mask_coverage.txt"),
-                "--mincov", "10",
+                "--mincov",
+                "10",
             ],
         )
         assert result.exit_code == 0
@@ -80,8 +81,7 @@ class TestMaskConsensus:
     def test_no_substitutions(self, tmp_path, pipeline_fixtures):
         empty_vcf = tmp_path / "empty.vcf"
         empty_vcf.write_text(
-            "##fileformat=VCFv4.2\n"
-            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+            "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
         )
         runner = CliRunner()
         result = runner.invoke(
@@ -92,7 +92,8 @@ class TestMaskConsensus:
                 str(pipeline_fixtures / "mask_ref.fasta"),
                 str(empty_vcf),
                 str(pipeline_fixtures / "mask_coverage.txt"),
-                "--mincov", "10",
+                "--mincov",
+                "10",
             ],
         )
         assert result.exit_code == 0

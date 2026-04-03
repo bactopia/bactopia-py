@@ -35,7 +35,9 @@ class TestTetonPrepare:
         assert result.exit_code == 0
 
         bacteria = (tmp_path / "sample1.bacteria.tsv").read_text().strip().split("\n")
-        nonbacteria = (tmp_path / "sample1.nonbacteria.tsv").read_text().strip().split("\n")
+        nonbacteria = (
+            (tmp_path / "sample1.nonbacteria.tsv").read_text().strip().split("\n")
+        )
         # Bacteria file should have header + data row
         assert len(bacteria) == 2
         assert "2800000" in bacteria[1]
@@ -62,7 +64,9 @@ class TestTetonPrepare:
         assert result.exit_code == 0
 
         bacteria = (tmp_path / "sample1.bacteria.tsv").read_text().strip().split("\n")
-        nonbacteria = (tmp_path / "sample1.nonbacteria.tsv").read_text().strip().split("\n")
+        nonbacteria = (
+            (tmp_path / "sample1.nonbacteria.tsv").read_text().strip().split("\n")
+        )
         # Bacteria should be header only, nonbacteria should have data
         assert len(bacteria) == 1
         assert len(nonbacteria) == 2
@@ -96,7 +100,9 @@ class TestTetonPrepare:
         assert r2_val.strip() == ""
         assert extra_val.strip() == ""
 
-    def test_cloud_path_skips_validation(self, tmp_path, pipeline_fixtures, monkeypatch):
+    def test_cloud_path_skips_validation(
+        self, tmp_path, pipeline_fixtures, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         runner = CliRunner()
         result = runner.invoke(
@@ -150,5 +156,9 @@ class TestCheckAssemblyAccession:
         # Excluded accession shows skip message but no bare accession line
         assert "Skipping" in result.output
         # Should not contain a standalone accession (the non-excluded path prints one)
-        lines = [line for line in result.output.strip().split("\n") if not line.startswith("Skipping")]
+        lines = [
+            line
+            for line in result.output.strip().split("\n")
+            if not line.startswith("Skipping")
+        ]
         assert all(line.strip() == "" for line in lines)
