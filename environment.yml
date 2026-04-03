@@ -2,10 +2,27 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
+  # System tools
   - blast
   - just
   - pigz
-  - poetry
-  - pyyaml
   - python >=3.9
   - wget
+  # Python deps (mirrors bioconda run requirements)
+  - biopython
+  - jinja2
+  - openpyxl
+  - pandas >=2.2.0
+  - pyyaml
+  - rauth
+  - requests
+  - rich <14
+  - rich-click >=1.6.0
+  - tqdm
+  # Dev/test tools
+  - poetry
+  - pytest
+  - pytest-cov
+  - pytest-mock
+  - responses
+  - ruff

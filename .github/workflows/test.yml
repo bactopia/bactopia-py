@@ -17,6 +17,7 @@ jobs:
         shell: bash -el {0}
     steps:
       - uses: actions/checkout@v4
+
       - uses: conda-incubator/setup-miniconda@v2
         with:
           python-version: ${{ matrix.python-version }}
@@ -26,17 +27,14 @@ jobs:
           environment-file: environment.yml
           auto-update-conda: true
 
-      - name: Install dependencies
-        run: |
-          poetry config virtualenvs.create true
-          poetry env use $(which python)
-          poetry install --no-interaction --with test
+      - name: Install package
+        run: pip install --no-deps -e .
 
       - name: Lint
         run: just check
 
       - name: Run tests
-        run: poetry run pytest -m "not integration" --cov=bactopia --cov-report=xml
+        run: pytest -m "not integration" --cov=bactopia --cov-report=xml
 
       - name: Upload coverage
         if: matrix.python-version == '3.10'

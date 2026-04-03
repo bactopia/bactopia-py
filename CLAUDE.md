@@ -14,26 +14,20 @@ bactopia-py is a Python CLI companion package for [Bactopia](https://bactopia.gi
 
 ### Environment Setup
 
-The conda environment provides system dependencies (blast, pigz, wget, just, poetry) and Python. Poetry then manages a virtualenv for Python package dependencies.
+The conda environment provides all dependencies: system tools (blast, pigz, wget), Python library deps, and dev/test tools. Poetry installs directly into the conda env (virtualenvs disabled via `poetry.toml`).
 
 ```bash
 conda env create -f environment.yml -n bactopia-py-dev
-conda run -n bactopia-py-dev poetry env use $(conda run -n bactopia-py-dev which python)
 conda run -n bactopia-py-dev just install
 ```
 
 ### Running Commands
 
-Use `conda run -n bactopia-py-dev` to run commands in the conda environment. Poetry commands need `poetry run` to access the virtualenv:
+Use `conda run -n bactopia-py-dev` to run commands in the conda environment:
 
 ```bash
-conda run -n bactopia-py-dev poetry run bactopia-download --version
-conda run -n bactopia-py-dev poetry run bactopia-prepare --help
-```
-
-The `just` recipes handle the `poetry run` prefix automatically, so you only need the `conda run` wrapper:
-
-```bash
+conda run -n bactopia-py-dev bactopia-download --version
+conda run -n bactopia-py-dev bactopia-prepare --help
 conda run -n bactopia-py-dev just fmt
 conda run -n bactopia-py-dev just lint
 ```
