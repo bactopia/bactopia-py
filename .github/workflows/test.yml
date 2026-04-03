@@ -31,8 +31,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install -U pip
-          just install
+          poetry env use $(which python)
           poetry install --no-interaction --with test
 
       - name: Lint
