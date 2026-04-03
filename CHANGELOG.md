@@ -13,7 +13,6 @@ standalone CLI commands. These are called by the pipeline at runtime:
 - `bactopia-mask-consensus` - apply coverage masking to Snippy consensus sequences
 - `bactopia-kraken-bracken-summary` - update Bracken abundances with unclassified counts
 - `bactopia-scrubber-summary` - create before-and-after reports from human read scrubbing
-- `bactopia-midas-summary` - consolidate MIDAS species abundance to species level
 - `bactopia-teton-prepare` - prepare sample sheets for downstream Teton workflow analysis
 - `bactopia-bracken-to-excel` - export Bracken abundances to Excel format
 
