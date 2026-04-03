@@ -6,8 +6,6 @@ import re
 import sys
 from pathlib import Path
 
-from bactopia.utils import execute
-
 
 def find_main_nf(directory: Path) -> list:
     """Find all main.nf files under a directory, sorted.
@@ -364,8 +362,26 @@ def parse_all_conda_tools(bactopia_path: str, module_filter: str | None = None) 
     return modules
 
 
+def get_bactopia_version(bactopia_path: Path) -> str:
+    """Extract the Bactopia version from nextflow.config.
+
+    Args:
+        bactopia_path: Root path of the Bactopia repo.
+
+    Returns:
+        Version string, or "unknown" if not found.
+    """
+    nf_config = Path(bactopia_path) / "nextflow.config"
+    if nf_config.exists():
+        for line in nf_config.read_text().splitlines():
+            m = re.match(r"\s*params\.bactopia_version\s*=\s*['\"]([^'\"]+)['\"]", line)
+            if m:
+                return m.group(1)
+    return "unknown"
+
+
 def parse_dataset_urls(bactopia_path, datasets_path):
-    """Parse Bactopia's Nextflow config to extract dataset download URLs.
+    """Parse Bactopia's params.config to extract dataset download URLs.
 
     Args:
         bactopia_path: Path to the Bactopia repository.
@@ -374,24 +390,36 @@ def parse_dataset_urls(bactopia_path, datasets_path):
     Returns:
         List of dicts with 'dataset', 'url', and 'save_path' keys.
     """
+    bactopia_path = Path(bactopia_path)
+    version = get_bactopia_version(bactopia_path)
+    params_config = bactopia_path / "conf" / "params.config"
+    if not params_config.exists():
+        logging.error(f"params.config not found: {params_config}")
+        return []
+
     urls = []
-    nf_config, stderr = execute(
-        f"nextflow config -flat {bactopia_path}/main.nf", capture=True
-    )
-    for line in nf_config.split("\n"):
-        if "_url =" in line:
-            param, val = line.split(" = ")
-            param = param.replace("params.", "")
-            val = val.replace("'", "")
-            urls.append(
-                {
-                    "dataset": param.split("_")[0],
-                    "url": val,
-                    "save_path": val.replace(
-                        "https://datasets.bactopia.com/datasets/", f"{datasets_path}/"
-                    ),
-                }
-            )
+    for line in params_config.read_text().splitlines():
+        if "_url" not in line or "=" not in line:
+            continue
+        line = line.strip()
+        if line.startswith("//"):
+            continue
+        param, val = line.split("=", 1)
+        param = param.strip()
+        val = val.strip().strip("'\"")
+        if not val.startswith("http"):
+            continue
+        val = val.replace("${params.bactopia_version}", version)
+        dataset = param.replace("_url", "")
+        urls.append(
+            {
+                "dataset": dataset,
+                "url": val,
+                "save_path": val.replace(
+                    "https://datasets.bactopia.com/datasets/", f"{datasets_path}/"
+                ),
+            }
+        )
 
     return urls
 

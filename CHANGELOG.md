@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.1
+
+### Bug Fixes
+
+- Loosened dependency pins from `^` (caret) to `>=` to avoid artificial upper bounds that broke bioconda builds (e.g., pandas 3.x, rich 14.x)
+- Removed Nextflow runtime dependency from `bactopia-datasets` by reading `conf/params.config` directly instead of running `nextflow config`
+
+### Improvements
+
+- Extracted shared `get_bactopia_version()` helper in `bactopia/nf.py`, reused by `bactopia-catalog`
+
 ## 2.0.0
 
 ### Pipeline Utility Scripts

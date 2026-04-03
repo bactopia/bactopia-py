@@ -16,6 +16,7 @@ from rich.logging import RichHandler
 import bactopia
 from bactopia.nf import (
     find_main_nf,
+    get_bactopia_version,
     parse_groovydoc_full,
     parse_main_nf_structure,
     parse_module_config_full,
@@ -345,14 +346,11 @@ def generate_catalog(bactopia_path: Path) -> dict:
         The catalog dict ready for JSON serialization.
     """
     # Extract versions from nextflow.config
-    bactopia_version = "unknown"
+    bactopia_version = get_bactopia_version(bactopia_path)
     plugin_version = "unknown"
     nf_config = bactopia_path / "nextflow.config"
     if nf_config.exists():
         for line in nf_config.read_text().splitlines():
-            m = re.match(r"\s*params\.bactopia_version\s*=\s*['\"]([^'\"]+)['\"]", line)
-            if m:
-                bactopia_version = m.group(1)
             m = re.match(r"\s*id\s+['\"]nf-bactopia@([^'\"]+)['\"]", line)
             if m:
                 plugin_version = m.group(1)
