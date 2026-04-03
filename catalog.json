@@ -5,7 +5,7 @@
   "repository": "https://github.com/bactopia/bactopia-py",
   "license": "MIT",
   "python_requires": ">=3.9",
-  "command_count": 28,
+  "command_count": 27,
   "commands": [
     {
       "name": "bactopia-citations",
@@ -182,14 +182,7 @@
       "category": "pipeline",
       "tags": ["scrubber", "human-reads", "decontamination", "pipeline"]
     },
-    {
-      "name": "bactopia-midas-summary",
-      "description": "Consolidate MIDAS results to species-level abundances",
-      "entry_point": "bactopia.cli.pipeline.midas_summary:main",
-      "category": "pipeline",
-      "tags": ["midas", "species", "abundance", "pipeline"]
-    },
-    {
+{
       "name": "bactopia-teton-prepare",
       "description": "Prepare sample sheets for the Teton variant-calling workflow",
       "entry_point": "bactopia.cli.pipeline.teton_prepare:main",

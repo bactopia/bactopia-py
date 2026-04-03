@@ -1,11 +1,10 @@
-"""Functional tests for kraken_bracken_summary, midas_summary, and bracken_to_excel."""
+"""Functional tests for kraken_bracken_summary and bracken_to_excel."""
 
 import pandas as pd
 from click.testing import CliRunner
 
 from bactopia.cli.pipeline.bracken_to_excel import bracken_to_excel
 from bactopia.cli.pipeline.kraken_bracken_summary import kraken_bracken_summary
-from bactopia.cli.pipeline.midas_summary import midas_summary
 
 
 class TestKrakenBrackenSummary:
@@ -96,56 +95,6 @@ class TestKrakenBrackenSummary:
         assert result.exit_code == 0
         clf = (tmp_path / "testprefix.bracken.classification.txt").read_text()
         assert "UNKNOWN_SPECIES" in clf
-
-
-class TestMidasSummary:
-    def test_happy_path(self, tmp_path, pipeline_fixtures, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        runner = CliRunner()
-        result = runner.invoke(
-            midas_summary,
-            ["testprefix", str(pipeline_fixtures / "midas_report.tsv")],
-        )
-        assert result.exit_code == 0
-
-        # Check adjusted abundances
-        adj = pd.read_csv(
-            tmp_path / "testprefix.midas.adjusted.abundances.txt", sep="\t"
-        )
-        assert adj.iloc[0]["species_id"] == "Staphylococcus aureus"
-        # Should be sorted by relative_abundance descending
-        assert list(adj["relative_abundance"]) == sorted(
-            adj["relative_abundance"], reverse=True
-        )
-
-        # Check summary TSV
-        summary = (tmp_path / "testprefix.midas.tsv").read_text()
-        assert "midas_primary_species" in summary
-        assert "Staphylococcus aureus" in summary
-
-    def test_species_aggregation(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        # Two subspecies that map to same genus+species
-        report = tmp_path / "midas_agg.tsv"
-        report.write_text(
-            "species_id\tcount_reads\tcoverage\trelative_abundance\n"
-            "Staphylococcus_aureus_subsp1\t300\t10.0\t0.40\n"
-            "Staphylococcus_aureus_subsp2\t200\t8.0\t0.30\n"
-            "Escherichia_coli\t100\t5.0\t0.20\n"
-        )
-        runner = CliRunner()
-        result = runner.invoke(midas_summary, ["testprefix", str(report)])
-        assert result.exit_code == 0
-
-        adj = pd.read_csv(
-            tmp_path / "testprefix.midas.adjusted.abundances.txt", sep="\t"
-        )
-        # Both Staphylococcus_aureus entries should be grouped
-        staph = adj[adj["species_id"] == "Staphylococcus aureus"]
-        assert len(staph) == 1
-        assert staph.iloc[0]["count_reads"] == 500
-        assert staph.iloc[0]["coverage"] == 10.0  # max of 10.0 and 8.0
-        assert abs(staph.iloc[0]["relative_abundance"] - 0.70) < 0.001
 
 
 class TestBrackenToExcel:

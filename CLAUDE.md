@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-bactopia-py is a Python CLI companion package for [Bactopia](https://bactopia.github.io/), a flexible Nextflow pipeline for complete analysis of bacterial genomes. It provides 28 command-line tools: 19 user-facing commands for input preparation, public data search, environment building, dataset management, result summarization, pipeline linting, testing, and database integration; plus 9 pipeline utility scripts called from Nextflow module shell blocks.
+bactopia-py is a Python CLI companion package for [Bactopia](https://bactopia.github.io/), a flexible Nextflow pipeline for complete analysis of bacterial genomes. It provides 27 command-line tools: 19 user-facing commands for input preparation, public data search, environment building, dataset management, result summarization, pipeline linting, testing, and database integration; plus 8 pipeline utility scripts called from Nextflow module shell blocks.
 
 - **Author:** Robert A. Petit III
 - **License:** MIT
@@ -62,8 +62,7 @@ bactopia/
       mask_consensus.py       # Snippy consensus masking with coverage
       kraken_bracken_summary.py    # Update Bracken with unclassified counts
       scrubber_summary.py     # Human read scrubbing report
-      midas_summary.py        # Consolidate MIDAS to species level
-      teton_prepare.py        # Prepare sample sheets for Teton
+teton_prepare.py        # Prepare sample sheets for Teton
       bracken_to_excel.py     # Export Bracken abundances to Excel
     pubmlst/            # PubMLST database commands (setup, build)
     catalog.py          # Generate component catalog.json
@@ -105,7 +104,7 @@ bactopia/
 
 ## CLI Entry Points
 
-All 28 commands are defined in `pyproject.toml` under `[tool.poetry.scripts]`: 19 user-facing commands and 9 pipeline utility scripts. Every user-facing command uses `rich-click` and provides consistent flags: `--verbose`, `--silent`, `--version/-V`, `--help`.
+All 27 commands are defined in `pyproject.toml` under `[tool.poetry.scripts]`: 19 user-facing commands and 8 pipeline utility scripts. Every user-facing command uses `rich-click` and provides consistent flags: `--verbose`, `--silent`, `--version/-V`, `--help`.
 
 ## Coding Conventions
 

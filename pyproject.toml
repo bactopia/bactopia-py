@@ -38,7 +38,6 @@ bactopia-cleanup-coverage = "bactopia.cli.pipeline.cleanup_coverage:main"
 bactopia-mask-consensus = "bactopia.cli.pipeline.mask_consensus:main"
 bactopia-kraken-bracken-summary = "bactopia.cli.pipeline.kraken_bracken_summary:main"
 bactopia-scrubber-summary = "bactopia.cli.pipeline.scrubber_summary:main"
-bactopia-midas-summary = "bactopia.cli.pipeline.midas_summary:main"
 bactopia-teton-prepare = "bactopia.cli.pipeline.teton_prepare:main"
 bactopia-bracken-to-excel = "bactopia.cli.pipeline.bracken_to_excel:main"
 

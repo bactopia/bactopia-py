@@ -33,7 +33,6 @@ CLI_COMMANDS = [
     ("bactopia.cli.pipeline.mask_consensus", "mask_consensus"),
     ("bactopia.cli.pipeline.kraken_bracken_summary", "kraken_bracken_summary"),
     ("bactopia.cli.pipeline.scrubber_summary", "scrubber_summary"),
-    ("bactopia.cli.pipeline.midas_summary", "midas_summary"),
     ("bactopia.cli.pipeline.teton_prepare", "teton_prepare"),
     ("bactopia.cli.pipeline.bracken_to_excel", "bracken_to_excel"),
 ]
