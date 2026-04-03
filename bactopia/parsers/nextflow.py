@@ -7,6 +7,14 @@ import logging
 from bactopia.utils import validate_file
 
 
+def _relative_path(path: str) -> str:
+    """Build a relative path anchored at 'bactopia/', or fall back to the full path."""
+    parts = str(path).split("bactopia/", 1)
+    if len(parts) > 1:
+        return f"<bactopia-path>/{parts[1]}"
+    return str(path)
+
+
 def parse(path: str, name: str, file_type: str) -> dict:
     """
     Parse the results of an assembler analysis.
@@ -53,7 +61,7 @@ def _parse_base_config(path: str, name: str) -> dict:
 
     return {
         "name": name,
-        "path": f"<bactopia-path>/{str(path).split('bactopia/')[1]}",
+        "path": _relative_path(path),
         "contents": "".join(base_config),
     }
 
@@ -117,7 +125,7 @@ def _parse_process_config(path: str, name: str) -> str:
 
     return {
         "name": name,
-        "path": f"<bactopia-path>/{str(path).split('bactopia/')[1]}",
+        "path": _relative_path(path),
         "contents": "\n".join(process_config),
     }
 
@@ -141,7 +149,7 @@ def _parse_profiles_config(path: str, name: str) -> dict:
 
     return {
         "name": name,
-        "path": f"<bactopia-path>/{str(path).split('bactopia/')[1]}",
+        "path": _relative_path(path),
         "contents": "".join(profiles_config),
     }
 
@@ -187,6 +195,6 @@ def _parse_params(path: str, name: str) -> dict:
 
     return {
         "name": name,
-        "path": f"<bactopia-path>/{str(path).split('bactopia/')[1]}",
+        "path": _relative_path(path),
         "contents": "\n".join(params_config),
     }
