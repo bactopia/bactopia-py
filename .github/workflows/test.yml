@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     defaults:
       run:
         shell: bash -el {0}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: conda-incubator/setup-miniconda@v3
         with:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge,bioconda
@@ -26,6 +26,7 @@ jobs:
           activate-environment: bactopia-py
           environment-file: environment.yml
           auto-update-conda: true
+          conda-remove-defaults: "true"
 
       - name: Install package
         run: pip install --no-deps -e .

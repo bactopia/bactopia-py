@@ -8,7 +8,7 @@ bactopia-py is a Python CLI companion package for [Bactopia](https://bactopia.gi
 
 - **Author:** Robert A. Petit III
 - **License:** MIT
-- **Python:** 3.9+
+- **Python:** 3.10+
 
 ## Development Commands
 

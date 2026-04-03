@@ -6,7 +6,7 @@ dependencies:
   - blast
   - just
   - pigz
-  - python >=3.9
+  - python >=3.10
   - wget
   # Python deps (mirrors bioconda run requirements)
   - biopython
