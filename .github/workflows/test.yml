@@ -17,9 +17,6 @@ jobs:
         shell: bash -el {0}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: taiki-e/install-action@just
-
       - uses: conda-incubator/setup-miniconda@v2
         with:
           python-version: ${{ matrix.python-version }}
@@ -31,6 +28,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          poetry config virtualenvs.create true
           poetry env use $(which python)
           poetry install --no-interaction --with test
 
