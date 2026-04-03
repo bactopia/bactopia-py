@@ -1,0 +1,13 @@
+{
+    "sample": "sample1",
+    "qc_stats": {
+        "total_bp": 2500000,
+        "coverage": 25.0,
+        "read_total": 25000,
+        "qual_mean": 29.0,
+        "read_mean": 100,
+        "read_median": 97
+    },
+    "per_base_quality": [29, 30, 31],
+    "read_lengths": [94, 99, 104]
+}

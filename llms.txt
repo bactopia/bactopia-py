@@ -2,7 +2,7 @@
 
 > Python CLI tools for working with Bactopia, a Nextflow pipeline for complete analysis of bacterial genomes.
 
-bactopia-py provides 13 command-line tools that support the Bactopia ecosystem: preparing sample inputs (FOFN creation from FASTQ/FASTA files), querying public databases (ENA/SRA), building execution environments (Conda/Docker/Singularity), downloading supplementary datasets, generating result summaries with quality rankings (Gold/Silver/Bronze/Exclude), working with AllTheBacteria pre-assembled genomes, and building PubMLST MLST databases.
+bactopia-py provides 28 command-line tools that support the Bactopia ecosystem: 19 user-facing commands for preparing sample inputs (FOFN creation from FASTQ/FASTA files), querying public databases (ENA/SRA), building execution environments (Conda/Docker/Singularity), downloading supplementary datasets, generating result summaries with quality rankings (Gold/Silver/Bronze/Exclude), working with AllTheBacteria pre-assembled genomes, building PubMLST MLST databases, linting pipeline components (60+ rules for modules/subworkflows/workflows), running nf-test suites, and introspecting Nextflow repositories; plus 9 pipeline utility scripts called from within Nextflow module shell blocks for tasks like FASTQ validation, coverage cleanup, and taxonomic classification summaries.
 
 Built with Python 3.9+, Poetry, and rich-click for CLI. Integrates with ENA, NCBI, and PubMLST REST APIs.
 
@@ -14,9 +14,12 @@ Built with Python 3.9+, Poetry, and rich-click for CLI. Integrates with ENA, NCB
 
 ## Source Code
 
-- [CLI Commands](https://github.com/bactopia/bactopia-py/tree/main/bactopia/cli): All 13 CLI command implementations
+- [CLI Commands](https://github.com/bactopia/bactopia-py/tree/main/bactopia/cli): 19 user-facing CLI command implementations
+- [Pipeline Utilities](https://github.com/bactopia/bactopia-py/tree/main/bactopia/cli/pipeline): 9 scripts called from Nextflow module shell blocks
 - [Database Clients](https://github.com/bactopia/bactopia-py/tree/main/bactopia/databases): ENA, NCBI, PubMLST API clients
-- [Parsers](https://github.com/bactopia/bactopia-py/tree/main/bactopia/parsers): Output parsers for bioinformatics tools
+- [Parsers](https://github.com/bactopia/bactopia-py/tree/main/bactopia/parsers): Output parsers for 20+ bioinformatics tools
+- [Lint System](https://github.com/bactopia/bactopia-py/tree/main/bactopia/lint): 60+ lint rules for modules, subworkflows, and workflows
+- [Tests](https://github.com/bactopia/bactopia-py/tree/main/tests): pytest test suite with 20 test modules
 - [pyproject.toml](https://github.com/bactopia/bactopia-py/blob/main/pyproject.toml): Build configuration and entry points
 - [catalog.json](https://github.com/bactopia/bactopia-py/blob/main/catalog.json): Machine-readable command catalog
 

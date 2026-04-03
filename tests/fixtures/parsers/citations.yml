@@ -1,0 +1,8 @@
+bactopia:
+  bactopia:
+    name: "Bactopia"
+    cite: "Petit III RA, Read TD, Bactopia: a flexible pipeline for complete analysis of bacterial genomes."
+datasets:
+  ariba:
+    name: "ARIBA"
+    cite: "Hunt M, Mather AE, Sanchez-Buso L, et al. ARIBA: rapid antimicrobial resistance genotyping directly from sequencing reads."

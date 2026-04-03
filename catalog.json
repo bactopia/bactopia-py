@@ -1,11 +1,11 @@
 {
   "name": "bactopia-py",
-  "version": "1.7.0",
+  "version": "2.0.0",
   "description": "Python CLI tools for working with Bactopia",
   "repository": "https://github.com/bactopia/bactopia-py",
   "license": "MIT",
   "python_requires": ">=3.9",
-  "command_count": 13,
+  "command_count": 28,
   "commands": [
     {
       "name": "bactopia-citations",
@@ -57,11 +57,53 @@
       "tags": ["update", "versions", "modules"]
     },
     {
+      "name": "bactopia-status",
+      "description": "Show repository status including git info, test coverage, and tier details",
+      "entry_point": "bactopia.cli.status:main",
+      "category": "documentation",
+      "tags": ["status", "git", "testing", "tiers"]
+    },
+    {
       "name": "bactopia-workflows",
       "description": "List available Bactopia workflows and output paths",
       "entry_point": "bactopia.cli.workflows:main",
       "category": "documentation",
       "tags": ["workflows", "list", "tools"]
+    },
+    {
+      "name": "bactopia-prune",
+      "description": "Remove unused Conda/Singularity environments",
+      "entry_point": "bactopia.cli.prune:main",
+      "category": "maintenance",
+      "tags": ["prune", "cleanup", "conda", "singularity", "environments"]
+    },
+    {
+      "name": "bactopia-test",
+      "description": "Run nf-test suites across Bactopia components",
+      "entry_point": "bactopia.cli.testing:main",
+      "category": "development",
+      "tags": ["testing", "nf-test", "CI"]
+    },
+    {
+      "name": "bactopia-lint",
+      "description": "Lint Bactopia pipeline components against coding standards",
+      "entry_point": "bactopia.cli.lint:main",
+      "category": "development",
+      "tags": ["lint", "validation", "modules", "subworkflows", "workflows"]
+    },
+    {
+      "name": "bactopia-catalog",
+      "description": "Generate a catalog.json of Bactopia pipeline components",
+      "entry_point": "bactopia.cli.catalog:main",
+      "category": "development",
+      "tags": ["catalog", "schema", "components"]
+    },
+    {
+      "name": "bactopia-review-tests",
+      "description": "Analyze nf-test timing and compare against baselines",
+      "entry_point": "bactopia.cli.review:main",
+      "category": "development",
+      "tags": ["testing", "review", "timing", "nf-test"]
     },
     {
       "name": "bactopia-merge-schemas",
@@ -97,6 +139,69 @@
       "entry_point": "bactopia.cli.pubmlst.build:main",
       "category": "pubmlst",
       "tags": ["PubMLST", "MLST", "database", "build"]
+    },
+    {
+      "name": "bactopia-check-fastqs",
+      "description": "Verify FASTQs meet minimum quality and size requirements",
+      "entry_point": "bactopia.cli.pipeline.check_fastqs:main",
+      "category": "pipeline",
+      "tags": ["FASTQ", "validation", "QC", "pipeline"]
+    },
+    {
+      "name": "bactopia-check-assembly-accession",
+      "description": "Verify NCBI Assembly accession is current and valid",
+      "entry_point": "bactopia.cli.pipeline.check_assembly_accession:main",
+      "category": "pipeline",
+      "tags": ["NCBI", "assembly", "accession", "validation", "pipeline"]
+    },
+    {
+      "name": "bactopia-cleanup-coverage",
+      "description": "Reduce per-base coverage file redundancy with run-length encoding",
+      "entry_point": "bactopia.cli.pipeline.cleanup_coverage:main",
+      "category": "pipeline",
+      "tags": ["coverage", "compression", "pipeline"]
+    },
+    {
+      "name": "bactopia-mask-consensus",
+      "description": "Mask Snippy consensus sequence with low-coverage regions",
+      "entry_point": "bactopia.cli.pipeline.mask_consensus:main",
+      "category": "pipeline",
+      "tags": ["snippy", "consensus", "masking", "coverage", "pipeline"]
+    },
+    {
+      "name": "bactopia-kraken-bracken-summary",
+      "description": "Update Bracken abundances with unclassified read counts from Kraken2",
+      "entry_point": "bactopia.cli.pipeline.kraken_bracken_summary:main",
+      "category": "pipeline",
+      "tags": ["kraken2", "bracken", "classification", "pipeline"]
+    },
+    {
+      "name": "bactopia-scrubber-summary",
+      "description": "Generate before/after report of human read scrubbing",
+      "entry_point": "bactopia.cli.pipeline.scrubber_summary:main",
+      "category": "pipeline",
+      "tags": ["scrubber", "human-reads", "decontamination", "pipeline"]
+    },
+    {
+      "name": "bactopia-midas-summary",
+      "description": "Consolidate MIDAS results to species-level abundances",
+      "entry_point": "bactopia.cli.pipeline.midas_summary:main",
+      "category": "pipeline",
+      "tags": ["midas", "species", "abundance", "pipeline"]
+    },
+    {
+      "name": "bactopia-teton-prepare",
+      "description": "Prepare sample sheets for the Teton variant-calling workflow",
+      "entry_point": "bactopia.cli.pipeline.teton_prepare:main",
+      "category": "pipeline",
+      "tags": ["teton", "variants", "sample-sheet", "pipeline"]
+    },
+    {
+      "name": "bactopia-bracken-to-excel",
+      "description": "Export Bracken abundance tables to Excel format",
+      "entry_point": "bactopia.cli.pipeline.bracken_to_excel:main",
+      "category": "pipeline",
+      "tags": ["bracken", "excel", "export", "pipeline"]
     }
   ]
 }

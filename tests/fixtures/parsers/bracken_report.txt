@@ -1,0 +1,2 @@
+50.00	500	0	R	1	root
+25.00	250	250	S	1280	Staphylococcus aureus

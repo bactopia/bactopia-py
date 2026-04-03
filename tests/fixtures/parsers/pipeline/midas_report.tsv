@@ -1,0 +1,5 @@
+species_id	count_reads	coverage	relative_abundance
+Staphylococcus_aureus	500	12.5	0.60
+Escherichia_coli	200	5.0	0.25
+Streptococcus_pyogenes	50	1.2	0.10
+Staphylococcus_epidermidis	20	0.5	0.05

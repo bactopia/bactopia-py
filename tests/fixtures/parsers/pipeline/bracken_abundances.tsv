@@ -1,0 +1,4 @@
+name	taxonomy_id	taxonomy_lvl	kraken_assigned_reads	added_reads	new_est_reads
+Staphylococcus aureus	1280	S	400	50	450
+Escherichia coli	562	S	80	20	100
+Streptococcus pyogenes	1314	S	30	10	40

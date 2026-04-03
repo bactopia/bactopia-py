@@ -1,0 +1,17 @@
+Sequences: 42
+Size (bp): 2850000
+tRNAs: 55
+tmRNAs: 1
+rRNAs: 6
+ncRNAs: 5
+ncRNA regions: 2
+CRISPR arrays: 0
+CDSs: 2650
+pseudogenes: 15
+hypotheticals: 400
+signal peptides: 100
+sORFs: 25
+gaps: 0
+oriCs: 1
+oriVs: 0
+oriTs: 0

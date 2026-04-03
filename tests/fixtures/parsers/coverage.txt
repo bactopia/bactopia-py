@@ -1,0 +1,6 @@
+##contig=<ID=chr1,length=5>
+10
+20
+15
+30
+25

@@ -22,6 +22,18 @@ install:
 # check formatting, linting, and tests
 check: check-fmt lint
 
+# run tests
+test *ARGS:
+    poetry run pytest {{ARGS}}
+
+# run tests with coverage report
+test-cov *ARGS:
+    poetry run pytest --cov=bactopia --cov-report=term-missing {{ARGS}}
+
+# run only unit tests (no external data needed)
+test-unit:
+    poetry run pytest -m "not integration" --tb=short
+
 # prints out the commands to run to tag the release and push it
 tag:
     @echo "Run \`git tag -a {{ VERSION }} -m <message>\` to tag the release"

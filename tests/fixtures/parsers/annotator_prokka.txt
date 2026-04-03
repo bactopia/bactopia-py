@@ -1,0 +1,6 @@
+organism: Staphylococcus aureus
+contigs: 42
+bases: 2850000
+CDS: 2650
+rRNA: 6
+tRNA: 55

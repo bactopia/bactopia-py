@@ -1,0 +1,21 @@
+{
+    "workflows": {
+        "testwf": {
+            "subworkflows": ["sub1"]
+        }
+    },
+    "subworkflows": {
+        "sub1": {
+            "calls": {
+                "modules": ["mod_a", "mod_b"],
+                "subworkflows": ["sub2"]
+            }
+        },
+        "sub2": {
+            "calls": {
+                "modules": ["mod_c"],
+                "subworkflows": []
+            }
+        }
+    }
+}

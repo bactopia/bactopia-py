@@ -1,5 +1,42 @@
 # Changelog
 
+## 2.0.0
+
+### Pipeline Utility Scripts
+
+Migrated 9 Python scripts from Nextflow module shell blocks into bactopia-py as
+standalone CLI commands. These are called by the pipeline at runtime:
+
+- `bactopia-check-fastqs` - verify input FASTQs meet minimum read/basepair requirements
+- `bactopia-check-assembly-accession` - verify NCBI Assembly accessions are current and not excluded
+- `bactopia-cleanup-coverage` - reduce redundancy in per-base coverage output
+- `bactopia-mask-consensus` - apply coverage masking to Snippy consensus sequences
+- `bactopia-kraken-bracken-summary` - update Bracken abundances with unclassified counts
+- `bactopia-scrubber-summary` - create before-and-after reports from human read scrubbing
+- `bactopia-midas-summary` - consolidate MIDAS species abundance to species level
+- `bactopia-teton-prepare` - prepare sample sheets for downstream Teton workflow analysis
+- `bactopia-bracken-to-excel` - export Bracken abundances to Excel format
+
+### New Tools
+
+- `bactopia-lint` - Bactopia-specific linter for Nextflow workflows, subworkflows, and modules
+- `bactopia-catalog` - generate a catalog of available Bactopia workflows and modules
+- `bactopia-test` - helper for running and reviewing nf-test results
+- `bactopia-review-tests` - review nf-test work directories with output validation
+- `bactopia-prune` - prune stale Nextflow work directories
+- `bactopia-status` - show project status and recent activity
+
+### New Dependencies
+
+- `biopython` - used by `bactopia-check-assembly-accession` and `bactopia-mask-consensus`
+- `openpyxl` - used by `bactopia-bracken-to-excel` for Excel output
+
+### Improvements
+
+- Migrated to `ruff` for formatting and linting (replaced black/flake8)
+- Added test suite with pytest (182 tests covering CLI, parsers, core, and databases)
+- Added GitHub Actions CI workflow for Python 3.9-3.12
+
 ## 1.7.0
 
 - `bactopia-download`

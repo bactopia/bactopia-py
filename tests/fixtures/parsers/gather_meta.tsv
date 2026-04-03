@@ -1,0 +1,2 @@
+sample	runtype	original_runtype	is_paired	genome_size	species
+sample1	paired-end	paired-end	true	2800000	Staphylococcus aureus

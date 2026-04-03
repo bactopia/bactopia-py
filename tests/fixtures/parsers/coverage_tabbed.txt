@@ -1,0 +1,4 @@
+##contig=<ID=chr1,length=3>
+chr1	1	10
+chr1	2	20
+chr1	3	15

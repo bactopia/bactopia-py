@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-bactopia-py is a Python CLI companion package for [Bactopia](https://bactopia.github.io/), a flexible Nextflow pipeline for complete analysis of bacterial genomes. It provides 13 command-line tools for input preparation, public data search, environment building, dataset management, result summarization, and database integration.
+bactopia-py is a Python CLI companion package for [Bactopia](https://bactopia.github.io/), a flexible Nextflow pipeline for complete analysis of bacterial genomes. It provides 28 command-line tools: 19 user-facing commands for input preparation, public data search, environment building, dataset management, result summarization, pipeline linting, testing, and database integration; plus 9 pipeline utility scripts called from Nextflow module shell blocks.
 
 - **Author:** Robert A. Petit III
 - **License:** MIT
@@ -47,41 +47,71 @@ conda run -n bactopia-py-dev just check-fmt     # check formatting without chang
 conda run -n bactopia-py-dev just lint          # ruff check
 conda run -n bactopia-py-dev just check         # check-fmt + lint
 conda run -n bactopia-py-dev just build         # poetry build
+conda run -n bactopia-py-dev just test          # pytest (accepts extra args)
+conda run -n bactopia-py-dev just test-cov      # pytest with coverage report
+conda run -n bactopia-py-dev just test-unit     # pytest -m "not integration"
 ```
 
-No test suite currently exists. Pre-commit hooks are configured (`.pre-commit-config.yaml`).
+Tests use pytest with optional `integration` marker for tests requiring external data. Pre-commit hooks are configured (`.pre-commit-config.yaml`).
 
 ## Project Structure
 
-```
+```text
 bactopia/
   cli/                  # CLI commands (one module per command)
     atb/                # AllTheBacteria commands (atb_formatter, atb_downloader)
-    pubmlst/            # PubMLST database commands (setup, build)
     helpers/            # Utility commands (merge_schemas)
+    pipeline/           # Pipeline utility scripts called from Nextflow shell blocks
+      check_fastqs.py         # Verify FASTQs meet requirements
+      check_assembly_accession.py  # Verify NCBI Assembly accession
+      cleanup_coverage.py     # Reduce coverage file redundancy
+      mask_consensus.py       # Snippy consensus masking with coverage
+      kraken_bracken_summary.py    # Update Bracken with unclassified counts
+      scrubber_summary.py     # Human read scrubbing report
+      midas_summary.py        # Consolidate MIDAS to species level
+      teton_prepare.py        # Prepare sample sheets for Teton
+      bracken_to_excel.py     # Export Bracken abundances to Excel
+    pubmlst/            # PubMLST database commands (setup, build)
+    catalog.py          # Generate component catalog.json
     citations.py        # Print tool citations
     datasets.py         # Download optional datasets
     download.py         # Build Conda/Docker/Singularity environments
+    jsonify.py          # JSON conversion utility
+    lint.py             # Lint pipeline components
     prepare.py          # Create file-of-filenames (FOFN) for samples
+    prune.py            # Remove unused environments
+    review.py           # Analyze nf-test timing and results
     search.py           # Query ENA/SRA for public accessions
+    status.py           # Show repo status info
     summary.py          # Generate summary tables with quality rankings
+    testing.py          # Run nf-test suites
     update.py           # Check for module version updates
     workflows.py        # List available Bactopia workflows
   databases/            # API clients
     ena.py              # ENA REST API
     ncbi.py             # NCBI API (genome sizes, taxonomy)
     pubmlst/            # PubMLST REST API (OAuth, database building)
+  lint/                 # Pipeline linting system
+    models.py           # LintResult data model
+    runner.py           # Lint orchestration and execution
+    rules/              # Lint rule definitions
+      module_rules.py       # Module rules (M/MC/JS/FMT)
+      subworkflow_rules.py  # Subworkflow rules (S001-S016)
+      workflow_rules.py     # Workflow rules (W001-W020)
   parsers/              # Output parsers for bioinformatics tools
+  reports/              # Test report generation
   templates/            # Jinja2 templates for Nextflow configs
-  utils.py              # Shared utilities (file ops, downloads, command execution)
-  summary.py            # QC ranking logic (Gold/Silver/Bronze/Exclude)
-  parse.py              # Bactopia output directory parsing
   atb.py                # AllTheBacteria utilities
+  nf.py                 # Nextflow repo introspection utilities
+  outputs.py            # nf-test output validation
+  parse.py              # Bactopia output directory parsing
+  summary.py            # QC ranking logic (Gold/Silver/Bronze/Exclude)
+  utils.py              # Shared utilities (file ops, downloads, command execution)
 ```
 
 ## CLI Entry Points
 
-All 13 commands are defined in `pyproject.toml` under `[tool.poetry.scripts]`. Every command uses `rich-click` and provides consistent flags: `--verbose`, `--silent`, `--version/-V`, `--help`.
+All 28 commands are defined in `pyproject.toml` under `[tool.poetry.scripts]`: 19 user-facing commands and 9 pipeline utility scripts. Every user-facing command uses `rich-click` and provides consistent flags: `--verbose`, `--silent`, `--version/-V`, `--help`.
 
 ## Coding Conventions
 
@@ -125,6 +155,9 @@ Commands with many options use `click.rich_click.OPTION_GROUPS` for organized `-
 - `tqdm` -- Progress bars (downloads, batch operations)
 - `rauth` -- OAuth for PubMLST API
 - `jinja2` -- Nextflow config template rendering
+- `pyyaml` -- YAML parsing
+- `biopython` -- Sequence and bioinformatics utilities
+- `openpyxl` -- Excel file handling
 
 ## Related Projects
 
@@ -133,4 +166,4 @@ Commands with many options use `click.rich_click.OPTION_GROUPS` for organized `-
 
 ## Citation
 
-Petit III RA, Read TD, *Bactopia: a flexible pipeline for complete analysis of bacterial genomes.* mSystems. 5 (2020), https://doi.org/10.1128/mSystems.00190-20.
+Petit III RA, Read TD, *Bactopia: a flexible pipeline for complete analysis of bacterial genomes.* mSystems. 5 (2020), <https://doi.org/10.1128/mSystems.00190-20>.

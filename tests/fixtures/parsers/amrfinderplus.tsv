@@ -1,0 +1,3 @@
+Protein identifier	Gene symbol	Sequence name	Scope	Element type	Element subtype	Class	Subclass	Method	Target length	Reference sequence length	% Coverage of reference sequence	% Identity of reference sequence	Alignment length	Accession of closest sequence	Name of closest sequence	HMM id	HMM description
+sample1_00001	mecA	PBP2a family beta-lactam-resistant peptidoglycan transpeptidase MecA	core	AMR	AMR	BETA-LACTAM	METHICILLIN	EXACTX	668	668	100.00	100.00	668	WP_000721587.1	mecA	NF000093.4	PBP2a family beta-lactam-resistant peptidoglycan transpeptidase MecA
+sample1_00002	blaZ	class A beta-lactamase BlaZ	core	AMR	AMR	BETA-LACTAM	BETA-LACTAM	EXACTX	281	281	100.00	99.64	281	WP_063856695.1	blaZ	NF000337.3	class A beta-lactamase BlaZ

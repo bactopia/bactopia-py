@@ -1,0 +1,7 @@
+sample	name	taxonomy_id	taxonomy_lvl	kraken_assigned_reads	added_reads	new_est_reads	fraction_total_reads
+sample1	Staphylococcus aureus	1280	S	400	50	450	0.75
+sample1	unclassified	0	U	100	0	100	0.15
+sample1	Escherichia coli	562	S	80	20	50	0.10
+sample2	Klebsiella pneumoniae	573	S	300	0	300	0.60
+sample2	Escherichia coli	562	S	100	50	150	0.30
+sample2	unclassified	0	U	50	0	50	0.10
