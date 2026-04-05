@@ -74,10 +74,13 @@ def parse_declared_outputs(meta_dir: Path) -> set[str]:
 
         for _channel, records in data.items():
             for rec in records:
-                for field_name, field_val in rec.items():
-                    if field_name == "meta":
-                        continue
-                    _collect_paths(field_val, declared, declared_dirs)
+                if isinstance(rec, dict):
+                    for field_name, field_val in rec.items():
+                        if field_name == "meta":
+                            continue
+                        _collect_paths(field_val, declared, declared_dirs)
+                else:
+                    _collect_paths(rec, declared, declared_dirs)
 
     # Expand directory entries: all files under a declared directory are declared
     for dir_path in declared_dirs:
@@ -260,6 +263,10 @@ def scan_test_outputs(test_dir: Path) -> dict:
         meta_dir = test_hash_dir / "meta"
         work_dir = test_hash_dir / "work"
         if not meta_dir.exists() or not work_dir.exists():
+            continue
+
+        # Skip if no output_*.json files (e.g., workflow-level tests don't produce them)
+        if not list(meta_dir.glob("output_*.json")):
             continue
 
         # Map work dir hashes to process names

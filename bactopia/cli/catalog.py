@@ -18,6 +18,7 @@ from bactopia.nf import (
     find_main_nf,
     get_bactopia_version,
     parse_groovydoc_full,
+    parse_includes,
     parse_main_nf_structure,
     parse_module_config_full,
     parse_workflow_config,
@@ -27,71 +28,6 @@ from bactopia.nf import (
 stderr = rich.console.Console(stderr=True)
 rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
 click.rich_click.USE_RICH_MARKUP = True
-
-
-def _parse_includes(main_nf: Path, bactopia_path: Path) -> dict:
-    """Parse include statements from a main.nf file.
-
-    Resolves source paths against the file's directory and the repo root
-    to derive normalized component keys (lowercase, underscore-separated).
-
-    Returns dict with:
-        modules: list of module keys (e.g., "abricate_run")
-        subworkflows: list of subworkflow keys (e.g., "bactopia_gather")
-        plugins: list of plugin function names
-    """
-    result = {"modules": [], "subworkflows": [], "plugins": []}
-    if not main_nf.exists():
-        return result
-
-    try:
-        text = main_nf.read_text()
-    except OSError:
-        return result
-
-    seen_modules = set()
-    seen_subworkflows = set()
-
-    for m in re.finditer(
-        r"include\s*\{\s*(\w+)(?:\s+as\s+\w+)?\s*\}\s*from\s*['\"]([^'\"]+)['\"]",
-        text,
-    ):
-        source = m.group(2)
-
-        if "plugin/" in source:
-            result["plugins"].append(m.group(1))
-            continue
-
-        # Resolve the source path relative to the file's directory
-        # Nextflow source paths omit .nf extension; parent of resolved path
-        # is the component directory
-        resolved = (main_nf.parent / source).resolve()
-
-        try:
-            rel_str = str(resolved.relative_to(bactopia_path))
-        except ValueError:
-            continue
-
-        if rel_str.startswith("modules/"):
-            # e.g., "modules/abricate/run/main" -> "abricate/run"
-            component = rel_str.removeprefix("modules/")
-            if component.endswith("/main"):
-                component = component[:-5]
-            key = component.replace("/", "_")
-            if key not in seen_modules:
-                seen_modules.add(key)
-                result["modules"].append(key)
-        elif rel_str.startswith("subworkflows/"):
-            # e.g., "subworkflows/bactopia/gather/main" -> "bactopia/gather"
-            component = rel_str.removeprefix("subworkflows/")
-            if component.endswith("/main"):
-                component = component[:-5]
-            key = component.replace("/", "_")
-            if key not in seen_subworkflows:
-                seen_subworkflows.add(key)
-                result["subworkflows"].append(key)
-
-    return result
 
 
 def _extract_description(groovydoc: dict) -> str:
@@ -117,7 +53,7 @@ def _parse_output_fields(raw_lines: list[str]) -> dict[str, list[str]]:
         Dict mapping channel names to lists of field names, e.g.,
         {"sample_outputs": ["gff", "gbk", ...], "run_outputs": []}.
     """
-    field_pattern = re.compile(r"\*\s*-\s*`(\w+)`\s*:")
+    field_pattern = re.compile(r"\*\s*-\s*`(\w+\??)`\s*:")
     output_pattern = re.compile(r"\*\s*@output\s+(\S+)")
     tag_pattern = re.compile(r"\*\s*@(?!output)\w+")
 
@@ -141,7 +77,7 @@ def _parse_output_fields(raw_lines: list[str]) -> dict[str, list[str]]:
         if current_channel is not None:
             fm = field_pattern.search(line)
             if fm:
-                channels[current_channel].append(fm.group(1))
+                channels[current_channel].append(fm.group(1).rstrip("?"))
 
     return channels
 
@@ -236,6 +172,11 @@ def _build_module_entry(component_name: str, main_nf: Path) -> dict:
         fields = groovydoc["doc_input_records"][0].get("fields", [])
         if fields:
             entry["takes"] = [f for f in fields if f != "meta"]
+            optional_input = groovydoc.get("doc_optional_input_fields", set())
+            if optional_input:
+                takes_opt = [f for f in entry["takes"] if f in optional_input]
+                if takes_opt:
+                    entry["takes_optional"] = takes_opt
 
     # Emits from GroovyDoc @output (named fields only)
     if groovydoc.get("doc_output_fields"):
@@ -243,6 +184,11 @@ def _build_module_entry(component_name: str, main_nf: Path) -> dict:
         named = [f for f in groovydoc["doc_output_fields"] if f not in standard]
         if named:
             entry["emits"] = named
+            optional_output = groovydoc.get("doc_optional_output_fields", set())
+            if optional_output:
+                emits_opt = [f for f in named if f in optional_output]
+                if emits_opt:
+                    entry["emits_optional"] = emits_opt
 
     # Tags from GroovyDoc @tags
     parsed_tags = _parse_tags(groovydoc)
@@ -257,7 +203,7 @@ def _build_subworkflow_entry(
 ) -> dict:
     """Build a catalog entry for a subworkflow."""
     groovydoc = parse_groovydoc_full(main_nf)
-    includes = _parse_includes(main_nf, bactopia_path)
+    includes = parse_includes(main_nf, bactopia_path)
 
     entry = {
         "description": _extract_description(groovydoc),
@@ -269,8 +215,18 @@ def _build_subworkflow_entry(
         fields = groovydoc["doc_input_records"][0].get("fields", [])
         if fields:
             entry["takes"] = [f for f in fields if f != "meta"]
+            optional_input = groovydoc.get("doc_optional_input_fields", set())
+            if optional_input:
+                takes_opt = [f for f in entry["takes"] if f in optional_input]
+                if takes_opt:
+                    entry["takes_optional"] = takes_opt
     if groovydoc.get("doc_input_params"):
         entry["takes_params"] = groovydoc["doc_input_params"]
+        optional_params = groovydoc.get("doc_optional_input_params", set())
+        if optional_params:
+            params_opt = [p for p in entry["takes_params"] if p in optional_params]
+            if params_opt:
+                entry["takes_params_optional"] = params_opt
 
     # Emits from GroovyDoc @output -- structured as channel -> fields dict
     tags = groovydoc.get("tags", {})
@@ -306,7 +262,7 @@ def _build_workflow_entry(
 ) -> dict:
     """Build a catalog entry for a workflow."""
     groovydoc = parse_groovydoc_full(main_nf)
-    includes = _parse_includes(main_nf, bactopia_path)
+    includes = parse_includes(main_nf, bactopia_path)
 
     # Determine type
     is_tool = "bactopia-tools/" in str(main_nf)

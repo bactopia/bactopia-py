@@ -494,11 +494,15 @@ def parse_groovydoc_full(main_nf: Path) -> dict:
         "raw_lines": [],
         "links": [],
         # Parsed GroovyDoc fields for lint rules M031-M037
-        "doc_output_fields": [],  # field names from @output record(...)
-        "doc_input_records": [],  # list of {fields: [...]} per @input record(...)
-        "doc_input_params": [],  # non-record @input names
-        "doc_output_described_fields": [],  # fields with description lines
+        "doc_output_fields": [],  # field names from @output record(...), ? stripped
+        "doc_input_records": [],  # list of {fields: [...]} per @input record(...), ? stripped
+        "doc_input_params": [],  # non-record @input names, ? stripped
+        "doc_output_described_fields": [],  # fields with description lines, ? stripped
         "doc_tag_order": [],  # ordered list of tag names as they appear
+        # Optionality tracking (base names of fields that had ? suffix in GroovyDoc)
+        "doc_optional_output_fields": set(),
+        "doc_optional_input_fields": set(),
+        "doc_optional_input_params": set(),
     }
     lines = _read_lines(main_nf)
     if not lines:
@@ -511,19 +515,30 @@ def parse_groovydoc_full(main_nf: Path) -> dict:
     result["raw_lines"] = doc_lines
 
     # Extract tags with their values
+    # Multi-value tags are stored as lists; single-value tags as strings.
+    # Continuation lines (lines with * but no @tag) are appended to the
+    # previous single-value tag (e.g., multi-line @modules or @subworkflows).
+    multi_value_tags = {"input", "output", "note", "publish", "section", "results"}
     tag_pattern = re.compile(r"\*\s*@(\w+)\s*(.*)")
+    continuation_pattern = re.compile(r"\*\s+([^@\s].+)")
+    last_single_tag = None
     for line in doc_lines:
         m = tag_pattern.search(line)
         if m:
             tag_name = m.group(1)
             tag_value = m.group(2).strip()
-            # For tags that can appear multiple times (input, output, note),
-            # store as a list
-            if tag_name in ("input", "output", "note", "publish", "section", "results"):
+            if tag_name in multi_value_tags:
                 result["tags"].setdefault(tag_name, [])
                 result["tags"][tag_name].append(tag_value)
+                last_single_tag = None
             else:
                 result["tags"][tag_name] = tag_value
+                last_single_tag = tag_name
+        elif last_single_tag:
+            # Continuation line for a single-value tag
+            cm = continuation_pattern.search(line)
+            if cm:
+                result["tags"][last_single_tag] += " " + cm.group(1).strip()
 
     # Extract URLs
     url_pattern = re.compile(r"https?://[^\s\)>]+")
@@ -546,31 +561,52 @@ def parse_groovydoc_full(main_nf: Path) -> dict:
                 seen_tags.append(tag_name)
     result["doc_tag_order"] = seen_tags
 
-    # Parse @output record(...) fields
+    # Parse @output record(...) fields (strip ? suffix, track optionality)
     output_tags = result["tags"].get("output", [])
     for oval in output_tags:
         record_match = re.match(r"record\(([^)]+)\)", oval)
         if record_match:
-            fields = [f.strip() for f in record_match.group(1).split(",")]
+            fields = []
+            for raw in record_match.group(1).split(","):
+                raw = raw.strip()
+                if raw.endswith("?"):
+                    base = raw[:-1]
+                    result["doc_optional_output_fields"].add(base)
+                    fields.append(base)
+                else:
+                    fields.append(raw)
             result["doc_output_fields"] = fields
 
-    # Parse @input blocks
+    # Parse @input blocks (strip ? suffix, track optionality)
     input_tags = result["tags"].get("input", [])
     for ival in input_tags:
         # Check for record(meta, ...) syntax
         record_match = re.match(r"record\(([^)]+)\)", ival)
         if record_match:
-            fields = [f.strip() for f in record_match.group(1).split(",")]
+            fields = []
+            for raw in record_match.group(1).split(","):
+                raw = raw.strip()
+                if raw.endswith("?"):
+                    base = raw[:-1]
+                    result["doc_optional_input_fields"].add(base)
+                    fields.append(base)
+                else:
+                    fields.append(raw)
             result["doc_input_records"].append({"fields": fields})
         else:
-            # Non-record input (e.g., "db", "proteins")
+            # Non-record input (e.g., "db", "proteins", "proteins?")
             param_name = ival.split()[0] if ival.strip() else ""
             if param_name:
-                result["doc_input_params"].append(param_name)
+                if param_name.endswith("?"):
+                    base = param_name[:-1]
+                    result["doc_optional_input_params"].add(base)
+                    result["doc_input_params"].append(base)
+                else:
+                    result["doc_input_params"].append(param_name)
 
     # Parse @output description lines to find which fields are described
-    # Pattern: * - `field`: description
-    desc_pattern = re.compile(r"\*\s*-\s*`(\w+)`\s*:")
+    # Pattern: * - `field`: description  (field may have ? suffix)
+    desc_pattern = re.compile(r"\*\s*-\s*`(\w+\??)`\s*:")
     in_output_section = False
     for line in doc_lines:
         if re.search(r"\*\s*@output", line):
@@ -582,7 +618,8 @@ def parse_groovydoc_full(main_nf: Path) -> dict:
         if in_output_section:
             dm = desc_pattern.search(line)
             if dm:
-                result["doc_output_described_fields"].append(dm.group(1))
+                field_name = dm.group(1).rstrip("?")
+                result["doc_output_described_fields"].append(field_name)
 
     return result
 
@@ -634,9 +671,13 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         "output_has_nf_logs": False,
         "output_versions_uses_files": False,
         "output_generic_using_file": [],
-        # Input parsing for M031/M032
+        # Input parsing for M031/M032/M033
         "input_record_fields": [],  # fields from (meta: Map, field: Type): Record
         "input_params": [],  # non-record input names (db, proteins, etc.)
+        # Optionality tracking for M033
+        "code_optional_input_fields": set(),  # input record fields with Type?
+        "code_optional_input_params": set(),  # non-record input params with Type?
+        "code_optional_output_fields": set(),  # output fields with optional: true
         # Workflow-specific fields (W011-W020)
         "first_line": "",
         "todos": [],  # list of {"line_num": int, "text": str}
@@ -719,6 +760,13 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
                 prefix_text = record_text[line_start : fm.start()].strip()
                 if not prefix_text.startswith("//"):
                     result["output_record_fields"].append(field_name)
+                    # Check for optional: true on the same line (M033)
+                    line_end = record_text.find("\n", fm.end())
+                    if line_end == -1:
+                        line_end = len(record_text)
+                    rest_of_line = record_text[fm.end() : line_end]
+                    if re.search(r"optional\s*:\s*true", rest_of_line):
+                        result["code_optional_output_fields"].add(field_name)
 
             # --- Output record detail parsing (M023-M030) ---
 
@@ -827,8 +875,11 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         if record_input_match:
             for part in record_input_match.group(1).split(","):
                 part = part.strip()
-                name = part.split(":")[0].strip()
+                pieces = part.split(":")
+                name = pieces[0].strip()
                 result["input_record_fields"].append(name)
+                if len(pieces) > 1 and pieces[1].strip().endswith("?"):
+                    result["code_optional_input_fields"].add(name)
         # Match non-record inputs: name: Type (one per line, not inside parens)
         for line in input_text.split("\n"):
             stripped = line.strip()
@@ -837,10 +888,13 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
                 continue
             if stripped.startswith("("):
                 continue
-            # Match "name: Type" or "name   : Type"
-            param_match = re.match(r"(\w+)\s*:\s*\w+", stripped)
+            # Match "name: Type" or "name: Type?" (optional)
+            param_match = re.match(r"(\w+)\s*:\s*(\w+\??)", stripped)
             if param_match:
-                result["input_params"].append(param_match.group(1))
+                param_name = param_match.group(1)
+                result["input_params"].append(param_name)
+                if param_match.group(2).endswith("?"):
+                    result["code_optional_input_params"].add(param_name)
 
     # Check for versions.yml in script block
     result["has_versions_yml"] = "versions.yml" in full_text
@@ -860,10 +914,10 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         re.search(r"\btuple\b", full_text, re.IGNORECASE)
     )
 
-    # Check for prefix = task.ext.prefix ?: "${meta.name}" (M017)
+    # Check for prefix = task.ext.prefix ?: "${_meta.name}" (M017)
     result["has_prefix_definition"] = bool(
         re.search(
-            r'prefix\s*=\s*task\.ext\.prefix\s*\?:\s*"\$\{meta\.name\}"', full_text
+            r'prefix\s*=\s*task\.ext\.prefix\s*\?:\s*"\$\{_meta\.name\}"', full_text
         )
     )
 
@@ -1430,4 +1484,74 @@ def parse_workflow_config(config_path: Path) -> dict:
     if ext_str_match:
         result["ext_raw"] = ext_str_match.group(1)
         result["ext"] = None  # String format is invalid -- rule will flag this
+    return result
+
+
+def parse_includes(main_nf: Path, bactopia_path: Path) -> dict:
+    """Parse include statements from a main.nf file.
+
+    Resolves source paths against the file's directory and the repo root
+    to derive normalized component keys (lowercase, underscore-separated).
+
+    Args:
+        main_nf: Path to a main.nf file.
+        bactopia_path: Root path of the Bactopia repo.
+
+    Returns:
+        A dict with:
+            modules: list of module keys (e.g., "abricate_run")
+            subworkflows: list of subworkflow keys (e.g., "bactopia_gather")
+            plugins: list of plugin function names
+    """
+    result: dict[str, list[str]] = {"modules": [], "subworkflows": [], "plugins": []}
+    if not main_nf.exists():
+        return result
+
+    try:
+        text = main_nf.read_text()
+    except OSError:
+        return result
+
+    seen_modules: set[str] = set()
+    seen_subworkflows: set[str] = set()
+
+    for m in re.finditer(
+        r"include\s*\{\s*(\w+)(?:\s+as\s+\w+)?\s*\}\s*from\s*['\"]([^'\"]+)['\"]",
+        text,
+    ):
+        source = m.group(2)
+
+        if "plugin/" in source:
+            result["plugins"].append(m.group(1))
+            continue
+
+        # Resolve the source path relative to the file's directory
+        # Nextflow source paths omit .nf extension; parent of resolved path
+        # is the component directory
+        resolved = (main_nf.parent / source).resolve()
+
+        try:
+            rel_str = str(resolved.relative_to(bactopia_path))
+        except ValueError:
+            continue
+
+        if rel_str.startswith("modules/"):
+            # e.g., "modules/abricate/run/main" -> "abricate_run"
+            component = rel_str.removeprefix("modules/")
+            if component.endswith("/main"):
+                component = component[:-5]
+            key = component.replace("/", "_")
+            if key not in seen_modules:
+                seen_modules.add(key)
+                result["modules"].append(key)
+        elif rel_str.startswith("subworkflows/"):
+            # e.g., "subworkflows/bactopia/gather/main" -> "bactopia_gather"
+            component = rel_str.removeprefix("subworkflows/")
+            if component.endswith("/main"):
+                component = component[:-5]
+            key = component.replace("/", "_")
+            if key not in seen_subworkflows:
+                seen_subworkflows.add(key)
+                result["subworkflows"].append(key)
+
     return result

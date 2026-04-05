@@ -291,7 +291,7 @@ PASSTHROUGH_OUTPUT_FIELDS = {"r1", "r2", "se", "lr"}
 
 
 def rule_m017(component: str, ctx: dict) -> list[LintResult]:
-    """prefix = task.ext.prefix ?: "${meta.name}" present."""
+    """prefix = task.ext.prefix ?: "${_meta.name}" present."""
     rid = "M017"
     if ctx["structure"]["has_prefix_definition"]:
         return [_pass(rid, component, "prefix definition present")]
@@ -299,7 +299,7 @@ def rule_m017(component: str, ctx: dict) -> list[LintResult]:
         _fail(
             rid,
             component,
-            'Missing: prefix = task.ext.prefix ?: "${meta.name}"',
+            'Missing: prefix = task.ext.prefix ?: "${_meta.name}"',
         )
     ]
 
@@ -958,6 +958,90 @@ def rule_m032(component: str, ctx: dict) -> list[LintResult]:
     return [_fail(rid, component, f"@input record field mismatch: {'; '.join(msgs)}")]
 
 
+def rule_m033(component: str, ctx: dict) -> list[LintResult]:
+    """Optionality markers (?) match between GroovyDoc and code."""
+    rid = "M033"
+    doc = ctx["groovydoc"]
+    struct = ctx["structure"]
+    if not doc["has_doc"]:
+        return []  # M006 covers this
+
+    mismatches = []
+
+    # --- Input record field optionality ---
+    doc_records = doc.get("doc_input_records", [])
+    code_input_fields = struct.get("input_record_fields", [])
+    if doc_records and code_input_fields:
+        doc_optional = doc.get("doc_optional_input_fields", set())
+        code_optional = struct.get("code_optional_input_fields", set())
+        common = set(doc_records[0]["fields"]) & set(code_input_fields)
+        for field in sorted(common):
+            in_doc = field in doc_optional
+            in_code = field in code_optional
+            if in_doc and not in_code:
+                mismatches.append(
+                    f"input record field '{field}': doc has ? but code does not"
+                )
+            elif in_code and not in_doc:
+                mismatches.append(
+                    f"input record field '{field}': code has ? but doc does not"
+                )
+
+    # --- Input params optionality ---
+    doc_params = doc.get("doc_input_params", [])
+    code_params = struct.get("input_params", [])
+    if doc_params and code_params:
+        doc_opt_params = doc.get("doc_optional_input_params", set())
+        code_opt_params = struct.get("code_optional_input_params", set())
+        common = set(doc_params) & set(code_params)
+        for param in sorted(common):
+            in_doc = param in doc_opt_params
+            in_code = param in code_opt_params
+            if in_doc and not in_code:
+                mismatches.append(f"input param '{param}': doc has ? but code does not")
+            elif in_code and not in_doc:
+                mismatches.append(f"input param '{param}': code has ? but doc does not")
+
+    # --- Output record field optionality ---
+    doc_output_fields = doc.get("doc_output_fields", [])
+    code_output_fields = struct.get("output_record_fields", [])
+    if doc_output_fields and code_output_fields:
+        doc_opt_output = doc.get("doc_optional_output_fields", set())
+        code_opt_output = struct.get("code_optional_output_fields", set())
+        common = set(doc_output_fields) & set(code_output_fields)
+        common -= STANDARD_OUTPUT_FIELDS
+        for field in sorted(common):
+            in_doc = field in doc_opt_output
+            in_code = field in code_opt_output
+            if in_doc and not in_code:
+                mismatches.append(
+                    f"output field '{field}': doc has ? but code missing optional: true"
+                )
+            elif in_code and not in_doc:
+                mismatches.append(
+                    f"output field '{field}': code has optional: true but doc missing ?"
+                )
+
+    if mismatches:
+        return [_fail(rid, component, f"Optionality mismatch: {'; '.join(mismatches)}")]
+
+    # Only PASS if there was something to check
+    has_checks = (
+        (doc_records and code_input_fields)
+        or (doc_params and code_params)
+        or (doc_output_fields and code_output_fields)
+    )
+    if has_checks:
+        return [
+            _pass(
+                rid,
+                component,
+                "Optionality markers match between GroovyDoc and code",
+            )
+        ]
+    return []
+
+
 def rule_m034(component: str, ctx: dict) -> list[LintResult]:
     """@output does not describe standard fields (meta, results, logs, nf_logs, versions)."""
     rid = "M034"
@@ -1158,6 +1242,7 @@ MODULE_RULES = [
     # GroovyDoc accuracy
     rule_m031,
     rule_m032,
+    rule_m033,
     rule_m034,
     rule_m035,
     rule_m036,

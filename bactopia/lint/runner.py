@@ -12,6 +12,7 @@ from bactopia.nf import (
     check_file_whitespace,
     find_main_nf,
     parse_groovydoc_full,
+    parse_includes,
     parse_main_nf_structure,
     parse_module_config_full,
     parse_schema_json,
@@ -220,6 +221,9 @@ def run_lint(
             if "/utils/" in component_name:
                 continue
             ctx = _build_simple_context(main_nf)
+            ctx["citation_keys"] = citation_keys
+            ctx["bactopia_path"] = bactopia_path
+            ctx["includes"] = parse_includes(main_nf, bactopia_path)
             ignored = _collect_ignores(main_nf.parent)
             results = _run_rules(component_name, ctx, SUBWORKFLOW_RULES, ignored)
             all_results.extend(results)

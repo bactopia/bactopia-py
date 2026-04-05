@@ -285,6 +285,252 @@ def rule_s016(component: str, ctx: dict) -> list[LintResult]:
     ]
 
 
+def _parse_doc_component_list(tag_value: str) -> set[str]:
+    """Parse a @modules or @subworkflows tag value into a set of normalized names.
+
+    Handles comma-separated names with optional 'as alias' notation.
+    E.g., "prokka as prokka_module, csvtk_concat" -> {"prokka", "csvtk_concat"}
+    """
+    names = set()
+    if not tag_value:
+        return names
+    for entry in tag_value.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        # Handle "name as alias" notation -- extract base name
+        parts = entry.split()
+        if len(parts) >= 3 and parts[1] == "as":
+            names.add(parts[0])
+        else:
+            names.add(parts[0])
+    return names
+
+
+def rule_s017(component: str, ctx: dict) -> list[LintResult]:
+    """@modules match actual module includes."""
+    rid = "S017"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    includes = ctx.get("includes", {})
+    actual_modules = set(includes.get("modules", []))
+    doc_value = doc["tags"].get("modules", "")
+    doc_modules = _parse_doc_component_list(doc_value)
+    # Skip if neither GroovyDoc nor includes mention modules
+    if not actual_modules and not doc_modules:
+        return []
+    if doc_modules == actual_modules:
+        return [_pass(rid, component, "@modules match actual includes")]
+    missing = actual_modules - doc_modules
+    extra = doc_modules - actual_modules
+    parts = []
+    if missing:
+        parts.append(f"missing from @modules: {', '.join(sorted(missing))}")
+    if extra:
+        parts.append(f"extra in @modules: {', '.join(sorted(extra))}")
+    return [_fail(rid, component, f"@modules mismatch: {'; '.join(parts)}")]
+
+
+def rule_s018(component: str, ctx: dict) -> list[LintResult]:
+    """@subworkflows match actual subworkflow includes."""
+    rid = "S018"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    includes = ctx.get("includes", {})
+    actual_subs = set(includes.get("subworkflows", []))
+    doc_value = doc["tags"].get("subworkflows", "")
+    doc_subs = _parse_doc_component_list(doc_value)
+    # Skip if neither GroovyDoc nor includes mention subworkflows
+    if not actual_subs and not doc_subs:
+        return []
+    if doc_subs == actual_subs:
+        return [_pass(rid, component, "@subworkflows match actual includes")]
+    missing = actual_subs - doc_subs
+    extra = doc_subs - actual_subs
+    parts = []
+    if missing:
+        parts.append(f"missing from @subworkflows: {', '.join(sorted(missing))}")
+    if extra:
+        parts.append(f"extra in @subworkflows: {', '.join(sorted(extra))}")
+    return [_fail(rid, component, f"@subworkflows mismatch: {'; '.join(parts)}")]
+
+
+def rule_s019(component: str, ctx: dict) -> list[LintResult]:
+    """@citation keys exist in data/citations.yml."""
+    rid = "S019"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    citation_value = doc["tags"].get("citation", "")
+    if not citation_value:
+        return []  # S003 covers missing @citation
+    citation_keys = ctx.get("citation_keys", set())
+    if not citation_keys:
+        return []  # citations.yml not available -- skip check
+    keys = [k.strip() for k in citation_value.split(",")]
+    invalid = [k for k in keys if k and k not in citation_keys]
+    if invalid:
+        return [
+            _fail(
+                rid,
+                component,
+                f"@citation keys not in citations.yml: {', '.join(invalid)}",
+            )
+        ]
+    return [_pass(rid, component, "All @citation keys are valid")]
+
+
+def rule_s020(component: str, ctx: dict) -> list[LintResult]:
+    """@tags complexity value is valid."""
+    rid = "S020"
+    tags = ctx["groovydoc"]["tags"]
+    tags_value = tags.get("tags", "")
+    if not tags_value:
+        return []
+    parsed = _parse_tags_field(tags_value)
+    complexity = parsed.get("complexity", "")
+    if not complexity:
+        return []
+    valid = {"simple", "moderate", "complex"}
+    if complexity in valid:
+        return [_pass(rid, component, f"complexity:{complexity} is valid")]
+    return [
+        _warn(
+            rid,
+            component,
+            f"Invalid complexity value '{complexity}', expected one of: {', '.join(sorted(valid))}",
+        )
+    ]
+
+
+def rule_s021(component: str, ctx: dict) -> list[LintResult]:
+    """@tags input-type value is valid."""
+    rid = "S021"
+    tags = ctx["groovydoc"]["tags"]
+    tags_value = tags.get("tags", "")
+    if not tags_value:
+        return []
+    parsed = _parse_tags_field(tags_value)
+    input_type = parsed.get("input-type", "")
+    if not input_type:
+        return []
+    valid = {"none", "single", "multiple", "parameter"}
+    if input_type in valid:
+        return [_pass(rid, component, f"input-type:{input_type} is valid")]
+    return [
+        _warn(
+            rid,
+            component,
+            f"Invalid input-type value '{input_type}', expected one of: {', '.join(sorted(valid))}",
+        )
+    ]
+
+
+def rule_s022(component: str, ctx: dict) -> list[LintResult]:
+    """@tags output-type value is valid."""
+    rid = "S022"
+    tags = ctx["groovydoc"]["tags"]
+    tags_value = tags.get("tags", "")
+    if not tags_value:
+        return []
+    parsed = _parse_tags_field(tags_value)
+    output_type = parsed.get("output-type", "")
+    if not output_type:
+        return []
+    valid = {"single", "multiple"}
+    if output_type in valid:
+        return [_pass(rid, component, f"output-type:{output_type} is valid")]
+    return [
+        _warn(
+            rid,
+            component,
+            f"Invalid output-type value '{output_type}', expected one of: {', '.join(sorted(valid))}",
+        )
+    ]
+
+
+VALID_FEATURES = {
+    "aggregation",
+    "alternative-execution",
+    "archive-output",
+    "components",
+    "compression",
+    "conditional-input",
+    "conditional-logic",
+    "database-dependent",
+    "internet-access",
+    "no-test",
+    "resource-download",
+}
+
+
+def rule_s023(component: str, ctx: dict) -> list[LintResult]:
+    """@tags features values are valid."""
+    rid = "S023"
+    tags = ctx["groovydoc"]["tags"]
+    tags_value = tags.get("tags", "")
+    if not tags_value:
+        return []
+    parsed = _parse_tags_field(tags_value)
+    features = parsed.get("features", "")
+    if not features:
+        return []
+    feature_list = [f.strip() for f in features.split(",")]
+    invalid = [f for f in feature_list if f and f not in VALID_FEATURES]
+    if invalid:
+        return [
+            _fail(
+                rid,
+                component,
+                f"Invalid feature values: {', '.join(invalid)} "
+                f"(valid: {', '.join(sorted(VALID_FEATURES))})",
+            )
+        ]
+    return [_pass(rid, component, "All feature values are valid")]
+
+
+# Canonical tag order for subworkflows
+SUBWORKFLOW_TAG_ORDER = [
+    "status",
+    "keywords",
+    "tags",
+    "citation",
+    "modules",
+    "subworkflows",
+    "note",
+    "input",
+    "output",
+]
+
+
+def rule_s024(component: str, ctx: dict) -> list[LintResult]:
+    """GroovyDoc tag ordering."""
+    rid = "S024"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    actual_order = doc.get("doc_tag_order", [])
+    if not actual_order:
+        return []
+    known_order = [t for t in actual_order if t in SUBWORKFLOW_TAG_ORDER]
+    expected_positions = {t: i for i, t in enumerate(SUBWORKFLOW_TAG_ORDER)}
+    for i in range(len(known_order) - 1):
+        curr = known_order[i]
+        nxt = known_order[i + 1]
+        if expected_positions[curr] > expected_positions[nxt]:
+            return [
+                _warn(
+                    rid,
+                    component,
+                    f"Tag ordering incorrect: @{curr} appears before @{nxt} "
+                    f"(expected: {' -> '.join('@' + t for t in SUBWORKFLOW_TAG_ORDER if t in known_order)})",
+                )
+            ]
+    return [_pass(rid, component, "GroovyDoc tag ordering is correct")]
+
+
 SUBWORKFLOW_RULES = [
     rule_s001,
     rule_s002,
@@ -302,4 +548,12 @@ SUBWORKFLOW_RULES = [
     rule_s014,
     rule_s015,
     rule_s016,
+    rule_s017,
+    rule_s018,
+    rule_s019,
+    rule_s020,
+    rule_s021,
+    rule_s022,
+    rule_s023,
+    rule_s024,
 ]
