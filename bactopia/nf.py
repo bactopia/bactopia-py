@@ -282,7 +282,9 @@ def parse_workflows(bactopia_path, input_wf, include_merlin=False, build_all=Fal
                     module_path = f"modules/{module.replace('_', '/')}"
                     config_path = f"{bactopia_path}/{module_path}/module.config"
                 if not Path(config_path).exists():
-                    logging.warning(f"module.config not found at {config_path} for module '{module}', skipping")
+                    logging.warning(
+                        f"module.config not found at {config_path} for module '{module}', skipping"
+                    )
                     continue
                 logging.debug(f"Adding module {module}: {config_path}")
                 final_workflows[wf][module] = config_path

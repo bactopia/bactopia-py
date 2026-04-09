@@ -147,7 +147,9 @@ def _clean_scope(raw: str) -> str:
     return raw.strip().strip('"').strip("'")
 
 
-def _build_module_entry(component_name: str, main_nf: Path, bactopia_path: Path) -> dict:
+def _build_module_entry(
+    component_name: str, main_nf: Path, bactopia_path: Path
+) -> dict:
     """Build a catalog entry for a module."""
     groovydoc = parse_groovydoc_full(main_nf)
     config = parse_module_config_full(main_nf.parent / "module.config")
@@ -335,7 +337,9 @@ def generate_catalog(bactopia_path: Path) -> dict:
             component_name = str(rel).replace("modules/", "")
         # Normalize key: slash to underscore (e.g., "abricate/run" -> "abricate_run")
         key = component_name.replace("/", "_")
-        catalog["modules"][key] = _build_module_entry(component_name, main_nf, bactopia_path)
+        catalog["modules"][key] = _build_module_entry(
+            component_name, main_nf, bactopia_path
+        )
 
     # Subworkflows
     subworkflows_dir = bactopia_path / "subworkflows"

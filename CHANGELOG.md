@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.2
+
+### Bug Fixes
+
+- `bactopia-download` will print debug message is docker image not available
+- fixed incorrect paths in the catalog output of `bactopia-catalog`
+
 ## 2.0.1
 
 ### Bug Fixes
