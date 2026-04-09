@@ -147,14 +147,14 @@ def _clean_scope(raw: str) -> str:
     return raw.strip().strip('"').strip("'")
 
 
-def _build_module_entry(component_name: str, main_nf: Path) -> dict:
+def _build_module_entry(component_name: str, main_nf: Path, bactopia_path: Path) -> dict:
     """Build a catalog entry for a module."""
     groovydoc = parse_groovydoc_full(main_nf)
     config = parse_module_config_full(main_nf.parent / "module.config")
 
     entry = {
         "description": _extract_description(groovydoc),
-        "path": str(main_nf.parent.relative_to(main_nf.parents[3])) + "/",
+        "path": str(main_nf.parent.relative_to(bactopia_path)) + "/",
     }
 
     # Scope and process_name from config
@@ -207,7 +207,7 @@ def _build_subworkflow_entry(
 
     entry = {
         "description": _extract_description(groovydoc),
-        "path": str(main_nf.parent.relative_to(main_nf.parents[3])) + "/",
+        "path": str(main_nf.parent.relative_to(bactopia_path)) + "/",
     }
 
     # Takes from GroovyDoc @input
@@ -266,10 +266,10 @@ def _build_workflow_entry(
 
     # Determine type
     is_tool = "bactopia-tools/" in str(main_nf)
-    wf_path = str(main_nf.parent.relative_to(main_nf.parents[3 if is_tool else 2]))
+    wf_path = str(main_nf.parent.relative_to(bactopia_path))
     # Add trailing slash for tool/named workflow directories, but not for the
     # root bactopia workflow which uses a Nextflow convention path
-    if is_tool or wf_path != "bactopia/bactopia":
+    if is_tool or wf_path != ".":
         wf_path += "/"
     entry = {
         "description": _extract_description(groovydoc),
@@ -335,7 +335,7 @@ def generate_catalog(bactopia_path: Path) -> dict:
             component_name = str(rel).replace("modules/", "")
         # Normalize key: slash to underscore (e.g., "abricate/run" -> "abricate_run")
         key = component_name.replace("/", "_")
-        catalog["modules"][key] = _build_module_entry(component_name, main_nf)
+        catalog["modules"][key] = _build_module_entry(component_name, main_nf, bactopia_path)
 
     # Subworkflows
     subworkflows_dir = bactopia_path / "subworkflows"
