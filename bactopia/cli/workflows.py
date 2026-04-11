@@ -95,7 +95,7 @@ def download(
     bactopia_path = str(Path(bactopia_path).absolute().resolve())
 
     # Load catalog.json
-    catalog_path = Path(f"{bactopia_path}/data/catalog.json")
+    catalog_path = Path(f"{bactopia_path}/catalog.json")
     if catalog_path.exists():
         with open(catalog_path) as fh:
             catalog = json.load(fh)

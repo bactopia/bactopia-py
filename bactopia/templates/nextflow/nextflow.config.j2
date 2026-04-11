@@ -15,7 +15,7 @@ params {
         logo_name = "{{ logo_name }}"
         description = "{{ description }}"
         {%- if ext %}
-        ext = "{{ ext }}"
+        ext = {{ ext }}
         {%- endif %}
     }
 }

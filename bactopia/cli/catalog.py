@@ -380,6 +380,29 @@ def generate_catalog(bactopia_path: Path) -> dict:
     return catalog
 
 
+def render_llms_txt(catalog: dict, template_path: Path) -> str:
+    """Render llms.txt from a Jinja2 template using catalog data.
+
+    Args:
+        catalog: Catalog dict as returned by generate_catalog().
+        template_path: Path to the Jinja2 template file.
+
+    Returns:
+        Rendered llms.txt content as a string.
+    """
+    from jinja2 import Environment, FileSystemLoader, StrictUndefined
+
+    env = Environment(
+        loader=FileSystemLoader(str(template_path.parent)),
+        undefined=StrictUndefined,
+        keep_trailing_newline=True,
+        trim_blocks=True,
+        lstrip_blocks=True,
+    )
+    template = env.get_template(template_path.name)
+    return template.render(catalog=catalog)
+
+
 @click.command()
 @click.version_option(bactopia.__version__, "--version")
 @click.option(
@@ -395,13 +418,37 @@ def generate_catalog(bactopia_path: Path) -> dict:
     help="Output path for catalog.json (default: stdout)",
 )
 @click.option("--pretty", is_flag=True, help="Pretty-print JSON output.")
+@click.option(
+    "--llms-output",
+    "llms_output_path",
+    type=click.Path(),
+    default=None,
+    help="Also render llms.txt to this path. Uses the bundled template at bactopia/templates/bactopia/llms.txt.j2 unless --llms-template is provided.",
+)
+@click.option(
+    "--llms-template",
+    "llms_template_path",
+    type=click.Path(exists=True, dir_okay=False),
+    default=None,
+    help="Jinja2 template for llms.txt. Defaults to the template bundled inside bactopia-py.",
+)
 @click.option("--verbose", is_flag=True, help="Print debug related text.")
-def catalog(bactopia_path, output_path, pretty, verbose):
+def catalog(
+    bactopia_path,
+    output_path,
+    pretty,
+    llms_output_path,
+    llms_template_path,
+    verbose,
+):
     """Generate machine-readable catalog of all Bactopia components.
 
     Produces catalog.json containing workflows, subworkflows, and modules
     with their contracts (takes/emits), dependencies, and metadata.
     Replaces data/workflows.yml as the authoritative component index.
+
+    Optionally also renders llms.txt from a Jinja2 template when
+    --llms-output is provided.
     """
     # Setup logs
     logging.basicConfig(
@@ -444,6 +491,23 @@ def catalog(bactopia_path, output_path, pretty, verbose):
         console.print(f"Catalog written to {output_path}")
     else:
         print(output_json)
+
+    # Optionally render llms.txt
+    if llms_output_path:
+        if llms_template_path:
+            tpl = Path(llms_template_path)
+        else:
+            # Bundled template ships inside bactopia-py
+            tpl = (
+                Path(__file__).parent.parent / "templates" / "bactopia" / "llms.txt.j2"
+            )
+        tpl = tpl.resolve()
+        if not tpl.exists():
+            logging.error(f"llms.txt template not found: {tpl}")
+            sys.exit(1)
+        rendered = render_llms_txt(data, tpl)
+        Path(llms_output_path).write_text(rendered)
+        console.print(f"llms.txt written to {llms_output_path}")
 
 
 def main():

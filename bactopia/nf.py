@@ -242,7 +242,7 @@ def parse_workflows(bactopia_path, input_wf, include_merlin=False, build_all=Fal
     from bactopia.parsers.workflows import get_modules_by_workflow
 
     # Load catalog.json
-    catalog_path = f"{bactopia_path}/data/catalog.json"
+    catalog_path = f"{bactopia_path}/catalog.json"
     logging.debug(f"Loading catalog from {catalog_path}")
     with open(catalog_path) as fh:
         catalog = json.load(fh)

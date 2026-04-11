@@ -140,7 +140,7 @@ def merge_schemas(
             sys.exit(1)
 
     # parse the catalog
-    with open(f"{bactopia_path}/data/catalog.json") as fh:
+    with open(f"{bactopia_path}/catalog.json") as fh:
         catalog = json.load(fh)
 
     if wf not in catalog["workflows"]:
