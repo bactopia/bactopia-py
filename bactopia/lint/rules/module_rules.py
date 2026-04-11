@@ -305,17 +305,23 @@ def rule_m017(component: str, ctx: dict) -> list[LintResult]:
 
 
 def rule_m018(component: str, ctx: dict) -> list[LintResult]:
-    """meta = [:] initialized with all 6 required fields."""
+    """meta = record(...) initialized with all 6 required fields."""
     rid = "M018"
     if not ctx["structure"]["has_meta_init"]:
-        return [_fail(rid, component, "Missing meta initialization: meta = [:]")]
+        return [
+            _fail(
+                rid,
+                component,
+                "Missing meta initialization: meta = record(...)",
+            )
+        ]
     missing = sorted(REQUIRED_META_FIELDS - ctx["structure"]["meta_fields_set"])
     if missing:
         return [
             _fail(
                 rid,
                 component,
-                f"Missing meta fields: meta.{', meta.'.join(missing)}",
+                f"Missing meta fields: {', '.join(missing)}",
             )
         ]
     return [_pass(rid, component, "meta initialized with all required fields")]

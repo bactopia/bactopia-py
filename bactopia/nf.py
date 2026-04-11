@@ -869,29 +869,85 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
 
     # Extract input block fields
     input_block = re.search(
-        r"\binput:\s*\n(.*?)(?=\n\s*(?:output:|script:|exec:|shell:|stub:|\Z))",
+        r"\binput:\s*\n(.*?)(?=\n\s*(?:output:|stage:|script:|exec:|shell:|stub:|\Z))",
         full_text,
         re.DOTALL,
     )
     if input_block:
         input_text = input_block.group(1)
-        # Match Record input: (meta: Map, field1: Type, field2: Type?): Record
-        record_input_match = re.search(r"\(([^)]+)\)\s*:\s*Record", input_text)
-        if record_input_match:
-            for part in record_input_match.group(1).split(","):
+        record_body_range = None
+
+        # Current syntax:
+        #   input:
+        #   record (
+        #       meta: Record,
+        #       r1: Path?,
+        #       ...
+        #   )
+        # Legacy syntax:
+        #   input:
+        #   (meta: Map, r1: Path?, ...): Record
+        record_header_match = re.search(r"\brecord\s*\(", input_text)
+        if record_header_match:
+            # Balanced-paren count to capture the body.
+            start_idx = record_header_match.end()
+            depth = 1
+            end_idx = start_idx
+            for i in range(start_idx, len(input_text)):
+                ch = input_text[i]
+                if ch == "(":
+                    depth += 1
+                elif ch == ")":
+                    depth -= 1
+                    if depth == 0:
+                        end_idx = i
+                        break
+            record_body = input_text[start_idx:end_idx]
+            record_body_range = (record_header_match.start(), end_idx + 1)
+            for part in record_body.split(","):
                 part = part.strip()
-                pieces = part.split(":")
+                if not part:
+                    continue
+                pieces = part.split(":", 1)
                 name = pieces[0].strip()
+                if not re.match(r"^\w+$", name):
+                    continue
                 result["input_record_fields"].append(name)
-                if len(pieces) > 1 and pieces[1].strip().endswith("?"):
+                if len(pieces) > 1 and pieces[1].strip().rstrip(",").endswith("?"):
                     result["code_optional_input_fields"].add(name)
-        # Match non-record inputs: name: Type (one per line, not inside parens)
+        else:
+            # Legacy Record input: (meta: Map, field1: Type, field2: Type?): Record
+            legacy_match = re.search(r"\(([^)]+)\)\s*:\s*Record", input_text)
+            if legacy_match:
+                record_body_range = (legacy_match.start(), legacy_match.end())
+                for part in legacy_match.group(1).split(","):
+                    part = part.strip()
+                    pieces = part.split(":", 1)
+                    name = pieces[0].strip()
+                    if not re.match(r"^\w+$", name):
+                        continue
+                    result["input_record_fields"].append(name)
+                    if len(pieces) > 1 and pieces[1].strip().endswith("?"):
+                        result["code_optional_input_fields"].add(name)
+
+        # Match non-record inputs: name: Type (one per line, outside the record block).
+        line_offset = 0
         for line in input_text.split("\n"):
+            line_end = line_offset + len(line)
             stripped = line.strip()
-            # Skip empty lines, comments, and the Record line
-            if not stripped or stripped.startswith("//") or "Record" in stripped:
+            in_record_block = (
+                record_body_range is not None
+                and line_offset >= record_body_range[0]
+                and line_end <= record_body_range[1]
+            )
+            line_offset = line_end + 1  # +1 for the stripped "\n"
+            if in_record_block:
                 continue
-            if stripped.startswith("("):
+            if not stripped or stripped.startswith("//"):
+                continue
+            if "Record" in stripped:
+                continue
+            if stripped.startswith(("(", ")", "record")):
                 continue
             # Match "name: Type" or "name: Type?" (optional)
             param_match = re.match(r"(\w+)\s*:\s*(\w+\??)", stripped)
@@ -926,12 +982,44 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         )
     )
 
-    # Check for meta = [:] initialization and meta.X field assignments (M018)
-    result["has_meta_init"] = bool(re.search(r"meta\s*=\s*\[:\]", full_text))
-    meta_field_pattern = re.compile(r"meta\.(\w+)\s*=")
-    result["meta_fields_set"] = {
-        m.group(1) for m in meta_field_pattern.finditer(full_text)
-    }
+    # Check for meta initialization (M018).
+    # Modules using nextflow.preview.types use: meta = record(id: ..., name: ..., ...)
+    # Legacy modules use: meta = [:] followed by meta.X = ... assignments.
+    # The `(?<!_)` guard prevents matching `special_meta = record(...)`.
+    result["has_meta_init"] = False
+    result["meta_fields_set"] = set()
+
+    # Legacy pattern: meta = [:] with meta.X = value assignments
+    if re.search(r"(?<!_)\bmeta\s*=\s*\[:\]", full_text):
+        result["has_meta_init"] = True
+        legacy_field_pattern = re.compile(r"(?<!_)\bmeta\.(\w+)\s*=")
+        result["meta_fields_set"].update(
+            m.group(1) for m in legacy_field_pattern.finditer(full_text)
+        )
+
+    # Current pattern: meta = record(id: ..., name: ..., ...)
+    record_meta_match = re.search(r"(?<!_)\bmeta\s*=\s*record\s*\(", full_text)
+    if record_meta_match:
+        result["has_meta_init"] = True
+        # Balanced-paren count to extract the record(...) body.
+        start_idx = record_meta_match.end()
+        depth = 1
+        end_idx = start_idx
+        for i in range(start_idx, len(full_text)):
+            ch = full_text[i]
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    end_idx = i
+                    break
+        record_body = full_text[start_idx:end_idx]
+        # Extract top-level `name:` fields (skip nested parens like task.ext.scope).
+        record_field_pattern = re.compile(r"^\s*(\w+)\s*:", re.MULTILINE)
+        result["meta_fields_set"].update(
+            m.group(1) for m in record_field_pattern.finditer(record_body)
+        )
 
     # Check for conda/container directives (M019, M020)
     result["has_conda_directive"] = bool(
@@ -1475,17 +1563,17 @@ def parse_workflow_config(config_path: Path) -> dict:
     except OSError:
         return result
 
-    # Match ext = ["fna", "faa", "gff"] or ext = ["fna"]
+    # Match ext = ['fna', 'faa', 'gff'] or ext = ["fna"]
     ext_match = re.search(r"ext\s*=\s*\[([^\]]*)\]", text)
     if ext_match:
         raw = ext_match.group(1)
         result["ext_raw"] = raw
-        # Parse quoted strings from the list
-        result["ext"] = re.findall(r'"([^"]*)"', raw)
+        # Parse quoted strings from the list (single or double quotes, Groovy allows both)
+        result["ext"] = re.findall(r"""['"]([^'"]*)['"]""", raw)
         return result
 
-    # Check for old string format: ext = "fna"
-    ext_str_match = re.search(r'ext\s*=\s*"([^"]*)"', text)
+    # Check for old string format: ext = 'fna' or ext = "fna"
+    ext_str_match = re.search(r"""ext\s*=\s*['"]([^'"]*)['"]""", text)
     if ext_str_match:
         result["ext_raw"] = ext_str_match.group(1)
         result["ext"] = None  # String format is invalid -- rule will flag this
