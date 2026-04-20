@@ -15,6 +15,7 @@ CLI_COMMANDS = [
     ("bactopia.cli.summary", "summary"),
     ("bactopia.cli.update", "update"),
     ("bactopia.cli.status", "status"),
+    ("bactopia.cli.sysinfo", "sysinfo"),
     ("bactopia.cli.workflows", "download"),
     ("bactopia.cli.atb.atb_formatter", "atb_formatter"),
     ("bactopia.cli.atb.atb_downloader", "atb_downloader"),

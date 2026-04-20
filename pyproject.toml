@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bactopia"
-version = "2.0.2"
+version = "2.1.0"
 description = "A Python package for working with Bactopia"
 authors = [
     "Robert A. Petit III <robbie.petit@gmail.com>",
@@ -20,6 +20,7 @@ bactopia-search = "bactopia.cli.search:main"
 bactopia-summary = "bactopia.cli.summary:main"
 bactopia-update = "bactopia.cli.update:main"
 bactopia-status = "bactopia.cli.status:main"
+bactopia-sysinfo = "bactopia.cli.sysinfo:main"
 bactopia-workflows = "bactopia.cli.workflows:main"
 bactopia-atb-formatter = "bactopia.cli.atb.atb_formatter:main"
 bactopia-atb-downloader = "bactopia.cli.atb.atb_downloader:main"
@@ -31,6 +32,7 @@ bactopia-test = "bactopia.cli.testing:main"
 bactopia-lint = "bactopia.cli.lint:main"
 bactopia-catalog = "bactopia.cli.catalog:main"
 bactopia-review-tests = "bactopia.cli.review:main"
+bactopia-docs = "bactopia.cli.docs:main"
 # Pipeline utility scripts (called from Nextflow module shell blocks)
 bactopia-check-fastqs = "bactopia.cli.pipeline.check_fastqs:main"
 bactopia-check-assembly-accession = "bactopia.cli.pipeline.check_assembly_accession:main"
@@ -53,6 +55,7 @@ jinja2 = ">=3.1.6"
 pyyaml = ">=6.0"
 biopython = ">=1.80"
 openpyxl = ">=3.1.0"
+psutil = ">=5.9.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.9"

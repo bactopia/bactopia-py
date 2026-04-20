@@ -1,5 +1,35 @@
 # Changelog
 
+## 2.1.0
+
+### New Commands
+
+- `bactopia-sysinfo` - auto-detect host resources and emit Nextflow `--max_memory`/`--max_cpus` overrides for local profiles
+- `bactopia-docs` - validate reference documentation for deprecated patterns (D0xx) and ground-truth assertions (D1xx)
+
+### New Lint Modules
+
+- `bactopia/lint/citations.py` - cross-repository citation validation: orphan detection, missing workflow `@citation` keys, provenance-only filtering
+- `bactopia/lint/docs.py` - documentation staleness checker: deprecated pattern detection, count/version/reference assertions, skill inventory sync
+
+### Enhancements
+
+- `bactopia-citations` gains `--validate` flag for citation integrity checking with Rich table output and `--json` for CI
+- `bactopia-catalog` expanded output to better support Claude Code skills on the Bactopia side
+- `bactopia-merge-schemas` minor fix for schema merging
+- Updated GroovyDoc parser in `nf.py` to handle Nextflow 25.04.6+ syntax (`record()`, `stage:` block, balanced-paren inputs)
+- Module lint rule M018 updated for both legacy and current meta initialization patterns
+
+### New Dependencies
+
+- `psutil >=5.9.0` (used by `bactopia-sysinfo`)
+
+### Tests
+
+- 19 tests for `bactopia-sysinfo` (eligibility, profile gating, flag parsing)
+- 25 tests for citation linting (orphan detection, provenance filtering, potential homes)
+- 60+ tests for docs linting (D0xx/D1xx rules, inline ignores, CLI integration)
+
 ## 2.0.2
 
 ### Bug Fixes

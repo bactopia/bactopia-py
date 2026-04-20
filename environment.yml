@@ -13,6 +13,7 @@ dependencies:
   - jinja2
   - openpyxl
   - pandas >=2.2.0
+  - psutil >=5.9.0
   - pyyaml
   - rauth
   - requests
