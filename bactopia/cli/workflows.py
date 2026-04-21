@@ -102,7 +102,7 @@ def download(
         workflows = catalog["workflows"]
     else:
         logging.error(
-            f"'catalog.json' could not be found in {bactopia_path}/data/, is this a valid Bactopia installation?"
+            f"'catalog.json' could not be found in {bactopia_path}, is this a valid Bactopia installation?"
         )
         sys.exit(1)
 

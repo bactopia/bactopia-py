@@ -67,8 +67,8 @@ def get_parsable_files(path: str, name: str) -> list:
     logging.debug(f"Is Complete: {is_complete}")
 
     if is_complete:
-        parsable_files[f"{path}/main/qc/summary/{name}-original.json"] = "qc"
-        parsable_files[f"{path}/main/qc/summary/{name}-final.json"] = "qc"
+        parsable_files[f"{path}/main/qc/supplemental/{name}-original.json"] = "qc"
+        parsable_files[f"{path}/main/qc/supplemental/{name}-final.json"] = "qc"
         return [is_complete, parsable_files]
     else:
         return [is_complete, missing_files]
