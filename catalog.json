@@ -5,7 +5,7 @@
   "repository": "https://github.com/bactopia/bactopia-py",
   "license": "MIT",
   "python_requires": ">=3.9",
-  "command_count": 27,
+  "command_count": 28,
   "commands": [
     {
       "name": "bactopia-citations",
@@ -62,6 +62,13 @@
       "entry_point": "bactopia.cli.status:main",
       "category": "documentation",
       "tags": ["status", "git", "testing", "tiers"]
+    },
+    {
+      "name": "bactopia-sysinfo",
+      "description": "Auto-detect host RAM and CPUs and emit Nextflow CLI overrides",
+      "entry_point": "bactopia.cli.sysinfo:main",
+      "category": "utility",
+      "tags": ["sysinfo", "memory", "cpus", "nextflow", "auto-detect"]
     },
     {
       "name": "bactopia-workflows",

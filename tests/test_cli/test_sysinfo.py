@@ -43,10 +43,10 @@ def _invoke(args):
 
 class TestEligibility:
     def test_default_profile_emits_both(self, host):
-        with host(mem_gb=64, cpus=16):
+        with host(mem_gb=64, cpus=8):
             result = _invoke(["--wf", "bactopia"])
         assert result.exit_code == 0
-        assert result.stdout.strip() == "--max_memory 32.GB --max_cpus 12"
+        assert result.stdout.strip() == "--max_memory 63.GB --max_cpus 8"
 
     def test_small_host_caps_to_total_minus_one(self, host):
         with host(mem_gb=8, cpus=4):
@@ -62,10 +62,10 @@ class TestEligibility:
         assert "below floor" in result.stderr
 
     def test_user_set_max_memory(self, host):
-        with host(mem_gb=64, cpus=16):
+        with host(mem_gb=64, cpus=8):
             result = _invoke(["-profile", "docker", "--max_memory", "16.GB"])
         assert result.exit_code == 0
-        assert result.stdout.strip() == "--max_cpus 12"
+        assert result.stdout.strip() == "--max_cpus 8"
 
     def test_user_set_both(self, host):
         with host(mem_gb=64, cpus=16):
@@ -90,10 +90,10 @@ class TestProfileGate:
         assert result.stdout == ""
 
     def test_composed_local_profiles(self, host):
-        with host(mem_gb=64, cpus=16):
+        with host(mem_gb=64, cpus=8):
             result = _invoke(["-profile", "docker,wave"])
         assert result.exit_code == 0
-        assert result.stdout.strip() == "--max_memory 32.GB --max_cpus 12"
+        assert result.stdout.strip() == "--max_memory 63.GB --max_cpus 8"
 
     def test_one_unknown_in_composed_profile_excludes(self, host):
         with host(mem_gb=64, cpus=16):
@@ -116,36 +116,36 @@ class TestProfileGate:
 
 class TestFlagParsingForms:
     def test_max_memory_equals_form(self, host):
-        with host(mem_gb=64, cpus=16):
+        with host(mem_gb=64, cpus=8):
             result = _invoke(["--max_memory=8.GB"])
         assert result.exit_code == 0
-        assert result.stdout.strip() == "--max_cpus 12"
+        assert result.stdout.strip() == "--max_cpus 8"
 
     def test_profile_equals_form(self, host):
-        with host(mem_gb=64, cpus=16):
+        with host(mem_gb=64, cpus=8):
             result = _invoke(["-profile=docker"])
         assert result.exit_code == 0
-        assert result.stdout.strip() == "--max_memory 32.GB --max_cpus 12"
+        assert result.stdout.strip() == "--max_memory 63.GB --max_cpus 8"
 
     def test_max_cpus_equals_form(self, host):
         with host(mem_gb=64, cpus=16):
             result = _invoke(["--max_cpus=4"])
         assert result.exit_code == 0
-        assert result.stdout.strip() == "--max_memory 32.GB"
+        assert result.stdout.strip() == "--max_memory 63.GB"
 
 
 class TestInformationalInvocations:
-    def test_no_args_shows_help(self, host):
-        with host():
+    def test_no_args_emits_detected(self, host):
+        with host(mem_gb=64, cpus=8):
             result = _invoke([])
         assert result.exit_code == 0
-        assert "Auto-detect host RAM and CPUs" in result.stdout
+        assert result.stdout.strip() == "--max_memory 63.GB --max_cpus 8"
 
-    def test_help_alone(self, host):
+    def test_help_alone_emits_nothing(self, host):
         with host():
             result = _invoke(["--help"])
         assert result.exit_code == 0
-        assert "Auto-detect host RAM and CPUs" in result.stdout
+        assert result.stdout == ""
 
     def test_version_alone(self, host):
         with host():
