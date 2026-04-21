@@ -13,7 +13,7 @@ stderr = rich.console.Console(stderr=True)
 rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
 click.rich_click.USE_RICH_MARKUP = True
 
-MEM_CAP = 32
+MEM_CAP = 144
 MEM_FLOOR = 4
 CPU_CAP = 12
 
@@ -70,9 +70,6 @@ def sysinfo(ctx, args):
       - both `--max_memory` and `--max_cpus` are already set by the user
       - the invocation is informational (`--help`, `--help_all`, `--list_wfs`)
     """
-    if not args or args == ("--help",) or args == ("-h",):
-        click.echo(ctx.get_help())
-        return
     if args == ("--version",) or args == ("-V",):
         click.echo(f"bactopia-sysinfo {bactopia.__version__}")
         return
@@ -94,7 +91,8 @@ def sysinfo(ctx, args):
         total_gb = psutil.virtual_memory().total // (1024**3)
         mem = min(total_gb - 1, MEM_CAP)
         if mem >= MEM_FLOOR:
-            additions.append(f"--max_memory {mem}.GB")
+            if mem != MEM_CAP:
+                additions.append(f"--max_memory {mem}.GB")
         else:
             click.echo(
                 f"[bactopia-sysinfo] detected only {total_gb} GB RAM "
@@ -104,12 +102,14 @@ def sysinfo(ctx, args):
 
     if not _has_flag(args, "--max_cpus"):
         cpus = min(psutil.cpu_count(logical=True) or 1, CPU_CAP)
-        additions.append(f"--max_cpus {cpus}")
+        if cpus != CPU_CAP:
+            additions.append(f"--max_cpus {cpus}")
 
     if additions:
         line = " ".join(additions)
-        click.echo(line)
-        click.echo(f"[bactopia-sysinfo] auto-detected: {line}", err=True)
+        if line:
+            click.echo(line)
+            click.echo(f"[bactopia-sysinfo] auto-detected: {line}", err=True)
 
 
 def main():
