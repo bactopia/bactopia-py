@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.1
+
+### Bug Fixes
+
+- Fixed QC summary file paths in `bactopia-summary` parser (`qc/summary/` -> `qc/supplemental/`)
+- Fixed incorrect path in `bactopia-workflows` error message for missing `catalog.json`
+- `bactopia-sysinfo` now only emits `--max_memory`/`--max_cpus` when detected values are below the cap (MEM_CAP raised to 144 GB), avoiding redundant flags on large hosts
+- `bactopia-sysinfo` bare invocations now detect resources instead of showing help text
+
+### Tests
+
+- Updated `bactopia-sysinfo` tests to match new cap-silence and no-args behavior
+
 ## 2.1.0
 
 ### New Commands
