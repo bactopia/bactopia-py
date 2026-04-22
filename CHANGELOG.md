@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.1.2
+
+### New Lint Rules
+
+- `W021` - Workflow `params` block: `Value<Path>` / `Value<Path?>` wrappers must be replaced with bare `Path` / `Path?` (FAIL)
+- `S025` - Subworkflow `take:` block: `Value<Path>` / `Value<Path?>` wrappers must be replaced with bare `Path` / `Path?` (FAIL)
+
+### Enhancements
+
+- Workflow param parser now captures type annotations (e.g., `String`, `Value<Path>`)
+- Subworkflow `take:` block inputs are now parsed with name, type, and line number
+
+### Tests
+
+- 11 tests for W021/S025 rules (pass/fail/edge cases for both workflow and subworkflow)
+
 ## 2.1.1
 
 ### Bug Fixes

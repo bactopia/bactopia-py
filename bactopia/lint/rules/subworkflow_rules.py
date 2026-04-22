@@ -1,4 +1,4 @@
-"""Lint rules for Bactopia subworkflows (S001-S016)."""
+"""Lint rules for Bactopia subworkflows (S001-S025)."""
 
 import re
 
@@ -531,6 +531,32 @@ def rule_s024(component: str, ctx: dict) -> list[LintResult]:
     return [_pass(rid, component, "GroovyDoc tag ordering is correct")]
 
 
+WRAPPED_PATH_TYPES = {"Value<Path>", "Value<Path?>"}
+
+
+def rule_s025(component: str, ctx: dict) -> list[LintResult]:
+    """Take-block Path inputs must not use Value<Path> wrapper (use bare Path or Path?)."""
+    rid = "S025"
+    take_inputs = ctx["structure"].get("sw_take_inputs", [])
+    if not take_inputs:
+        return []
+    violations = []
+    for inp in take_inputs:
+        itype = inp.get("type", "")
+        if itype in WRAPPED_PATH_TYPES:
+            suggested = "Path?" if itype == "Value<Path?>" else "Path"
+            violations.append(
+                _fail(
+                    rid,
+                    component,
+                    f"Take input '{inp['name']}' uses {itype} -- use {suggested} instead (line {inp['line_num']})",
+                )
+            )
+    if not violations:
+        return [_pass(rid, component, "No take-inputs use Value<Path> wrapper")]
+    return violations
+
+
 SUBWORKFLOW_RULES = [
     rule_s001,
     rule_s002,
@@ -556,4 +582,5 @@ SUBWORKFLOW_RULES = [
     rule_s022,
     rule_s023,
     rule_s024,
+    rule_s025,
 ]

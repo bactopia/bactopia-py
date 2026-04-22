@@ -694,7 +694,7 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
             "exists": False,
             "first_param": None,
             "first_param_line": "",
-            "params": [],  # list of {"name": str, "colon_col": int, "line_num": int}
+            "params": [],  # list of {"name": str, "type": str, "colon_col": int, "line_num": int}
         },
         "includes": [],  # list of {"name": str, "source": str, "line_num": int, "brace_col": int}
         "mix_sources": {"sample": [], "run": []},
@@ -704,6 +704,7 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         "gather_csvtk_calls": [],  # list of {"name": str, "is_dynamic": bool, "line_num": int, "receiver": str}
         "csvtk_concat_aliases": set(),  # include names resolving to CSVTK_CONCAT
         "emit_mix_sources": {"sample": [], "run": []},
+        "sw_take_inputs": [],  # list of {"name": str, "type": str, "line_num": int}
     }
 
     lines = _read_lines(main_nf)
@@ -1162,6 +1163,23 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
             result["workflow_name"] = wf_m.group(1)
             break
 
+    # S025: Parse take-block inputs (name: Type lines between take: and main:)
+    take_input_re = re.compile(r"^\s+(\w+):\s*(\S+)")
+    in_take = False
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped == "take:":
+            in_take = True
+            continue
+        if in_take:
+            if stripped == "main:":
+                break
+            tm = take_input_re.match(line)
+            if tm:
+                result["sw_take_inputs"].append(
+                    {"name": tm.group(1), "type": tm.group(2), "line_num": i + 1}
+                )
+
     # S013/S014: Parse gatherCsvtk calls
     gather_recv_re = re.compile(r"(\w+)\s*\(\s*gatherCsvtk\s*\(")
     name_re_single = re.compile(r"\[name:\s*'([^']+)'\]")
@@ -1247,20 +1265,21 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
                 break
         params_lines = lines[params_start + 1 : params_end]
         result["wf_params_block"]["exists"] = True
-        param_decl_pattern = re.compile(r"^(\s*)(\w+)(\s*):(\s*)")
+        param_decl_pattern = re.compile(r"^(\s*)(\w+)(\s*):(\s*)(\S+)")
         first_found = False
         for j, pline in enumerate(params_lines):
             pm = param_decl_pattern.match(pline)
             if pm:
                 name = pm.group(2)
                 colon_col = len(pm.group(1)) + len(name) + len(pm.group(3))
+                param_type = pm.group(5)
                 actual_line_num = params_start + 1 + j + 1  # 1-indexed
                 if not first_found:
                     result["wf_params_block"]["first_param"] = name
                     result["wf_params_block"]["first_param_line"] = pline.rstrip()
                     first_found = True
                 result["wf_params_block"]["params"].append(
-                    {"name": name, "colon_col": colon_col, "line_num": actual_line_num}
+                    {"name": name, "type": param_type, "colon_col": colon_col, "line_num": actual_line_num}
                 )
 
     # W015: Top-level output block

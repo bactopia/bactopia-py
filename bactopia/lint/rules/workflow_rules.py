@@ -1,4 +1,4 @@
-"""Lint rules for Bactopia workflows (W001-W020)."""
+"""Lint rules for Bactopia workflows (W001-W021)."""
 
 import re
 
@@ -469,6 +469,32 @@ def rule_w020(component: str, ctx: dict) -> list[LintResult]:
     return [_warn(rid, component, f"Mix source mismatch -- {'; '.join(parts)}")]
 
 
+WRAPPED_PATH_TYPES = {"Value<Path>", "Value<Path?>"}
+
+
+def rule_w021(component: str, ctx: dict) -> list[LintResult]:
+    """Path params must not use Value<Path> wrapper (use bare Path or Path?)."""
+    rid = "W021"
+    pb = ctx["structure"].get("wf_params_block", {})
+    if not pb.get("exists"):
+        return []
+    violations = []
+    for p in pb["params"]:
+        ptype = p.get("type", "")
+        if ptype in WRAPPED_PATH_TYPES:
+            suggested = "Path?" if ptype == "Value<Path?>" else "Path"
+            violations.append(
+                _fail(
+                    rid,
+                    component,
+                    f"Param '{p['name']}' uses {ptype} -- use {suggested} instead (line {p['line_num']})",
+                )
+            )
+    if not violations:
+        return [_pass(rid, component, "No params use Value<Path> wrapper")]
+    return violations
+
+
 WORKFLOW_RULES = [
     rule_w001,
     rule_w002,
@@ -490,4 +516,5 @@ WORKFLOW_RULES = [
     rule_w018,
     rule_w019,
     rule_w020,
+    rule_w021,
 ]
