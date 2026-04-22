@@ -1,7 +1,7 @@
 """Tests for W021 and S025 lint rules (reject Value<Path> wrapper)."""
 
-from bactopia.lint.rules.workflow_rules import rule_w021
 from bactopia.lint.rules.subworkflow_rules import rule_s025
+from bactopia.lint.rules.workflow_rules import rule_w021
 
 
 def _wf_ctx(params):
@@ -13,7 +13,12 @@ def _wf_ctx(params):
                 "first_param": "rundir",
                 "first_param_line": "    rundir : String",
                 "params": [
-                    {"name": "rundir", "type": "String", "colon_col": 11, "line_num": 2},
+                    {
+                        "name": "rundir",
+                        "type": "String",
+                        "colon_col": 11,
+                        "line_num": 2,
+                    },
                     *params,
                 ],
             }
@@ -31,46 +36,81 @@ def _sw_ctx(take_inputs):
 
 class TestW021:
     def test_pass_no_path_params(self):
-        ctx = _wf_ctx([
-            {"name": "use_bakta", "type": "Boolean", "colon_col": 14, "line_num": 3},
-        ])
+        ctx = _wf_ctx(
+            [
+                {
+                    "name": "use_bakta",
+                    "type": "Boolean",
+                    "colon_col": 14,
+                    "line_num": 3,
+                },
+            ]
+        )
         results = rule_w021("test", ctx)
         assert len(results) == 1
         assert results[0].is_pass()
 
     def test_pass_bare_path(self):
-        ctx = _wf_ctx([
-            {"name": "kraken2_db", "type": "Path", "colon_col": 15, "line_num": 3},
-            {"name": "adapters", "type": "Path?", "colon_col": 15, "line_num": 4},
-        ])
+        ctx = _wf_ctx(
+            [
+                {"name": "kraken2_db", "type": "Path", "colon_col": 15, "line_num": 3},
+                {"name": "adapters", "type": "Path?", "colon_col": 15, "line_num": 4},
+            ]
+        )
         results = rule_w021("test", ctx)
         assert len(results) == 1
         assert results[0].is_pass()
 
     def test_fail_value_path(self):
-        ctx = _wf_ctx([
-            {"name": "kraken2_db", "type": "Value<Path>", "colon_col": 15, "line_num": 3},
-        ])
+        ctx = _wf_ctx(
+            [
+                {
+                    "name": "kraken2_db",
+                    "type": "Value<Path>",
+                    "colon_col": 15,
+                    "line_num": 3,
+                },
+            ]
+        )
         results = rule_w021("test", ctx)
         assert len(results) == 1
         assert results[0].is_fail()
         assert "Path" in results[0].message
 
     def test_fail_value_path_nullable(self):
-        ctx = _wf_ctx([
-            {"name": "adapters", "type": "Value<Path?>", "colon_col": 15, "line_num": 3},
-        ])
+        ctx = _wf_ctx(
+            [
+                {
+                    "name": "adapters",
+                    "type": "Value<Path?>",
+                    "colon_col": 15,
+                    "line_num": 3,
+                },
+            ]
+        )
         results = rule_w021("test", ctx)
         assert len(results) == 1
         assert results[0].is_fail()
         assert "Path?" in results[0].message
 
     def test_fail_mixed(self):
-        ctx = _wf_ctx([
-            {"name": "kraken2_db", "type": "Path", "colon_col": 15, "line_num": 3},
-            {"name": "adapters", "type": "Value<Path?>", "colon_col": 15, "line_num": 4},
-            {"name": "reference", "type": "Value<Path>", "colon_col": 15, "line_num": 5},
-        ])
+        ctx = _wf_ctx(
+            [
+                {"name": "kraken2_db", "type": "Path", "colon_col": 15, "line_num": 3},
+                {
+                    "name": "adapters",
+                    "type": "Value<Path?>",
+                    "colon_col": 15,
+                    "line_num": 4,
+                },
+                {
+                    "name": "reference",
+                    "type": "Value<Path>",
+                    "colon_col": 15,
+                    "line_num": 5,
+                },
+            ]
+        )
         results = rule_w021("test", ctx)
         assert len(results) == 2
         assert all(r.is_fail() for r in results)
@@ -89,27 +129,33 @@ class TestW021:
 
 class TestS025:
     def test_pass_bare_path(self):
-        ctx = _sw_ctx([
-            {"name": "database", "type": "Path", "line_num": 3},
-            {"name": "proteins", "type": "Path?", "line_num": 4},
-        ])
+        ctx = _sw_ctx(
+            [
+                {"name": "database", "type": "Path", "line_num": 3},
+                {"name": "proteins", "type": "Path?", "line_num": 4},
+            ]
+        )
         results = rule_s025("test", ctx)
         assert len(results) == 1
         assert results[0].is_pass()
 
     def test_fail_value_path(self):
-        ctx = _sw_ctx([
-            {"name": "database", "type": "Value<Path>", "line_num": 3},
-        ])
+        ctx = _sw_ctx(
+            [
+                {"name": "database", "type": "Value<Path>", "line_num": 3},
+            ]
+        )
         results = rule_s025("test", ctx)
         assert len(results) == 1
         assert results[0].is_fail()
         assert "Path" in results[0].message
 
     def test_fail_value_path_nullable(self):
-        ctx = _sw_ctx([
-            {"name": "database", "type": "Value<Path?>", "line_num": 3},
-        ])
+        ctx = _sw_ctx(
+            [
+                {"name": "database", "type": "Value<Path?>", "line_num": 3},
+            ]
+        )
         results = rule_s025("test", ctx)
         assert len(results) == 1
         assert results[0].is_fail()
@@ -121,10 +167,12 @@ class TestS025:
         assert results == []
 
     def test_non_path_types_ignored(self):
-        ctx = _sw_ctx([
-            {"name": "reads", "type": "Channel<Record>", "line_num": 2},
-            {"name": "database", "type": "Path", "line_num": 3},
-        ])
+        ctx = _sw_ctx(
+            [
+                {"name": "reads", "type": "Channel<Record>", "line_num": 2},
+                {"name": "database", "type": "Path", "line_num": 3},
+            ]
+        )
         results = rule_s025("test", ctx)
         assert len(results) == 1
         assert results[0].is_pass()

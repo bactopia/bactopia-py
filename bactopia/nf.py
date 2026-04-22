@@ -1279,7 +1279,12 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
                     result["wf_params_block"]["first_param_line"] = pline.rstrip()
                     first_found = True
                 result["wf_params_block"]["params"].append(
-                    {"name": name, "type": param_type, "colon_col": colon_col, "line_num": actual_line_num}
+                    {
+                        "name": name,
+                        "type": param_type,
+                        "colon_col": colon_col,
+                        "line_num": actual_line_num,
+                    }
                 )
 
     # W015: Top-level output block
