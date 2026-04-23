@@ -504,6 +504,7 @@ def parse_groovydoc_full(main_nf: Path) -> dict:
         "doc_input_params": [],  # non-record @input names, ? stripped
         "doc_output_described_fields": [],  # fields with description lines, ? stripped
         "doc_tag_order": [],  # ordered list of tag names as they appear
+        "doc_output_has_fields": {},  # @output name -> bool (has field descriptions)
         # Optionality tracking (base names of fields that had ? suffix in GroovyDoc)
         "doc_optional_output_fields": set(),
         "doc_optional_input_fields": set(),
@@ -612,19 +613,27 @@ def parse_groovydoc_full(main_nf: Path) -> dict:
     # Parse @output description lines to find which fields are described
     # Pattern: * - `field`: description  (field may have ? suffix)
     desc_pattern = re.compile(r"\*\s*-\s*`(\w+\??)`\s*:")
+    output_name_pattern = re.compile(r"\*\s*@output\s+(\w+)")
     in_output_section = False
+    current_output_name = None
     for line in doc_lines:
-        if re.search(r"\*\s*@output", line):
+        om = output_name_pattern.search(line)
+        if om:
+            current_output_name = om.group(1)
+            result["doc_output_has_fields"].setdefault(current_output_name, False)
             in_output_section = True
             continue
         if re.search(r"\*\s*@\w+", line) and not re.search(r"\*\s*@output", line):
             in_output_section = False
+            current_output_name = None
             continue
         if in_output_section:
             dm = desc_pattern.search(line)
             if dm:
                 field_name = dm.group(1).rstrip("?")
                 result["doc_output_described_fields"].append(field_name)
+                if current_output_name:
+                    result["doc_output_has_fields"][current_output_name] = True
 
     return result
 
@@ -645,6 +654,7 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
         "has_versions_yml": False,
         "links": [],
         "emit_channels": [],
+        "empty_emit_channels": set(),
         "has_comment_markers": False,
         "has_tuple_references": False,
         "has_blank_before_main": None,
@@ -964,9 +974,14 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
     # Extract emit channels (for subworkflows/workflows)
     emit_block = re.search(r"\bemit:\s*\n(.*?)(?=\n\s*\}|\Z)", full_text, re.DOTALL)
     if emit_block:
-        channel_pattern = re.compile(r"^\s*(\w+)\s*=", re.MULTILINE)
+        channel_pattern = re.compile(r"^\s*(\w+)\s*(?::[^=]*)?\s*=", re.MULTILINE)
         for cm in channel_pattern.finditer(emit_block.group(1)):
             result["emit_channels"].append(cm.group(1))
+        empty_pattern = re.compile(
+            r"^\s*(\w+)\s*(?::[^=]*)?\s*=\s*channel\.empty\(\)", re.MULTILINE
+        )
+        for cm in empty_pattern.finditer(emit_block.group(1)):
+            result["empty_emit_channels"].add(cm.group(1))
 
     # Check for comment markers like // ---
     result["has_comment_markers"] = bool(re.search(r"//\s*-{3,}", full_text))

@@ -557,6 +557,70 @@ def rule_s025(component: str, ctx: dict) -> list[LintResult]:
     return violations
 
 
+def rule_s026(component: str, ctx: dict) -> list[LintResult]:
+    """All emit channels have a corresponding @output tag."""
+    rid = "S026"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    emit_channels = set(ctx["structure"].get("emit_channels", []))
+    if not emit_channels:
+        return []
+    output_tags = doc["tags"].get("output", [])
+    doc_outputs = set()
+    for oval in output_tags:
+        name = oval.split()[0] if oval.strip() else ""
+        if name:
+            doc_outputs.add(name)
+    missing = emit_channels - doc_outputs
+    extra = doc_outputs - emit_channels
+    if not missing and not extra:
+        return [_pass(rid, component, "@output tags match all emit channels")]
+    results = []
+    if missing:
+        results.append(
+            _fail(
+                rid,
+                component,
+                f"Emit channels missing @output: {', '.join(sorted(missing))}",
+            )
+        )
+    if extra:
+        results.append(
+            _warn(
+                rid,
+                component,
+                f"@output tags with no emit channel: {', '.join(sorted(extra))}",
+            )
+        )
+    return results
+
+
+def rule_s027(component: str, ctx: dict) -> list[LintResult]:
+    """@output field descriptions must not exist for channel.empty() emits."""
+    rid = "S027"
+    doc = ctx["groovydoc"]
+    if not doc["has_doc"]:
+        return []
+    empty_channels = ctx["structure"].get("empty_emit_channels", set())
+    if not empty_channels:
+        return [_pass(rid, component, "No channel.empty() emits")]
+    output_has_fields = doc.get("doc_output_has_fields", {})
+    violations = []
+    for name in sorted(empty_channels):
+        if output_has_fields.get(name, False):
+            violations.append(
+                _fail(
+                    rid,
+                    component,
+                    f"@output {name} has field descriptions but emits channel.empty()",
+                )
+            )
+    if not violations:
+        return [_pass(rid, component, "No field descriptions on channel.empty() emits")]
+    return violations
+
+
 SUBWORKFLOW_RULES = [
     rule_s001,
     rule_s002,
@@ -583,4 +647,6 @@ SUBWORKFLOW_RULES = [
     rule_s023,
     rule_s024,
     rule_s025,
+    rule_s026,
+    rule_s027,
 ]

@@ -82,13 +82,11 @@ def _parse_output_fields(raw_lines: list[str]) -> dict[str, list[str]]:
     return channels
 
 
-def _infer_scope(channels: list[str]) -> str:
-    """Infer subworkflow scope from emit channel names."""
-    has_sample = "sample_outputs" in channels
-    has_run = "run_outputs" in channels
-    if has_sample:
+def _infer_scope(emits: dict[str, list[str]]) -> str:
+    """Infer subworkflow scope from emit channels and their documented fields."""
+    if emits.get("sample_outputs"):
         return "sample"
-    if has_run:
+    if "run_outputs" in emits:
         return "run"
     return "custom"
 
@@ -137,8 +135,8 @@ def _extract_tool_info(ext: dict) -> dict | None:
     if "::" in pkg:
         pkg = pkg.split("::", 1)[1]
     if "=" in pkg:
-        name, version = pkg.rsplit("=", 1)
-        return {"name": name, "version": version}
+        parts = pkg.split("=")
+        return {"name": parts[0], "version": parts[1]}
     return {"name": pkg, "version": "unknown"}
 
 
@@ -240,7 +238,12 @@ def _build_subworkflow_entry(
         channel_fields = _parse_output_fields(groovydoc.get("raw_lines", []))
         # Build dict: every declared channel gets an entry, even if no fields documented
         entry["emits"] = {ch: channel_fields.get(ch, []) for ch in channel_names}
-        entry["scope"] = _infer_scope(channel_names)
+        entry["scope"] = _infer_scope(entry["emits"])
+
+    # Merlin dynamically dispatches to species-specific subworkflows so its
+    # sample_outputs has no fixed field names to document, but it is sample scope.
+    if component_name == "merlin":
+        entry["scope"] = "sample"
 
     # Calls
     calls = {}
