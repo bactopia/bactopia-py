@@ -2,11 +2,9 @@
 
 ## 2.1.2
 
-### Bug Fixes
+### New Commands
 
-- Fixed `_infer_scope` classifying run-scope subworkflows as sample scope when `sample_outputs` was declared but empty
-- Fixed `_extract_tool_info` returning build hash as version for conda specs with build strings (e.g., `midas=1.3.2=pyh7cba7a3_7`)
-- Hardcoded merlin subworkflow as sample scope (dynamic dispatcher with no fixed output fields)
+- `bactopia-scaffold` - scaffold Bactopia components (modules, subworkflows, workflows) from bioconda/conda-forge packages with subcommands: `lookup`, `test-data`, `module`, `subworkflow`, `tool`
 
 ### New Lint Rules
 
@@ -15,8 +13,18 @@
 - `S026` - All emit channels must have a corresponding `@output` tag (FAIL/WARN)
 - `S027` - `@output` field descriptions must not exist for `channel.empty()` emits (FAIL)
 
+### Bug Fixes
+
+- Fixed `_infer_scope` classifying run-scope subworkflows as sample scope when `sample_outputs` was declared but empty
+- Fixed `_extract_tool_info` returning build hash as version for conda specs with build strings (e.g., `midas=1.3.2=pyh7cba7a3_7`)
+- Hardcoded merlin subworkflow as sample scope (dynamic dispatcher with no fixed output fields)
+
 ### Enhancements
 
+- `bactopia-lint` gains `--subworkflow` and `--workflow` filter options to complement existing `--module`
+- Lint runner now supports `subworkflow_filter` and `workflow_filter` for fine-grained single-component linting
+- Extracted shared `bactopia.conda` module for Anaconda API queries (bioconda/conda-forge version lookup, container ref construction, component existence checking); refactored `bactopia-update` to use it
+- `bactopia-catalog` improved scope inference and tool info extraction
 - Workflow param parser now captures type annotations (e.g., `String`, `Value<Path>`)
 - Subworkflow `take:` block inputs are now parsed with name, type, and line number
 - GroovyDoc parser now tracks per-`@output` field presence (`doc_output_has_fields`)
@@ -24,6 +32,8 @@
 
 ### Tests
 
+- Tests for `bactopia.conda` module (API queries, retry logic, container refs, component checking)
+- Tests for `bactopia-scaffold` (config validation, template rendering for modules/subworkflows/workflows)
 - 11 tests for W021/S025 rules (pass/fail/edge cases for both workflow and subworkflow)
 - Tests for S026/S027 rules (matching/missing/extra @output tags, channel.empty() field validation)
 
