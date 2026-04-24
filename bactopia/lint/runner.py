@@ -153,6 +153,8 @@ def run_lint(
     lint_subworkflows: bool = True,
     lint_workflows: bool = True,
     module_filter: str | None = None,
+    subworkflow_filter: str | None = None,
+    workflow_filter: str | None = None,
 ) -> dict:
     """Run all lint rules against a Bactopia repo.
 
@@ -162,6 +164,8 @@ def run_lint(
         lint_subworkflows: Whether to lint subworkflows.
         lint_workflows: Whether to lint workflows.
         module_filter: Optional module name filter (e.g. "bakta" or "bakta/run").
+        subworkflow_filter: Optional subworkflow name filter (e.g. "mlst").
+        workflow_filter: Optional workflow name filter (e.g. "mlst" or "bactopia-tools/mlst").
 
     Returns:
         A dict with:
@@ -212,7 +216,7 @@ def run_lint(
         components_by_tier[tier_name] = tier_results
 
     # Subworkflows
-    if lint_subworkflows and not module_filter:
+    if lint_subworkflows:
         tier_name = "subworkflows"
         components = discover_components(bactopia_path, tier_name)
         tier_results = []
@@ -220,6 +224,13 @@ def run_lint(
         for component_name, main_nf in components:
             if "/utils/" in component_name:
                 continue
+            if subworkflow_filter:
+                short_name = component_name.replace("subworkflows/", "")
+                filter_normalized = subworkflow_filter.replace("_", "/")
+                if short_name != filter_normalized and not short_name.startswith(
+                    f"{filter_normalized}/"
+                ):
+                    continue
             ctx = _build_simple_context(main_nf)
             ctx["citation_keys"] = citation_keys
             ctx["bactopia_path"] = bactopia_path
@@ -242,12 +253,19 @@ def run_lint(
         components_by_tier[tier_name] = tier_results
 
     # Workflows
-    if lint_workflows and not module_filter:
+    if lint_workflows:
         tier_name = "workflows"
         components = discover_components(bactopia_path, tier_name)
         tier_results = []
 
         for component_name, main_nf in components:
+            if workflow_filter:
+                short_name = component_name.replace("workflows/", "")
+                filter_normalized = workflow_filter.replace("_", "/")
+                if short_name != filter_normalized and not short_name.startswith(
+                    f"{filter_normalized}/"
+                ):
+                    continue
             ctx = _build_simple_context(main_nf)
             ctx["bactopia_path"] = bactopia_path
             ignored = _collect_ignores(main_nf.parent)

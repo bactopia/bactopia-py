@@ -1,0 +1,31 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/bactopia/bactopia/master/modules/{{ tool }}/schema.json",
+    "title": "{{ display_name }} Module",
+    "description": "A module for {{ description | lower }}",
+    "type": "object",
+    "$defs": {
+        "{{ tool }}_parameters": {
+            "title": "{{ display_name }} Parameters",
+            "type": "object",
+            "description": "",
+            "default": "",
+            "fa_icon": "fas fa-exclamation-circle",
+            "properties": {
+{% for param in parameters %}
+                "{{ param.name }}": {
+                    "type": "{{ param.type }}",
+                    "default": {{ param.default | tojson }},
+                    "description": "{{ param.description }}",
+                    "fa_icon": "{{ icon_map.get(param.type, 'fas fa-font') }}"
+                }{{ ',' if not loop.last else '' }}
+{% endfor %}
+            }
+        }
+    },
+    "allOf": [
+        {
+            "$ref": "#/$defs/{{ tool }}_parameters"
+        }
+    ]
+}

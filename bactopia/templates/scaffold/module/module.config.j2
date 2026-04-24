@@ -1,0 +1,35 @@
+params {
+    // {{ tool }}
+{% for param in parameters %}
+    {{ param.name }} = {{ param.default | tojson }}
+{% endfor %}
+}
+
+process {
+    withName: '{{ process_name }}' {
+        ext.wf = params.wf
+        ext.scope = "sample"
+        ext.subdir = ""
+        ext.logs_subdir = ""
+        ext.process_name = "{{ tool }}"
+
+        // Tool arguments
+        ext.args = [
+{% for param in parameters %}
+{% if param.type == 'boolean' %}
+            params.{{ param.name }} ? "{{ param.flag }}" : "",
+{% elif param.type == 'string' %}
+            params.{{ param.name }} ? "{{ param.flag }} ${params.{{ param.name }}}" : "",
+{% else %}
+            "{{ param.flag }} ${params.{{ param.name }}}",
+{% endif %}
+{% endfor %}
+        ].join(' ').replaceAll("\\s{2,}", " ").trim()
+
+        // Environment information
+        ext.toolName = "{{ container_refs.toolName }}".replace("=", "-").replace(":", "-").replace(" ", "-")
+        ext.docker = "{{ container_refs.docker }}"
+        ext.image = "{{ container_refs.image }}"
+        ext.condaDir = "${params.condadir}"
+    }
+}

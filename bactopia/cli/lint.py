@@ -28,6 +28,8 @@ click.rich_click.OPTION_GROUPS = {
                 "--subworkflows",
                 "--workflows",
                 "--module",
+                "--subworkflow",
+                "--workflow",
             ],
         },
         {
@@ -143,6 +145,18 @@ def print_rich(
     help="Lint a single module by name (e.g. 'mlst', 'bakta/run')",
 )
 @click.option(
+    "--subworkflow",
+    "subworkflow_filter",
+    default=None,
+    help="Lint a single subworkflow by name (e.g. 'mlst')",
+)
+@click.option(
+    "--workflow",
+    "workflow_filter",
+    default=None,
+    help="Lint a single workflow by name (e.g. 'mlst', 'bactopia-tools/mlst')",
+)
+@click.option(
     "-q",
     "--quiet",
     is_flag=True,
@@ -159,6 +173,8 @@ def lint(
     subworkflows,
     workflows,
     module_filter,
+    subworkflow_filter,
+    workflow_filter,
     quiet,
     use_json,
     pretty,
@@ -189,8 +205,8 @@ def lint(
         logging.error(f"No main.nf found in {bp}, is this a valid Bactopia repository?")
         sys.exit(1)
 
-    # If filtering by module, only lint modules
-    if module_filter:
+    # If filtering by module, only lint modules (unless other filters also set)
+    if module_filter and not subworkflow_filter and not workflow_filter:
         subworkflows = False
         workflows = False
 
@@ -201,6 +217,8 @@ def lint(
         lint_subworkflows=subworkflows,
         lint_workflows=workflows,
         module_filter=module_filter,
+        subworkflow_filter=subworkflow_filter,
+        workflow_filter=workflow_filter,
     )
 
     # Build serializable output

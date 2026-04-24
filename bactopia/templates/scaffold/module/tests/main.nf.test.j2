@@ -1,0 +1,44 @@
+nextflow_process {
+    name "Test {{ process_name }}"
+    script "../main.nf"
+    process "{{ process_name }}"
+    tag "modules"
+    tag "{{ tool }}"
+
+    test("{{ tool }} - module - {{ test_sample_id }}") {
+        when {
+            params {
+                test_data_dir = System.getenv("BACTOPIA_TESTS") ?: ""
+            }
+            process {
+                """
+                input[0] = Channel.of(
+                    record(
+                        meta: [name: "{{ test_sample_id }}"],
+{% if input_type == 'assembly' %}
+                        fna: file("${params.test_data_dir}/{{ test_uncompressed_path }}")
+{% endif %}
+                    )
+                )
+{% if has_database %}
+                input[1] = file("${params.test_data_dir}/{{ db_test_path }}")
+{% endif %}
+                """
+            }
+        }
+
+        then {
+            def record = process.out[0][0]
+            assertAll(
+                { assert process.success },
+                { assert snapshot(
+                    record.meta,
+{% for output in outputs %}
+                    record.{{ output.name }},
+{% endfor %}
+                    record.versions
+                ).match() }
+            )
+        }
+    }
+}

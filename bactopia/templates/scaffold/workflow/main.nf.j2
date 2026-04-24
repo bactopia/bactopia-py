@@ -1,0 +1,94 @@
+#!/usr/bin/env nextflow
+/**
+ * {{ description }}
+ *
+ * This Bactopia Tool uses [{{ display_name }}]({{ home_url }}) to {{ description | lower }}.
+ *
+ * @status stable
+ * @keywords {{ keywords | join(', ') }}, bactopia-tool
+ * @tags complexity:simple input-type:parameter output-type:multiple features:bactopia-tool{{ ',aggregation' if has_aggregation else '' }}
+ * @citation {{ 'csvtk, ' if has_csvtk else '' }}{{ citation_key }}
+ *
+ * @subworkflows utils_bactopia-tools, {{ tool }}
+ *
+ * @input rundir
+ * Directory containing results from a completed Bactopia analysis run
+{% if has_database %}
+ *
+ * @input {{ db_param_name }}
+ * Path to a database directory (optional)
+{% endif %}
+ *
+ * @section Per-Sample Results
+{% for output in outputs %}
+ * @publish *.{{ output.extension.lstrip('.') }}{{ ' ' * (27 - output.extension.lstrip('.') | length) }}{{ output.description }}
+{% endfor %}
+ *
+{% if has_csvtk %}
+ * @section Merged Results
+ * @publish {{ tool }}.{{ aggregation.format }}{{ ' ' * (25 - tool | length - aggregation.format | length) }}Merged {{ aggregation.format | upper }} file containing {{ tool }} results from all samples
+ *
+{% endif %}
+ * @section Execution Logs
+ * @publish logs/{{ tool }}/*{{ ' ' * (23 - tool | length) }}Tool execution logs (stdout/stderr)
+ * @publish logs/nf-*                  Nextflow execution scripts and logs for debugging
+ *
+ * @section Versions
+ * @publish versions.yml               Software version information
+ */
+nextflow.preview.types = true
+
+params {
+    rundir : String
+{% if has_database %}
+
+    // Tool-specific parameters
+    {{ db_param_name }} : Path?
+{% endif %}
+}
+
+{% set names = ["BACTOPIATOOL_INIT", process_name, "collectNextflowLogs"] %}
+{% set pad = names | map('length') | max %}
+include { BACTOPIATOOL_INIT{{ " " * (pad - 17) }} } from '../../../subworkflows/utils/bactopia-tools/main'
+include { {{ process_name }}{{ " " * (pad - process_name | length) }} } from '../../../subworkflows/{{ tool }}/main'
+include { collectNextflowLogs{{ " " * (pad - 19) }} } from 'plugin/nf-bactopia'
+
+workflow {
+    main:
+    ch_bactopiatool = BACTOPIATOOL_INIT()
+    ch_{{ tool }} = {{ process_name }}(ch_bactopiatool.{{ channel_name }}{{ ', params.' + db_param_name if has_database else '' }})
+
+    publish:
+    // Per-sample
+    sample_outputs = ch_{{ tool }}.sample_outputs
+    sample_nf_logs = collectNextflowLogs(ch_{{ tool }}.sample_outputs)
+    // Run-level
+    run_outputs = ch_{{ tool }}.run_outputs
+    run_nf_logs = collectNextflowLogs(ch_{{ tool }}.run_outputs)
+}
+
+output {
+    // Sample-level outputs (stored in ${params.outdir}/<SAMPLE_NAME>/)
+    sample_outputs {
+        path { r ->
+            r.results.flatten()  >> "${r.meta.output_dir}/"
+            r.logs.flatten()     >> "${r.meta.logs_dir}/"
+            r.versions.flatten() >> "${r.meta.logs_dir}/"
+        }
+    }
+    sample_nf_logs {
+        path { meta, f -> f >> "${meta.logs_dir}/nf${f.name}" }
+    }
+
+    // Run-level outputs (stored in ${params.outdir}/bactopia-runs/<RUN_NAME>/)
+    run_outputs {
+        path { r ->
+            r.results.flatten()  >> "${params.rundir}/${r.meta.output_dir}/"
+            r.logs.flatten()     >> "${params.rundir}/${r.meta.logs_dir}/"
+            r.versions.flatten() >> "${params.rundir}/${r.meta.logs_dir}/"
+        }
+    }
+    run_nf_logs {
+        path { meta, f -> f >> "${params.rundir}/${meta.logs_dir}/nf${f.name}" }
+    }
+}

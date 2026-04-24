@@ -2,19 +2,30 @@
 
 ## 2.1.2
 
+### Bug Fixes
+
+- Fixed `_infer_scope` classifying run-scope subworkflows as sample scope when `sample_outputs` was declared but empty
+- Fixed `_extract_tool_info` returning build hash as version for conda specs with build strings (e.g., `midas=1.3.2=pyh7cba7a3_7`)
+- Hardcoded merlin subworkflow as sample scope (dynamic dispatcher with no fixed output fields)
+
 ### New Lint Rules
 
 - `W021` - Workflow `params` block: `Value<Path>` / `Value<Path?>` wrappers must be replaced with bare `Path` / `Path?` (FAIL)
 - `S025` - Subworkflow `take:` block: `Value<Path>` / `Value<Path?>` wrappers must be replaced with bare `Path` / `Path?` (FAIL)
+- `S026` - All emit channels must have a corresponding `@output` tag (FAIL/WARN)
+- `S027` - `@output` field descriptions must not exist for `channel.empty()` emits (FAIL)
 
 ### Enhancements
 
 - Workflow param parser now captures type annotations (e.g., `String`, `Value<Path>`)
 - Subworkflow `take:` block inputs are now parsed with name, type, and line number
+- GroovyDoc parser now tracks per-`@output` field presence (`doc_output_has_fields`)
+- Structure parser now detects `channel.empty()` emit channels (`empty_emit_channels`)
 
 ### Tests
 
 - 11 tests for W021/S025 rules (pass/fail/edge cases for both workflow and subworkflow)
+- Tests for S026/S027 rules (matching/missing/extra @output tags, channel.empty() field validation)
 
 ## 2.1.1
 

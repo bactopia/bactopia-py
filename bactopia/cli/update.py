@@ -4,7 +4,6 @@ import sys
 import time
 from pathlib import Path
 
-import requests
 import rich
 import rich.console
 import rich.traceback
@@ -12,6 +11,7 @@ import rich_click as click
 from rich.logging import RichHandler
 
 import bactopia
+from bactopia.conda import construct_container_refs, get_latest_info
 from bactopia.nf import parse_all_conda_tools
 
 # Set up Rich
@@ -47,48 +47,6 @@ click.rich_click.OPTION_GROUPS = {
         },
     ]
 }
-ANACONDA_API = "https://api.anaconda.org/package/bioconda"
-
-
-def get_latest_info(tool: str, max_retry: int) -> dict | None:
-    """Query Anaconda API for the latest version and build of a bioconda tool.
-
-    Args:
-        tool: The bioconda package name (e.g. "bakta").
-        max_retry: Maximum number of query attempts.
-
-    Returns:
-        Dict with 'version' and 'build' keys, or None on failure.
-    """
-    attempt = 1
-    url = f"{ANACONDA_API}/{tool}"
-    while attempt <= max_retry:
-        logging.debug(f"Querying {url} (attempt {attempt} of {max_retry})")
-        r = requests.get(url)
-        if r.status_code == requests.codes.ok:
-            data = r.json()
-            version = data.get("latest_version") or data.get("versions", [None])[-1]
-
-            # Find the latest linux-64 build string from the files array
-            # Bioconda publishes separate builds per platform (linux-64,
-            # osx-64, linux-aarch64, etc.) and Bactopia only targets linux-64.
-            build = None
-            if "files" in data:
-                for f in reversed(data["files"]):
-                    attrs = f.get("attrs", {})
-                    if (
-                        f.get("version") == version
-                        and attrs.get("subdir") == "linux-64"
-                    ):
-                        build = attrs.get("build")
-                        break
-
-            return {"version": version, "build": build}
-        else:
-            attempt += 1
-            time.sleep(5)
-    logging.warning(f"Unable to query {url} after {max_retry} attempts.")
-    return None
 
 
 @click.command(
@@ -243,14 +201,12 @@ def update(
             }
 
             if latest and latest["build"]:
-                version = latest["version"]
-                build = latest["build"]
-                entry["latest_toolName"] = f"bioconda::{tool_name}={version}"
-                entry["latest_docker"] = f"biocontainers/{tool_name}:{version}--{build}"
-                entry["latest_image"] = (
-                    f"https://depot.galaxyproject.org/singularity/"
-                    f"{tool_name}:{version}--{build}"
+                refs = construct_container_refs(
+                    tool_name, latest["version"], latest["build"]
                 )
+                entry["latest_toolName"] = refs["toolName"]
+                entry["latest_docker"] = refs["docker"]
+                entry["latest_image"] = refs["image"]
 
             results.append(entry)
 

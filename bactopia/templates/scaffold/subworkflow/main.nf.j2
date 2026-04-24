@@ -1,0 +1,96 @@
+/**
+ * {{ description }}
+ *
+ * This subworkflow uses [{{ display_name }}]({{ home_url }}) to {{ description | lower }}.
+{% if has_csvtk %}
+ * It processes each sample individually and aggregates the results into
+ * a single consolidated report.
+{% endif %}
+ *
+ * @status stable
+ * @keywords {{ keywords | join(', ') }}
+ * @tags complexity:moderate input-type:single output-type:{{ 'multiple' if has_aggregation else 'single' }} features:{{ 'aggregation,' if has_aggregation }}{{ 'database-dependent' if has_database else '' }}
+ * @citation {{ citation_key }}
+ *
+{% if has_csvtk %}
+ * @modules csvtk_concat, {{ tool }}
+{% else %}
+ * @modules {{ tool }}
+{% endif %}
+ *
+ * @input record(meta, {{ input_fields[0].name }})
+ * - `meta`: Groovy Record containing sample information
+ * - `{{ input_fields[0].name }}`: {{ input_fields[0].description }}
+{% if has_database %}
+ *
+ * @input db
+ * Database to use for {{ tool }}
+{% endif %}
+ *
+ * @output sample_outputs
+{% for output in outputs %}
+ * - `{{ output.name }}`: {{ output.description }}
+{% endfor %}
+ *
+{% if has_csvtk %}
+ * @output run_outputs
+ * - `csv`: A merged {{ aggregation.format | upper }} file with {{ tool }} results from all samples
+{% elif has_summary %}
+ * @output run_outputs
+ * - `{{ primary_output.name }}`: Aggregated {{ tool }} summary
+{% else %}
+ * @output run_outputs
+{% endif %}
+ */
+nextflow.preview.types = true
+
+{% if has_csvtk %}
+{% set alias = process_name ~ " as " ~ process_name ~ "_MODULE" %}
+{% set names = [alias, "CSVTK_CONCAT", "gatherCsvtk"] %}
+{% set pad = names | map('length') | max %}
+include { {{ alias }}{{ " " * (pad - alias | length) }} } from '../../modules/{{ tool }}/main'
+include { CSVTK_CONCAT{{ " " * (pad - 12) }} } from '../../modules/csvtk/concat/main'
+include { gatherCsvtk{{ " " * (pad - 11) }} } from 'plugin/nf-bactopia'
+{% elif has_summary %}
+{% set run_name = process_name ~ "_RUN" %}
+{% set sum_name = process_name ~ "_SUMMARY" %}
+{% set names = [run_name, sum_name, "gatherFields"] %}
+{% set pad = names | map('length') | max %}
+include { {{ run_name }}{{ " " * (pad - run_name | length) }} } from '../../modules/{{ tool }}/run/main'
+include { {{ sum_name }}{{ " " * (pad - sum_name | length) }} } from '../../modules/{{ tool }}/summary/main'
+include { gatherFields{{ " " * (pad - 12) }} } from 'plugin/nf-bactopia'
+{% else %}
+include { {{ process_name }} as {{ process_name }}_MODULE } from '../../modules/{{ tool }}/main'
+{% endif %}
+
+workflow {{ process_name }} {
+    take:
+    {{ input_fields[0].name }}: Channel<Record>
+{% if has_database %}
+    db: Path
+{% endif %}
+
+    main:
+{% if has_csvtk %}
+    ch_{{ tool }} = {{ process_name }}_MODULE({{ input_fields[0].name }}{{ ', db' if has_database else '' }})
+    ch_csvtk_concat = CSVTK_CONCAT(gatherCsvtk(ch_{{ tool }}, '{{ aggregation.field }}', [name: '{{ tool }}']), '{{ aggregation.format }}', '{{ aggregation.format }}')
+{% elif has_summary %}
+    ch_{{ tool }}_run = {{ process_name }}_RUN({{ input_fields[0].name }}{{ ', db' if has_database else '' }})
+    ch_{{ tool }}_summary = {{ process_name }}_SUMMARY(gatherFields(ch_{{ tool }}_run, [{{ aggregation.field }}: 'reports'], [name: '{{ tool }}']))
+{% else %}
+    ch_{{ tool }} = {{ process_name }}_MODULE({{ input_fields[0].name }}{{ ', db' if has_database else '' }})
+{% endif %}
+
+    emit:
+    // Published outputs
+{% if has_csvtk %}
+    sample_outputs = ch_{{ tool }}
+    run_outputs = ch_csvtk_concat
+{% elif has_summary %}
+    sample_outputs = ch_{{ tool }}_run
+    run_outputs = ch_{{ tool }}_summary
+{% else %}
+    sample_outputs = ch_{{ tool }}
+    run_outputs = Channel.empty()
+{% endif %}
+}

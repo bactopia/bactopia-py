@@ -1,0 +1,131 @@
+/**
+ * {{ description }}
+ *
+ * Uses [{{ display_name }}]({{ home_url }}) to {{ description | lower }}.
+ *
+ * @status stable
+ * @keywords {{ keywords | join(', ') }}
+ * @tags complexity:simple input-type:single output-type:single features:{{ 'database-dependent,' if has_database }}{{ 'conditional-logic' if not handles_gz else '' }}
+ * @citation {{ citation_key }}
+{% if has_database %}
+ *
+ * @note Database Required
+ * Requires a database to be available.
+{% endif %}
+ *
+ * @input record(meta, {{ input_fields | map(attribute='name') | join(', ') }})
+ * - `meta`: Groovy Record containing sample information
+{% for field in input_fields %}
+ * - `{{ field.name }}`: {{ field.description }}
+{% endfor %}
+{% if has_database %}
+ *
+ * @input db
+ * Database directory or compressed tarball
+{% endif %}
+ *
+ * @output record(meta, {{ outputs | map(attribute='name') | join(', ') }}, results, logs, nf_logs, versions)
+{% for output in outputs %}
+ * - `{{ output.name }}`: {{ output.description }}
+{% endfor %}
+ */
+nextflow.preview.types = true
+
+process {{ process_name }} {
+    tag "${prefix}"
+    label '{{ resource_label }}'
+
+    conda "${task.ext.condaDir}/${task.ext.toolName}"
+    container "${task.ext.container}"
+
+    input:
+    record (
+        meta: Record,
+{% for field in input_fields %}
+        {{ field.name }}: {{ field.type }}{{ ',' if not loop.last else '' }}
+{% endfor %}
+    )
+{% if has_database %}
+    db: Path
+{% endif %}
+
+    output:
+    record(
+        // Named fields (used downstream)
+        meta: meta,
+{% for output in outputs %}
+        {{ output.name }}: file("${prefix}.{{ output.extension.lstrip('.') }}"),
+{% endfor %}
+        // Generic fields (used for publishing)
+        results: [
+{% for output in outputs %}
+            files("${prefix}.{{ output.extension.lstrip('.') }}"){{ ',' if not loop.last else '' }}
+{% endfor %}
+        ],
+        logs: files("*.{log,err}", optional: true),
+        nf_logs: files(".command.*"),
+        versions: files("versions.yml")
+    )
+
+    script:
+    def _meta = meta
+    prefix = task.ext.prefix ?: "${_meta.name}"
+
+    // Create a new meta record
+    meta = record(
+        id: "${prefix}-${task.process}",
+        name: prefix,
+        scope: task.ext.scope,
+        output_dir: "${prefix}/tools/${task.ext.process_name}/${task.ext.subdir}",
+        logs_dir: "${prefix}/tools/${task.ext.process_name}/${task.ext.subdir}/logs/${task.ext.logs_subdir}",
+        process_name: task.ext.process_name
+    )
+
+{% if not handles_gz and input_type == 'assembly' %}
+    def is_compressed = fna.getName().endsWith(".gz") ? true : false
+    def fna_name = fna.getName().replace(".gz", "")
+{% endif %}
+{% if has_database %}
+    def is_tarball = db.getName().endsWith(".tar.gz") ? true : false
+{% endif %}
+    """
+{% if not handles_gz and input_type == 'assembly' %}
+    if [ "${is_compressed}" == "true" ]; then
+        gzip -c -d ${fna} > ${fna_name}
+    fi
+
+{% endif %}
+{% if has_database %}
+    # Extract database
+    if [ "${is_tarball}" == "true" ]; then
+        mkdir database/
+        tar -xzf ${db} -C database
+    fi
+
+{% endif %}
+    {{ tool }} \\
+        ${task.ext.args} \\
+{% if not handles_gz and input_type == 'assembly' %}
+        ${fna_name}
+{% elif input_type == 'assembly' %}
+        ${fna}
+{% endif %}
+
+    # Cleanup
+{% if not handles_gz and input_type == 'assembly' %}
+    if [ "${is_compressed}" == "true" ]; then
+        rm -rf ${fna_name}
+    fi
+{% endif %}
+{% if has_database %}
+    if [ "${is_tarball}" == "true" ]; then
+        rm -rf database/
+    fi
+{% endif %}
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        {{ tool }}: \$( {{ version_command }} )
+    END_VERSIONS
+    """
+}

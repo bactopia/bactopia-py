@@ -33,6 +33,7 @@ bactopia-lint = "bactopia.cli.lint:main"
 bactopia-catalog = "bactopia.cli.catalog:main"
 bactopia-review-tests = "bactopia.cli.review:main"
 bactopia-docs = "bactopia.cli.docs:main"
+bactopia-scaffold = "bactopia.cli.scaffold:main"
 # Pipeline utility scripts (called from Nextflow module shell blocks)
 bactopia-check-fastqs = "bactopia.cli.pipeline.check_fastqs:main"
 bactopia-check-assembly-accession = "bactopia.cli.pipeline.check_assembly_accession:main"
@@ -67,7 +68,7 @@ optional = true
 pytest = "^8.0"
 pytest-cov = "^6.0"
 pytest-mock = "^3.14"
-responses = "^0.25"
+responses = ">=0.25"
 
 [tool.ruff]
 line-length = 88
