@@ -1,12 +1,33 @@
 {
   "name": "bactopia-py",
-  "version": "2.0.0",
+  "version": "2.1.2",
   "description": "Python CLI tools for working with Bactopia",
   "repository": "https://github.com/bactopia/bactopia-py",
   "license": "MIT",
-  "python_requires": ">=3.9",
-  "command_count": 28,
+  "python_requires": ">=3.10",
+  "command_count": 30,
   "commands": [
+    {
+      "name": "bactopia-atb-downloader",
+      "description": "Download assemblies from AllTheBacteria database",
+      "entry_point": "bactopia.cli.atb.atb_downloader:main",
+      "category": "atb",
+      "tags": ["AllTheBacteria", "download", "assemblies"]
+    },
+    {
+      "name": "bactopia-atb-formatter",
+      "description": "Restructure AllTheBacteria assemblies for Bactopia Tools",
+      "entry_point": "bactopia.cli.atb.atb_formatter:main",
+      "category": "atb",
+      "tags": ["AllTheBacteria", "assemblies", "restructure", "directory"]
+    },
+    {
+      "name": "bactopia-catalog",
+      "description": "Generate a catalog.json of Bactopia pipeline components",
+      "entry_point": "bactopia.cli.catalog:main",
+      "category": "development",
+      "tags": ["catalog", "schema", "components"]
+    },
     {
       "name": "bactopia-citations",
       "description": "Print out tools and citations used throughout Bactopia",
@@ -22,74 +43,18 @@
       "tags": ["download", "datasets", "supplementary"]
     },
     {
+      "name": "bactopia-docs",
+      "description": "Validate reference documentation for staleness",
+      "entry_point": "bactopia.cli.docs:main",
+      "category": "development",
+      "tags": ["docs", "validation", "staleness", "references"]
+    },
+    {
       "name": "bactopia-download",
       "description": "Build Conda/Docker/Singularity environments for Bactopia",
       "entry_point": "bactopia.cli.download:main",
       "category": "environment",
       "tags": ["conda", "docker", "singularity", "environments"]
-    },
-    {
-      "name": "bactopia-prepare",
-      "description": "Create a file of filenames (FOFN) of samples for Bactopia",
-      "entry_point": "bactopia.cli.prepare:main",
-      "category": "input",
-      "tags": ["FOFN", "samples", "FASTQ", "FASTA", "input"]
-    },
-    {
-      "name": "bactopia-search",
-      "description": "Query ENA and SRA for public accessions to process",
-      "entry_point": "bactopia.cli.search:main",
-      "category": "input",
-      "tags": ["ENA", "SRA", "search", "accessions", "public-data"]
-    },
-    {
-      "name": "bactopia-summary",
-      "description": "Generate summary table with quality rankings from results",
-      "entry_point": "bactopia.cli.summary:main",
-      "category": "analysis",
-      "tags": ["summary", "QC", "quality", "ranking", "Gold", "Silver", "Bronze"]
-    },
-    {
-      "name": "bactopia-update",
-      "description": "Check for newer versions of modules used by Bactopia Tools",
-      "entry_point": "bactopia.cli.update:main",
-      "category": "maintenance",
-      "tags": ["update", "versions", "modules"]
-    },
-    {
-      "name": "bactopia-status",
-      "description": "Show repository status including git info, test coverage, and tier details",
-      "entry_point": "bactopia.cli.status:main",
-      "category": "documentation",
-      "tags": ["status", "git", "testing", "tiers"]
-    },
-    {
-      "name": "bactopia-sysinfo",
-      "description": "Auto-detect host RAM and CPUs and emit Nextflow CLI overrides",
-      "entry_point": "bactopia.cli.sysinfo:main",
-      "category": "utility",
-      "tags": ["sysinfo", "memory", "cpus", "nextflow", "auto-detect"]
-    },
-    {
-      "name": "bactopia-workflows",
-      "description": "List available Bactopia workflows and output paths",
-      "entry_point": "bactopia.cli.workflows:main",
-      "category": "documentation",
-      "tags": ["workflows", "list", "tools"]
-    },
-    {
-      "name": "bactopia-prune",
-      "description": "Remove unused Conda/Singularity environments",
-      "entry_point": "bactopia.cli.prune:main",
-      "category": "maintenance",
-      "tags": ["prune", "cleanup", "conda", "singularity", "environments"]
-    },
-    {
-      "name": "bactopia-test",
-      "description": "Run nf-test suites across Bactopia components",
-      "entry_point": "bactopia.cli.testing:main",
-      "category": "development",
-      "tags": ["testing", "nf-test", "CI"]
     },
     {
       "name": "bactopia-lint",
@@ -99,20 +64,6 @@
       "tags": ["lint", "validation", "modules", "subworkflows", "workflows"]
     },
     {
-      "name": "bactopia-catalog",
-      "description": "Generate a catalog.json of Bactopia pipeline components",
-      "entry_point": "bactopia.cli.catalog:main",
-      "category": "development",
-      "tags": ["catalog", "schema", "components"]
-    },
-    {
-      "name": "bactopia-review-tests",
-      "description": "Analyze nf-test timing and compare against baselines",
-      "entry_point": "bactopia.cli.review:main",
-      "category": "development",
-      "tags": ["testing", "review", "timing", "nf-test"]
-    },
-    {
       "name": "bactopia-merge-schemas",
       "description": "Merge Nextflow schemas for Bactopia workflows",
       "entry_point": "bactopia.cli.helpers.merge_schemas:main",
@@ -120,25 +71,18 @@
       "tags": ["schema", "merge", "nextflow"]
     },
     {
-      "name": "bactopia-atb-formatter",
-      "description": "Restructure AllTheBacteria assemblies for Bactopia Tools",
-      "entry_point": "bactopia.cli.atb.atb_formatter:main",
-      "category": "atb",
-      "tags": ["AllTheBacteria", "assemblies", "restructure", "directory"]
+      "name": "bactopia-prepare",
+      "description": "Create a file of filenames (FOFN) of samples for Bactopia",
+      "entry_point": "bactopia.cli.prepare:main",
+      "category": "input",
+      "tags": ["FOFN", "samples", "FASTQ", "FASTA", "input"]
     },
     {
-      "name": "bactopia-atb-downloader",
-      "description": "Download assemblies from AllTheBacteria database",
-      "entry_point": "bactopia.cli.atb.atb_downloader:main",
-      "category": "atb",
-      "tags": ["AllTheBacteria", "download", "assemblies"]
-    },
-    {
-      "name": "bactopia-pubmlst-setup",
-      "description": "One-time setup for PubMLST REST API credentials",
-      "entry_point": "bactopia.cli.pubmlst.setup:main",
-      "category": "pubmlst",
-      "tags": ["PubMLST", "setup", "OAuth", "credentials"]
+      "name": "bactopia-prune",
+      "description": "Remove unused Conda/Singularity environments",
+      "entry_point": "bactopia.cli.prune:main",
+      "category": "maintenance",
+      "tags": ["prune", "cleanup", "conda", "singularity", "environments"]
     },
     {
       "name": "bactopia-pubmlst-build",
@@ -148,11 +92,81 @@
       "tags": ["PubMLST", "MLST", "database", "build"]
     },
     {
-      "name": "bactopia-check-fastqs",
-      "description": "Verify FASTQs meet minimum quality and size requirements",
-      "entry_point": "bactopia.cli.pipeline.check_fastqs:main",
+      "name": "bactopia-pubmlst-setup",
+      "description": "One-time setup for PubMLST REST API credentials",
+      "entry_point": "bactopia.cli.pubmlst.setup:main",
+      "category": "pubmlst",
+      "tags": ["PubMLST", "setup", "OAuth", "credentials"]
+    },
+    {
+      "name": "bactopia-review-tests",
+      "description": "Analyze nf-test timing and compare against baselines",
+      "entry_point": "bactopia.cli.review:main",
+      "category": "development",
+      "tags": ["testing", "review", "timing", "nf-test"]
+    },
+    {
+      "name": "bactopia-scaffold",
+      "description": "Scaffold Bactopia components from bioconda/conda-forge packages",
+      "entry_point": "bactopia.cli.scaffold:main",
+      "category": "development",
+      "tags": ["scaffold", "module", "subworkflow", "bioconda", "conda-forge"]
+    },
+    {
+      "name": "bactopia-search",
+      "description": "Query ENA and SRA for public accessions to process",
+      "entry_point": "bactopia.cli.search:main",
+      "category": "input",
+      "tags": ["ENA", "SRA", "search", "accessions", "public-data"]
+    },
+    {
+      "name": "bactopia-status",
+      "description": "Show repository status including git info, test coverage, and tier details",
+      "entry_point": "bactopia.cli.status:main",
+      "category": "documentation",
+      "tags": ["status", "git", "testing", "tiers"]
+    },
+    {
+      "name": "bactopia-summary",
+      "description": "Generate summary table with quality rankings from results",
+      "entry_point": "bactopia.cli.summary:main",
+      "category": "analysis",
+      "tags": ["summary", "QC", "quality", "ranking", "Gold", "Silver", "Bronze"]
+    },
+    {
+      "name": "bactopia-sysinfo",
+      "description": "Auto-detect host RAM and CPUs and emit Nextflow CLI overrides",
+      "entry_point": "bactopia.cli.sysinfo:main",
+      "category": "utility",
+      "tags": ["sysinfo", "memory", "cpus", "nextflow", "auto-detect"]
+    },
+    {
+      "name": "bactopia-test",
+      "description": "Run nf-test suites across Bactopia components",
+      "entry_point": "bactopia.cli.testing:main",
+      "category": "development",
+      "tags": ["testing", "nf-test", "CI"]
+    },
+    {
+      "name": "bactopia-update",
+      "description": "Check for newer versions of modules used by Bactopia Tools",
+      "entry_point": "bactopia.cli.update:main",
+      "category": "maintenance",
+      "tags": ["update", "versions", "modules"]
+    },
+    {
+      "name": "bactopia-workflows",
+      "description": "List available Bactopia workflows and output paths",
+      "entry_point": "bactopia.cli.workflows:main",
+      "category": "documentation",
+      "tags": ["workflows", "list", "tools"]
+    },
+    {
+      "name": "bactopia-bracken-to-excel",
+      "description": "Export Bracken abundance tables to Excel format",
+      "entry_point": "bactopia.cli.pipeline.bracken_to_excel:main",
       "category": "pipeline",
-      "tags": ["FASTQ", "validation", "QC", "pipeline"]
+      "tags": ["bracken", "excel", "export", "pipeline"]
     },
     {
       "name": "bactopia-check-assembly-accession",
@@ -162,18 +176,18 @@
       "tags": ["NCBI", "assembly", "accession", "validation", "pipeline"]
     },
     {
+      "name": "bactopia-check-fastqs",
+      "description": "Verify FASTQs meet minimum quality and size requirements",
+      "entry_point": "bactopia.cli.pipeline.check_fastqs:main",
+      "category": "pipeline",
+      "tags": ["FASTQ", "validation", "QC", "pipeline"]
+    },
+    {
       "name": "bactopia-cleanup-coverage",
       "description": "Reduce per-base coverage file redundancy with run-length encoding",
       "entry_point": "bactopia.cli.pipeline.cleanup_coverage:main",
       "category": "pipeline",
       "tags": ["coverage", "compression", "pipeline"]
-    },
-    {
-      "name": "bactopia-mask-consensus",
-      "description": "Mask Snippy consensus sequence with low-coverage regions",
-      "entry_point": "bactopia.cli.pipeline.mask_consensus:main",
-      "category": "pipeline",
-      "tags": ["snippy", "consensus", "masking", "coverage", "pipeline"]
     },
     {
       "name": "bactopia-kraken-bracken-summary",
@@ -183,25 +197,25 @@
       "tags": ["kraken2", "bracken", "classification", "pipeline"]
     },
     {
+      "name": "bactopia-mask-consensus",
+      "description": "Mask Snippy consensus sequence with low-coverage regions",
+      "entry_point": "bactopia.cli.pipeline.mask_consensus:main",
+      "category": "pipeline",
+      "tags": ["snippy", "consensus", "masking", "coverage", "pipeline"]
+    },
+    {
       "name": "bactopia-scrubber-summary",
       "description": "Generate before/after report of human read scrubbing",
       "entry_point": "bactopia.cli.pipeline.scrubber_summary:main",
       "category": "pipeline",
       "tags": ["scrubber", "human-reads", "decontamination", "pipeline"]
     },
-{
+    {
       "name": "bactopia-teton-prepare",
       "description": "Prepare sample sheets for the Teton variant-calling workflow",
       "entry_point": "bactopia.cli.pipeline.teton_prepare:main",
       "category": "pipeline",
       "tags": ["teton", "variants", "sample-sheet", "pipeline"]
-    },
-    {
-      "name": "bactopia-bracken-to-excel",
-      "description": "Export Bracken abundance tables to Excel format",
-      "entry_point": "bactopia.cli.pipeline.bracken_to_excel:main",
-      "category": "pipeline",
-      "tags": ["bracken", "excel", "export", "pipeline"]
     }
   ]
 }
