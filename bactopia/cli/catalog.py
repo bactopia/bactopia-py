@@ -11,9 +11,9 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.nf import (
     find_main_nf,
     get_bactopia_version,
@@ -28,6 +28,30 @@ from bactopia.nf import (
 stderr = rich.console.Console(stderr=True)
 rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
 click.rich_click.USE_RICH_MARKUP = True
+
+click.rich_click.OPTION_GROUPS = {
+    "bactopia-catalog": [
+        {"name": "Required Options", "options": ["--bactopia-path"]},
+        {
+            "name": "Output Options",
+            "options": [
+                "--output",
+                "--pretty",
+                "--llms-output",
+                "--llms-template",
+            ],
+        },
+        {
+            "name": "Additional Options",
+            "options": [
+                "--verbose",
+                "--silent",
+                "--version",
+                "--help",
+            ],
+        },
+    ]
+}
 
 
 def _extract_description(groovydoc: dict) -> str:
@@ -407,7 +431,7 @@ def render_llms_txt(catalog: dict, template_path: Path) -> str:
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version")
+@common_options
 @click.option(
     "--bactopia-path",
     required=True,
@@ -420,22 +444,21 @@ def render_llms_txt(catalog: dict, template_path: Path) -> str:
     default=None,
     help="Output path for catalog.json (default: stdout)",
 )
-@click.option("--pretty", is_flag=True, help="Pretty-print JSON output.")
+@click.option("--pretty", is_flag=True, help="Pretty-print JSON output")
 @click.option(
     "--llms-output",
     "llms_output_path",
     type=click.Path(),
     default=None,
-    help="Also render llms.txt to this path. Uses the bundled template at bactopia/templates/bactopia/llms.txt.j2 unless --llms-template is provided.",
+    help="Also render llms.txt to this path. Uses the bundled template at bactopia/templates/bactopia/llms.txt.j2 unless --llms-template is provided",
 )
 @click.option(
     "--llms-template",
     "llms_template_path",
     type=click.Path(exists=True, dir_okay=False),
     default=None,
-    help="Jinja2 template for llms.txt. Defaults to the template bundled inside bactopia-py.",
+    help="Jinja2 template for llms.txt. Defaults to the template bundled inside bactopia-py",
 )
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
 def catalog(
     bactopia_path,
     output_path,
@@ -443,6 +466,7 @@ def catalog(
     llms_output_path,
     llms_template_path,
     verbose,
+    silent,
 ):
     """Generate machine-readable catalog of all Bactopia components.
 
@@ -453,15 +477,7 @@ def catalog(
     Optionally also renders llms.txt from a Jinja2 template when
     --llms-output is provided.
     """
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(logging.DEBUG if verbose else logging.WARNING)
+    setup_logging(verbose, silent)
 
     # Validate path
     bp = Path(bactopia_path).absolute().resolve()

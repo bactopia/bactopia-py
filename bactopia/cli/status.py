@@ -1,3 +1,5 @@
+"""CLI command for reporting Bactopia repository status."""
+
 import json
 import logging
 import sys
@@ -9,9 +11,9 @@ import rich.console
 import rich.table
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.nf import (
     check_tier,
     find_main_nf,
@@ -179,35 +181,23 @@ def print_rich(console: rich.console.Console, data: dict):
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version")
+@common_options
 @click.option(
     "--bactopia-path",
     required=True,
     help="Directory where Bactopia repository is stored",
 )
-@click.option("--json", "use_json", is_flag=True, help="Output as JSON.")
+@click.option("--json", "use_json", is_flag=True, help="Output as JSON")
 @click.option(
-    "--pretty", is_flag=True, help="Pretty-print JSON output (implies --json)."
+    "--pretty", is_flag=True, help="Pretty-print JSON output (implies --json)"
 )
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
 def status(bactopia_path, use_json, pretty, verbose, silent):
     """Show a snapshot of the Bactopia project state.
 
     Reports component counts, GroovyDoc coverage, nf-test coverage,
     missing required files, and structural issues.
     """
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     # Validate path
     bp = Path(bactopia_path).absolute().resolve()

@@ -1,3 +1,5 @@
+"""CLI command for generating quality-ranked summary tables."""
+
 import logging
 import sys
 import textwrap
@@ -9,10 +11,10 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
 import bactopia.parsers as parsers
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.parse import parse_bactopia_directory
 from bactopia.parsers.error import parse_errors
 from bactopia.parsers.parsables import EXCLUDE_COLUMNS, get_parsable_files
@@ -142,7 +144,7 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version", "-V")
+@common_options
 @click.option(
     "--bactopia-path",
     "-b",
@@ -271,8 +273,6 @@ def process_sample(df: pd.DataFrame, rank_cutoff: dict) -> list:
     help="Prefix to use for output files",
 )
 @click.option("--force", is_flag=True, help="Overwrite existing reports")
-@click.option("--verbose", is_flag=True, help="Increase the verbosity of output")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed")
 def summary(
     bactopia_path,
     gold_coverage,
@@ -296,17 +296,7 @@ def summary(
     silent,
 ):
     """Generate a summary table from the Bactopia results."""
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     # Set rank cutoffs defaults
     RANK_CUTOFF = {

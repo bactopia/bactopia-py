@@ -1,3 +1,5 @@
+"""CLI command for building PubMLST BLAST databases."""
+
 import logging
 import sys
 from pathlib import Path
@@ -6,9 +8,9 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.databases.pubmlst.utils import (
     available_databases,
     build_blast_db,
@@ -60,7 +62,7 @@ click.rich_click.OPTION_GROUPS = {
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version", "-V")
+@common_options
 @click.option(
     "--database",
     "-d",
@@ -79,28 +81,26 @@ click.rich_click.OPTION_GROUPS = {
     "-t",
     default=f"{Path.home()}/.bactopia",
     show_default=True,
-    help="The directory where the token file is saved.",
+    help="The directory where the token file is saved",
 )
 @click.option(
     "--out-dir",
     "-o",
     default="./bactopia-mlst",
     show_default=True,
-    help="The directory where the database files will be saved.",
+    help="The directory where the database files will be saved",
 )
 @click.option(
     "--ignore",
     default="afumigatus,blastocystis,calbicans,cbotulinum,cglabrata,ckrusei,ctropicalis,csinensis,kseptempunctata,rmlst,sparasitica,test,tpallidum,tvaginalis",
     show_default=True,
-    help="A comma separated list of databases to ignore.",
+    help="A comma separated list of databases to ignore",
 )
 @click.option(
-    "--skip-download", is_flag=True, help="Skip downloading the database files."
+    "--skip-download", is_flag=True, help="Skip downloading the database files"
 )
-@click.option("--skip-blast", is_flag=True, help="Skip building the BLAST database.")
-@click.option("--force", is_flag=True, help="Force overwrite of existing files.")
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
+@click.option("--skip-blast", is_flag=True, help="Skip building the BLAST database")
+@click.option("--force", is_flag=True, help="Force overwrite of existing files")
 def pubmlst_download(
     database: str,
     site: str,
@@ -114,24 +114,7 @@ def pubmlst_download(
     silent: bool,
 ):
     """Build PubMLST databases for use with the 'mlst' Bactopia Tool."""
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(
-                rich_tracebacks=True,
-                console=rich.console.Console(stderr=True),
-                show_time=True if verbose else False,
-                show_level=True if verbose else False,
-                show_path=True,
-                markup=True,
-            )
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     # Ignore DBs
     ignore_dbs = ignore.split(",")

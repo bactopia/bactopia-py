@@ -5,13 +5,15 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+"""CLI command for building Bactopia Conda/Docker/Singularity environments."""
+
 import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.nf import parse_module_config, parse_workflows
 from bactopia.utils import execute
 
@@ -343,7 +345,7 @@ def build_singularity_image(
         allow_extra_args=True,
     )
 )
-@click.version_option(bactopia.__version__, "--version")
+@common_options
 # Use underscores in parameters and only --, since Nextflow parameters are passed in
 @click.option(
     "--bactopia-path",
@@ -355,7 +357,7 @@ def build_singularity_image(
     default="conda",
     show_default=True,
     type=click.Choice(["conda", "docker", "singularity", "all"], case_sensitive=False),
-    help="The type of environment to build.",
+    help="The type of environment to build",
 )
 @click.option(
     "--wf",
@@ -383,7 +385,7 @@ def build_singularity_image(
     "--registry",
     default="quay.io",
     show_default=True,
-    help="Registry to pull Docker containers from.",
+    help="Registry to pull Docker containers from",
 )
 @click.option(
     "--singularity_cache",
@@ -399,7 +401,7 @@ def build_singularity_image(
 @click.option(
     "--force_rebuild",
     is_flag=True,
-    help="Force overwrite of existing pre-built environments.",
+    help="Force overwrite of existing pre-built environments",
 )
 @click.option(
     "--max_retry",
@@ -409,10 +411,8 @@ def build_singularity_image(
 @click.option(
     "--dry-run",
     is_flag=True,
-    help="Show environments that would be built, without building them.",
+    help="Show environments that would be built, without building them",
 )
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
 @click.argument("unknown", nargs=-1, type=click.UNPROCESSED)
 def download(
     bactopia_path,
@@ -432,17 +432,7 @@ def download(
     unknown,
 ):
     """Builds Bactopia environments for use with Nextflow."""
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     singularity_exe = "singularity"
     # Check if -profile x is in unknown

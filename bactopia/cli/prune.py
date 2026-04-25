@@ -1,3 +1,5 @@
+"""CLI command for removing unused Bactopia environments."""
+
 import logging
 import os
 import shutil
@@ -8,9 +10,9 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.nf import parse_module_config, parse_workflows
 from bactopia.utils import execute
 
@@ -313,7 +315,7 @@ def find_stale_docker(current_names: set, tools: dict) -> list:
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version")
+@common_options
 @click.option(
     "--bactopia-path",
     required=True,
@@ -324,7 +326,7 @@ def find_stale_docker(current_names: set, tools: dict) -> list:
     default="all",
     show_default=True,
     type=click.Choice(["conda", "docker", "singularity", "all"], case_sensitive=False),
-    help="The type of environment to check for stale items.",
+    help="The type of environment to check for stale items",
 )
 @click.option(
     "--wf",
@@ -341,7 +343,7 @@ def find_stale_docker(current_names: set, tools: dict) -> list:
     "--registry",
     default="quay.io",
     show_default=True,
-    help="Registry to match Docker containers against.",
+    help="Registry to match Docker containers against",
 )
 @click.option(
     "--singularity_cache",
@@ -358,10 +360,8 @@ def find_stale_docker(current_names: set, tools: dict) -> list:
     "--execute",
     "execute_removal",
     is_flag=True,
-    help="Actually remove stale environments. Default is dry-run (report only).",
+    help="Actually remove stale environments. Default is dry-run (report only)",
 )
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
 def prune(
     bactopia_path,
     envtype,
@@ -375,21 +375,7 @@ def prune(
     silent,
 ):
     """Removes stale Bactopia environments that no longer match current module versions."""
-    # Setup logs
-    logging.basicConfig(
-        format="%(message)s",
-        handlers=[
-            RichHandler(
-                rich_tracebacks=True,
-                console=rich.console.Console(stderr=True),
-                show_time=False,
-                show_path=False,
-            )
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     # Resolve paths
     bactopia_path = str(Path(bactopia_path).absolute())

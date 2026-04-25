@@ -1,38 +1,40 @@
 PROJECT := "bactopia"
 OPEN := if os() == "macos" { "open" } else { "xdg-open" }
+POETRY := `which poetry`
+PYTHON := `which python`
 VERSION := `poetry version -s`
 
 # format code with ruff
 fmt:
-    poetry run ruff format .
-    poetry run ruff check --fix .
+    {{POETRY}} run ruff format .
+    {{POETRY}} run ruff check --fix .
 
 # check format and lint with ruff
 check-fmt:
-    poetry run ruff format --check .
+    {{POETRY}} run ruff format --check .
 
 # lint code with ruff
 lint:
-    poetry run ruff check .
+    {{POETRY}} run ruff check .
 
 # install latest version with poetry
 install:
-    poetry install --no-interaction
+    {{POETRY}} install --no-interaction --with test
 
 # check formatting, linting, and tests
 check: check-fmt lint
 
 # run tests
 test *ARGS:
-    poetry run pytest {{ARGS}}
+    {{POETRY}} run {{PYTHON}} -m pytest {{ARGS}}
 
 # run tests with coverage report
 test-cov *ARGS:
-    poetry run pytest --cov=bactopia --cov-report=term-missing {{ARGS}}
+    {{POETRY}} run {{PYTHON}} -m pytest --cov=bactopia --cov-report=term-missing {{ARGS}}
 
 # run only unit tests (no external data needed)
 test-unit:
-    poetry run pytest -m "not integration" --tb=short
+    {{POETRY}} run {{PYTHON}} -m pytest -m "not integration" --tb=short
 
 # prints out the commands to run to tag the release and push it
 tag:
@@ -41,8 +43,8 @@ tag:
 
 # recreate the poetry lock file
 relock:
-    poetry lock --no-interaction
+    {{POETRY}} lock --no-interaction
 
 # build a python release
 build:
-    poetry build --no-interaction
+    {{POETRY}} build --no-interaction

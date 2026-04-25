@@ -1,3 +1,5 @@
+"""CLI command for creating sample sheets from local FASTQ/assembly files."""
+
 import logging
 import re
 import sys
@@ -8,9 +10,9 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.databases.ncbi import get_ncbi_genome_size, get_taxid_from_species
 from bactopia.utils import validate_file
 
@@ -200,7 +202,7 @@ def print_examples():
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version", "-V")
+@common_options
 @click.option(
     "--path", "-p", required=True, help="Directory where FASTQ files are stored"
 )
@@ -274,8 +276,6 @@ def print_examples():
 )
 @click.option("--prefix", default=None, help="Prefix to add to the path")
 @click.option("--examples", is_flag=True, help="Print example usage")
-@click.option("--verbose", is_flag=True, help="Increase the verbosity of output")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed")
 def prepare(
     path,
     fastq_ext,
@@ -298,17 +298,7 @@ def prepare(
     silent,
 ):
     """Create a 'file of filenames' (FOFN) of samples to be processed by Bactopia"""
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     if hybrid and short_polish:
         logging.error(

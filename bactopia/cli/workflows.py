@@ -1,3 +1,5 @@
+"""CLI command for listing available Bactopia workflows."""
+
 import json
 import logging
 import sys
@@ -7,9 +9,9 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.templates.logos import BACTOPIA_LOGO
 
 # Set up Rich
@@ -46,7 +48,7 @@ click.rich_click.OPTION_GROUPS = {
         allow_extra_args=True,
     )
 )
-@click.version_option(bactopia.__version__, "--version")
+@common_options
 # Use underscores in parameters and only --, since Nextflow parameters are passed in
 @click.option(
     "--bactopia-path",
@@ -62,10 +64,8 @@ click.rich_click.OPTION_GROUPS = {
 @click.option(
     "--list_wfs",
     is_flag=True,
-    help="List available Bactopia workflows and exit.",
+    help="List available Bactopia workflows and exit",
 )
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
 @click.argument("unknown", nargs=-1, type=click.UNPROCESSED)
 def download(
     bactopia_path,
@@ -76,17 +76,7 @@ def download(
     unknown,
 ):
     """Output the path to a Bactopia workflow main.nf file."""
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     # Install paths
     if not Path(bactopia_path).exists():

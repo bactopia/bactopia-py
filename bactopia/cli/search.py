@@ -1,3 +1,5 @@
+"""CLI command for querying ENA/SRA for public sequencing accessions."""
+
 import datetime
 import logging
 import random
@@ -10,9 +12,9 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.databases.ena import get_run_info
 from bactopia.databases.ncbi import get_ncbi_genome_size, is_biosample
 from bactopia.utils import chunk_list
@@ -234,7 +236,7 @@ def parse_query(q, accession_limit, exact_taxon=False):
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version", "-V")
+@common_options
 @click.option(
     "--query",
     "-q",
@@ -311,8 +313,6 @@ def parse_query(q, accession_limit, exact_taxon=False):
     help="Include metadata columns that are empty for all rows",
 )
 @click.option("--force", is_flag=True, help="Overwrite existing reports")
-@click.option("--verbose", is_flag=True, help="Increase the verbosity of output")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed")
 def search(
     query,
     exact_taxon,
@@ -332,17 +332,7 @@ def search(
     silent,
 ):
     """Query against ENA and SRA for public accessions to process with Bactopia"""
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     # if not os.path.exists(args.outdir):
     #    os.makedirs(args.outdir, exist_ok=True)

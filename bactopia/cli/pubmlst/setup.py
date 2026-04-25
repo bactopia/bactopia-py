@@ -1,3 +1,5 @@
+"""CLI command for setting up PubMLST API access tokens."""
+
 import logging
 import sys
 from pathlib import Path
@@ -6,9 +8,9 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.databases.pubmlst.utils import print_citation, setup_pubmlst
 
 # Set up Rich
@@ -42,7 +44,7 @@ click.rich_click.OPTION_GROUPS = {
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version", "-V")
+@common_options
 @click.option(
     "--client-id",
     "-ci",
@@ -77,9 +79,7 @@ click.rich_click.OPTION_GROUPS = {
     show_default=True,
     help="The directory to save the token",
 )
-@click.option("--force", is_flag=True, help="Force overwrite of existing token files.")
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
+@click.option("--force", is_flag=True, help="Force overwrite of existing token files")
 def pubmlst_setup(
     site: str,
     database: str,
@@ -91,24 +91,7 @@ def pubmlst_setup(
     silent: bool,
 ):
     """One-time setup for interacting with the PubMLST API"""
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(
-                rich_tracebacks=True,
-                console=rich.console.Console(stderr=True),
-                show_time=True if verbose else False,
-                show_level=True if verbose else False,
-                show_path=True,
-                markup=True,
-            )
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     # Setup tokens for pubmlst
     save_dir = Path(save_dir)

@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.1.3
+
+### Enhancements
+
+- Added shared `@common_options` decorator and `setup_logging()` helper in new `bactopia/cli/common.py` to prevent drift of `--verbose`, `--silent`, and `--version/-V` flags across CLI commands
+- Migrated 21 CLI modules to use `@common_options` (all user-facing commands except `jsonify`, `sysinfo`, and pipeline scripts)
+- Standardized version flag: all commands now accept both `--version` and `-V`
+- Added missing `--silent` flag to `bactopia-catalog` and `bactopia-lint`
+- Added missing `--verbose` flag to `bactopia-citations` and `bactopia-docs`
+- Added `OPTION_GROUPS` for organized `--help` output to `bactopia-catalog`, `bactopia-citations`, and `bactopia-docs`
+- Added module-level docstrings to 12 CLI modules that were missing them
+- Removed trailing periods from all CLI help text for consistency
+- Standardized `--verbose` help text across all commands (was split between two variants)
+- Replaced `scaffold.py`'s private `_setup_logging` with the shared `setup_logging()` helper
+- Added `-V` short flag to `bactopia-scaffold` group command
+- Updated CLAUDE.md CLI module pattern documentation to reflect `common_options` usage
+
+### Build
+
+- Updated justfile to resolve `poetry` and `python` paths via `which` for more reliable environment handling
+- `just install` now includes test dependencies (`--with test`)
+- Test commands now use `poetry run <python> -m pytest` to ensure correct interpreter
+
 ## 2.1.2
 
 ### New Commands

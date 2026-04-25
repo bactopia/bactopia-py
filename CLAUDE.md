@@ -65,6 +65,7 @@ bactopia/
 teton_prepare.py        # Prepare sample sheets for Teton
       bracken_to_excel.py     # Export Bracken abundances to Excel
     pubmlst/            # PubMLST database commands (setup, build)
+    common.py           # Shared CLI decorators (@common_options, setup_logging)
     catalog.py          # Generate component catalog.json
     citations.py        # Print tool citations
     datasets.py         # Download optional datasets
@@ -118,27 +119,31 @@ import rich.console
 import rich.traceback
 import rich_click as click
 
+import bactopia
+from bactopia.cli.common import common_options, setup_logging
+
 stderr = rich.console.Console(stderr=True)
 rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
 click.rich_click.USE_RICH_MARKUP = True
 ```
 
-Commands with many options use `click.rich_click.OPTION_GROUPS` for organized `--help` output.
+The `@common_options` decorator adds `--verbose`, `--silent`, and `--version/-V` to any command. Use `setup_logging(verbose, silent)` inside the command body. Commands with many options use `click.rich_click.OPTION_GROUPS` for organized `--help` output. Help text should not end with periods.
 
 ### General Conventions
 
-- Logging via `rich.logging.RichHandler`
+- Logging via `setup_logging()` from `bactopia.cli.common`
 - Path handling via `pathlib.Path`
 - Docstrings: Google-style with Args/Returns sections
 - Formatting and linting: ruff (configured in `pyproject.toml`)
 
 ### Adding a New CLI Command
 
-1. Create module in `bactopia/cli/` with a `main()` function
+1. Create module in `bactopia/cli/` with a `main()` function and module-level docstring
 2. Add entry to `[tool.poetry.scripts]` in `pyproject.toml`
 3. Follow the Rich console boilerplate pattern above
-4. Use `OPTION_GROUPS` for organized help output
-5. Include `--verbose`, `--silent`, `--version/-V` flags
+4. Use `@common_options` decorator for `--verbose`, `--silent`, `--version/-V`
+5. Use `OPTION_GROUPS` for organized help output
+6. Call `setup_logging(verbose, silent)` at the start of the command body
 
 ## Key Dependencies
 

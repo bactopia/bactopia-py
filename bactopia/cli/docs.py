@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.table import Table
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.lint.docs import (
     DEFAULT_DOCS_PATH,
     DEFAULT_PATTERNS_FILE,
@@ -21,6 +22,38 @@ from bactopia.lint.docs import (
 stderr = rich.console.Console(stderr=True)
 rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
 click.rich_click.USE_RICH_MARKUP = True
+
+click.rich_click.OPTION_GROUPS = {
+    "bactopia-docs": [
+        {"name": "Required Options", "options": ["--bactopia-path"]},
+        {
+            "name": "Validation Options",
+            "options": [
+                "--docs-path",
+                "--patterns-file",
+                "--bactopia-py-path",
+                "--skip-path-check",
+                "--validate",
+            ],
+        },
+        {
+            "name": "Output Options",
+            "options": [
+                "--json",
+                "--plain-text",
+            ],
+        },
+        {
+            "name": "Additional Options",
+            "options": [
+                "--verbose",
+                "--silent",
+                "--version",
+                "--help",
+            ],
+        },
+    ]
+}
 
 
 def _render_report(report: dict, silent: bool, plain_text: bool) -> None:
@@ -87,7 +120,7 @@ def _render_report(report: dict, silent: bool, plain_text: bool) -> None:
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version", "-V")
+@common_options
 @click.option(
     "--bactopia-path",
     "-b",
@@ -111,7 +144,7 @@ def _render_report(report: dict, silent: bool, plain_text: bool) -> None:
     default=None,
     type=click.Path(file_okay=False, path_type=Path),
     help="Path to bactopia-py repo (for D105 CLI / D106 lint-rule checks). "
-    "Defaults to <bactopia-path>/../bactopia-py.",
+    "Defaults to <bactopia-path>/../bactopia-py",
 )
 @click.option(
     "--skip-path-check",
@@ -121,18 +154,13 @@ def _render_report(report: dict, silent: bool, plain_text: bool) -> None:
 @click.option(
     "--validate",
     is_flag=True,
-    help="Run validation (default action; flag is accepted for parity with bactopia-citations).",
+    help="Run validation (default action; flag is accepted for parity with bactopia-citations)",
 )
 @click.option(
     "--json",
     "as_json",
     is_flag=True,
     help="Emit results as JSON",
-)
-@click.option(
-    "--silent",
-    is_flag=True,
-    help="Suppress non-error output when validation is clean",
 )
 @click.option(
     "--plain-text",
@@ -148,6 +176,7 @@ def docs(
     skip_path_check: bool,
     validate: bool,
     as_json: bool,
+    verbose: bool,
     silent: bool,
     plain_text: bool,
 ) -> None:
@@ -168,6 +197,7 @@ def docs(
 
     Exits 1 if any FAIL is found.
     """
+    setup_logging(verbose, silent)
     repo_root = Path(bactopia_path)
     if not repo_root.is_dir():
         raise click.ClickException(f"--bactopia-path {repo_root} is not a directory.")

@@ -1,3 +1,5 @@
+"""CLI command for analyzing nf-test timing and results."""
+
 import json
 import logging
 import re
@@ -12,9 +14,9 @@ import rich.console
 import rich.table
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 
 # Set up Rich
 stderr = rich.console.Console(stderr=True)
@@ -698,47 +700,45 @@ def print_rich(console: rich.console.Console, data: dict):
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version")
+@common_options
 @click.option(
     "--bactopia-path",
     required=True,
-    help="Directory where Bactopia repository is stored.",
+    help="Directory where Bactopia repository is stored",
 )
 @click.option(
     "--run",
     "run_timestamp",
     default=None,
-    help="Specific test run timestamp (YYYYMMDD_HHMMSS). Default: latest.",
+    help="Specific test run timestamp (YYYYMMDD_HHMMSS). Default: latest",
 )
 @click.option(
     "--logs-dir",
     default=None,
-    help="Directory containing test run logs. Default: {bactopia-path}/logs.",
+    help="Directory containing test run logs. Default: {bactopia-path}/logs",
 )
 @click.option(
     "--baselines",
     default=None,
-    help="Path to test-times baseline JSON file. Default: {bactopia-path}/conf/test-times.json.",
+    help="Path to test-times baseline JSON file. Default: {bactopia-path}/conf/test-times.json",
 )
 @click.option(
     "--tolerance",
     default=2.0,
     type=float,
     show_default=True,
-    help="Tolerance factor for timing anomaly detection.",
+    help="Tolerance factor for timing anomaly detection",
 )
 @click.option(
     "--update-baselines",
     "do_update_baselines",
     is_flag=True,
-    help="Write/update the baselines file from current run results.",
+    help="Write/update the baselines file from current run results",
 )
-@click.option("--json", "use_json", is_flag=True, help="Output as JSON.")
+@click.option("--json", "use_json", is_flag=True, help="Output as JSON")
 @click.option(
-    "--pretty", is_flag=True, help="Pretty-print JSON output (implies --json)."
+    "--pretty", is_flag=True, help="Pretty-print JSON output (implies --json)"
 )
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
 def review(
     bactopia_path,
     run_timestamp,
@@ -756,17 +756,7 @@ def review(
     Analyzes test run logs, classifies failures by error pattern,
     and optionally checks durations against expected baselines.
     """
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     # Validate path
     bp = Path(bactopia_path).absolute().resolve()

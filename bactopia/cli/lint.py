@@ -9,9 +9,9 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.lint.runner import run_lint
 
 # Set up Rich
@@ -44,6 +44,7 @@ click.rich_click.OPTION_GROUPS = {
             "name": "Additional Options",
             "options": [
                 "--verbose",
+                "--silent",
                 "--version",
                 "--help",
             ],
@@ -117,7 +118,7 @@ def print_rich(
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version")
+@common_options
 @click.option(
     "--bactopia-path",
     required=True,
@@ -160,13 +161,12 @@ def print_rich(
     "-q",
     "--quiet",
     is_flag=True,
-    help="Only show components with warnings or failures.",
+    help="Only show components with warnings or failures",
 )
-@click.option("--json", "use_json", is_flag=True, help="Output as JSON.")
+@click.option("--json", "use_json", is_flag=True, help="Output as JSON")
 @click.option(
-    "--pretty", is_flag=True, help="Pretty-print JSON output (implies --json)."
+    "--pretty", is_flag=True, help="Pretty-print JSON output (implies --json)"
 )
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
 def lint(
     bactopia_path,
     modules,
@@ -179,21 +179,14 @@ def lint(
     use_json,
     pretty,
     verbose,
+    silent,
 ):
     """Lint Bactopia pipeline components against style guidelines.
 
     Checks modules, subworkflows, and workflows for compliance with
     Bactopia's GroovyDoc, structural, and configuration standards.
     """
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(logging.DEBUG if verbose else logging.WARNING)
+    setup_logging(verbose, silent)
 
     # Validate path
     bp = Path(bactopia_path).absolute().resolve()

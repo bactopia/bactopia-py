@@ -1,3 +1,5 @@
+"""CLI command for checking Bactopia module version updates."""
+
 import json
 import logging
 import sys
@@ -8,9 +10,9 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.conda import construct_container_refs, get_latest_info
 from bactopia.nf import parse_all_conda_tools
 
@@ -55,7 +57,7 @@ click.rich_click.OPTION_GROUPS = {
         allow_extra_args=True,
     )
 )
-@click.version_option(bactopia.__version__, "--version")
+@common_options
 # Use underscores in parameters and only --, since Nextflow parameters are passed in
 @click.option(
     "--bactopia-path",
@@ -72,10 +74,8 @@ click.rich_click.OPTION_GROUPS = {
     default=3,
     help="Maximum times to attempt API queries. (Default: 3)",
 )
-@click.option("--json", "output_json", is_flag=True, help="Output flat JSON.")
-@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON.")
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
+@click.option("--json", "output_json", is_flag=True, help="Output flat JSON")
+@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON")
 @click.argument("unknown", nargs=-1, type=click.UNPROCESSED)
 def update(
     bactopia_path,
@@ -88,17 +88,7 @@ def update(
     unknown,
 ):
     """Check if modules used by Bactopia Tools have newer versions available"""
-    # Setup logs
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     # Install paths
     bactopia_path = str(Path(bactopia_path).absolute())

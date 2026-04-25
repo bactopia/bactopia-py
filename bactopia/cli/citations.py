@@ -1,3 +1,5 @@
+"""CLI command for printing and validating Bactopia citations."""
+
 import json
 import sys
 from pathlib import Path
@@ -11,6 +13,7 @@ from rich.markdown import Markdown
 from rich.table import Table
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 from bactopia.lint.citations import validate_citations
 from bactopia.parsers.citations import parse_citations
 from bactopia.utils import validate_file
@@ -19,6 +22,30 @@ from bactopia.utils import validate_file
 stderr = rich.console.Console(stderr=True)
 rich.traceback.install(console=stderr, width=200, word_wrap=True, extra_lines=1)
 click.rich_click.USE_RICH_MARKUP = True
+
+click.rich_click.OPTION_GROUPS = {
+    "bactopia-citations": [
+        {"name": "Required Options", "options": ["--bactopia-path"]},
+        {
+            "name": "Output Options",
+            "options": [
+                "--name",
+                "--plain-text",
+                "--validate",
+                "--json",
+            ],
+        },
+        {
+            "name": "Additional Options",
+            "options": [
+                "--verbose",
+                "--silent",
+                "--version",
+                "--help",
+            ],
+        },
+    ]
+}
 
 
 def _render_validation_report(report: dict, silent: bool, plain_text: bool) -> None:
@@ -84,7 +111,7 @@ def _render_expected_orphans(console: Console, expected_orphans: dict) -> None:
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version", "-V")
+@common_options
 @click.option(
     "--bactopia-path",
     "-b",
@@ -104,17 +131,13 @@ def _render_expected_orphans(console: Console, expected_orphans: dict) -> None:
     is_flag=True,
     help="Emit validation results as JSON (use with --validate)",
 )
-@click.option(
-    "--silent",
-    is_flag=True,
-    help="Suppress non-error output when validation is clean",
-)
 def citations(
     bactopia_path: str,
     name: str,
     plain_text: bool,
     validate: bool,
     as_json: bool,
+    verbose: bool,
     silent: bool,
 ) -> None:
     """Print or validate citations used throughout Bactopia.
@@ -125,6 +148,7 @@ def citations(
     an entry in citations.yml. Module and subworkflow @citation keys are
     validated by bactopia-lint (rules M035 and S019).
     """
+    setup_logging(verbose, silent)
 
     if validate:
         # Validation mode requires the repo root so we can locate

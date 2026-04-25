@@ -9,9 +9,9 @@ import rich
 import rich.console
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import setup_logging
 from bactopia.conda import (
     check_component_exists,
     construct_container_refs,
@@ -69,21 +69,8 @@ click.rich_click.OPTION_GROUPS = {
 }
 
 
-def _setup_logging(verbose: bool, silent: bool) -> None:
-    logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
-
-
 @click.group()
-@click.version_option(bactopia.__version__, "--version")
+@click.version_option(bactopia.__version__, "--version", "-V")
 def scaffold():
     """Scaffold Bactopia components from bioconda/conda-forge packages."""
     pass
@@ -94,27 +81,27 @@ def scaffold():
 @click.option(
     "--bactopia-path",
     required=True,
-    help="Directory where Bactopia repository is stored.",
+    help="Directory where Bactopia repository is stored",
 )
 @click.option(
     "--channel",
     default=None,
-    help="Force a specific channel (bioconda or conda-forge). Default: try bioconda first, then conda-forge.",
+    help="Force a specific channel (bioconda or conda-forge). Default: try bioconda first, then conda-forge",
 )
 @click.option(
     "--max-retry",
     default=3,
     help="Maximum times to attempt API queries. (Default: 3)",
 )
-@click.option("--json", "output_json", is_flag=True, help="Output flat JSON.")
-@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON.")
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
+@click.option("--json", "output_json", is_flag=True, help="Output flat JSON")
+@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON")
+@click.option("--verbose", is_flag=True, help="Print debug related text")
+@click.option("--silent", is_flag=True, help="Only critical errors will be printed")
 def lookup(
     package, bactopia_path, channel, max_retry, output_json, pretty, verbose, silent
 ):
     """Look up package info from Anaconda and check for existing components."""
-    _setup_logging(verbose, silent)
+    setup_logging(verbose, silent)
 
     bactopia_path = str(Path(bactopia_path).absolute())
     logging.debug(f"Using bactopia path: {bactopia_path}")
@@ -174,20 +161,20 @@ def lookup(
     "--input-type",
     required=True,
     type=click.Choice(sorted(FIELD_PATTERNS.keys())),
-    help="Input type to search for in existing tests.",
+    help="Input type to search for in existing tests",
 )
 @click.option(
     "--bactopia-path",
     required=True,
-    help="Directory where Bactopia repository is stored.",
+    help="Directory where Bactopia repository is stored",
 )
-@click.option("--json", "output_json", is_flag=True, help="Output flat JSON.")
-@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON.")
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
+@click.option("--json", "output_json", is_flag=True, help="Output flat JSON")
+@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON")
+@click.option("--verbose", is_flag=True, help="Print debug related text")
+@click.option("--silent", is_flag=True, help="Only critical errors will be printed")
 def test_data(input_type, bactopia_path, output_json, pretty, verbose, silent):
     """Discover test data paths from existing module tests."""
-    _setup_logging(verbose, silent)
+    setup_logging(verbose, silent)
     bactopia_path = Path(bactopia_path).absolute()
 
     results = discover_test_data(bactopia_path, input_type)
@@ -225,7 +212,7 @@ def _run_generate(
     render_fn,
 ):
     """Shared logic for module/subworkflow/tool subcommands."""
-    _setup_logging(verbose, silent)
+    setup_logging(verbose, silent)
     bactopia_path = Path(bactopia_path).absolute()
 
     with open(config_path) as f:
@@ -264,20 +251,20 @@ def _run_generate(
     "config_path",
     required=True,
     type=click.Path(exists=True),
-    help="JSON design config file.",
+    help="JSON design config file",
 )
 @click.option(
     "--bactopia-path",
     required=True,
-    help="Directory where Bactopia repository is stored.",
+    help="Directory where Bactopia repository is stored",
 )
 @click.option(
-    "--dry-run", is_flag=True, help="Show what would be created without writing files."
+    "--dry-run", is_flag=True, help="Show what would be created without writing files"
 )
-@click.option("--json", "output_json", is_flag=True, help="Output flat JSON.")
-@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON.")
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
+@click.option("--json", "output_json", is_flag=True, help="Output flat JSON")
+@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON")
+@click.option("--verbose", is_flag=True, help="Print debug related text")
+@click.option("--silent", is_flag=True, help="Only critical errors will be printed")
 def module(config_path, bactopia_path, dry_run, output_json, pretty, verbose, silent):
     """Generate module files from a design config."""
     _run_generate(
@@ -299,20 +286,20 @@ def module(config_path, bactopia_path, dry_run, output_json, pretty, verbose, si
     "config_path",
     required=True,
     type=click.Path(exists=True),
-    help="JSON design config file.",
+    help="JSON design config file",
 )
 @click.option(
     "--bactopia-path",
     required=True,
-    help="Directory where Bactopia repository is stored.",
+    help="Directory where Bactopia repository is stored",
 )
 @click.option(
-    "--dry-run", is_flag=True, help="Show what would be created without writing files."
+    "--dry-run", is_flag=True, help="Show what would be created without writing files"
 )
-@click.option("--json", "output_json", is_flag=True, help="Output flat JSON.")
-@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON.")
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
+@click.option("--json", "output_json", is_flag=True, help="Output flat JSON")
+@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON")
+@click.option("--verbose", is_flag=True, help="Print debug related text")
+@click.option("--silent", is_flag=True, help="Only critical errors will be printed")
 def subworkflow(
     config_path, bactopia_path, dry_run, output_json, pretty, verbose, silent
 ):
@@ -336,20 +323,20 @@ def subworkflow(
     "config_path",
     required=True,
     type=click.Path(exists=True),
-    help="JSON design config file.",
+    help="JSON design config file",
 )
 @click.option(
     "--bactopia-path",
     required=True,
-    help="Directory where Bactopia repository is stored.",
+    help="Directory where Bactopia repository is stored",
 )
 @click.option(
-    "--dry-run", is_flag=True, help="Show what would be created without writing files."
+    "--dry-run", is_flag=True, help="Show what would be created without writing files"
 )
-@click.option("--json", "output_json", is_flag=True, help="Output flat JSON.")
-@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON.")
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
+@click.option("--json", "output_json", is_flag=True, help="Output flat JSON")
+@click.option("--pretty", is_flag=True, help="Output pretty-printed JSON")
+@click.option("--verbose", is_flag=True, help="Print debug related text")
+@click.option("--silent", is_flag=True, help="Only critical errors will be printed")
 def tool(config_path, bactopia_path, dry_run, output_json, pretty, verbose, silent):
     """Generate all three tiers (module + subworkflow + workflow) for a bactopia-tool."""
     _run_generate(

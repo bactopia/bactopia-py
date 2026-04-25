@@ -17,9 +17,9 @@ import rich.console
 import rich.table
 import rich.traceback
 import rich_click as click
-from rich.logging import RichHandler
 
 import bactopia
+from bactopia.cli.common import common_options, setup_logging
 
 BACTOPIA_CACHEDIR = os.getenv("BACTOPIA_CACHEDIR", f"{Path.home()}/.bactopia")
 CONDA_CACHEDIR = os.getenv("NXF_CONDA_CACHEDIR", f"{BACTOPIA_CACHEDIR}/conda")
@@ -660,99 +660,97 @@ def print_results(
 
 
 @click.command()
-@click.version_option(bactopia.__version__, "--version")
+@common_options
 @click.option(
     "--bactopia-path",
     required=True,
-    help="Directory where the Bactopia repository is stored.",
+    help="Directory where the Bactopia repository is stored",
 )
 @click.option(
     "--test-data",
     default=None,
-    help="Directory containing bactopia-tests data (sets BACTOPIA_TESTS env). Required unless --cleanup.",
+    help="Directory containing bactopia-tests data (sets BACTOPIA_TESTS env). Required unless --cleanup",
 )
 @click.option(
     "--tier",
     default="all",
     type=click.Choice(["modules", "subworkflows", "workflows", "all"]),
-    help="Which component tier to test.",
+    help="Which component tier to test",
 )
 @click.option(
     "--include",
     default=None,
-    help="Comma-separated list of component names to include.",
+    help="Comma-separated list of component names to include",
 )
 @click.option(
     "--exclude",
     default=None,
-    help="Comma-separated list of component names to exclude.",
+    help="Comma-separated list of component names to exclude",
 )
 @click.option(
     "--profile",
     default="docker",
     type=click.Choice(["docker", "singularity", "conda"]),
-    help="Nextflow profile to use for tests.",
+    help="Nextflow profile to use for tests",
 )
 @click.option(
     "--condadir",
     default=CONDA_CACHEDIR,
     show_default=True,
-    help="Directory where Conda environments are stored (NXF_CONDA_CACHEDIR env variable takes precedence).",
+    help="Directory where Conda environments are stored (NXF_CONDA_CACHEDIR env variable takes precedence)",
 )
 @click.option(
     "--singularity_cache",
     default=SINGULARITY_CACHEDIR,
     show_default=True,
-    help="Directory where Singularity images are stored (NXF_SINGULARITY_CACHEDIR env variable takes precedence).",
+    help="Directory where Singularity images are stored (NXF_SINGULARITY_CACHEDIR env variable takes precedence)",
 )
 @click.option(
     "--generate",
     is_flag=True,
-    help="Generate mode: delete snapshots and run twice to verify reproducibility.",
+    help="Generate mode: delete snapshots and run twice to verify reproducibility",
 )
 @click.option(
     "--jobs",
     default=max(1, cpu_count() // 4),
     type=int,
     show_default=True,
-    help="Number of parallel test workers.",
+    help="Number of parallel test workers",
 )
 @click.option(
     "--fail-fast",
     is_flag=True,
-    help="Stop on the first test failure instead of continuing.",
+    help="Stop on the first test failure instead of continuing",
 )
 @click.option(
     "--timeout",
     default=90,
     type=int,
     show_default=True,
-    help="Per-test timeout in minutes. Each nf-test subprocess is killed after this duration. Set to 0 to disable.",
+    help="Per-test timeout in minutes. Each nf-test subprocess is killed after this duration. Set to 0 to disable",
 )
 @click.option(
     "--cleanup",
     is_flag=True,
-    help="Find and remove all .nf-test/ temp files, then exit (no tests run).",
+    help="Find and remove all .nf-test/ temp files, then exit (no tests run)",
 )
 @click.option(
     "--dry-run",
     is_flag=True,
-    help="With --cleanup, list what would be removed without deleting.",
+    help="With --cleanup, list what would be removed without deleting",
 )
 @click.option(
     "--outdir",
     default=".",
     show_default=True,
-    help="Directory to write the logs/ folder into.",
+    help="Directory to write the logs/ folder into",
 )
 @click.option(
     "--keep",
     is_flag=True,
-    help="Keep .nf-test/ directories and logs after tests pass (useful for debugging).",
+    help="Keep .nf-test/ directories and logs after tests pass (useful for debugging)",
 )
-@click.option("--json", "use_json", is_flag=True, help="Output results as JSON.")
-@click.option("--verbose", is_flag=True, help="Print debug related text.")
-@click.option("--silent", is_flag=True, help="Only critical errors will be printed.")
+@click.option("--json", "use_json", is_flag=True, help="Output results as JSON")
 def testing(
     bactopia_path,
     test_data,
@@ -780,17 +778,7 @@ def testing(
     workflows. Results are classified by status and displayed as a summary
     table. Per-test logs are saved to a logs/ directory.
     """
-    # Setup logging
-    logging.basicConfig(
-        format="%(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=[
-            RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))
-        ],
-    )
-    logging.getLogger().setLevel(
-        logging.ERROR if silent else logging.DEBUG if verbose else logging.INFO
-    )
+    setup_logging(verbose, silent)
 
     # Resolve paths
     bp = Path(bactopia_path).absolute().resolve()
