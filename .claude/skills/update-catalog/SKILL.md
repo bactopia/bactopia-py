@@ -118,7 +118,7 @@ Use this structure, updating counts and details to match the current state:
 
 - [README](https://github.com/bactopia/bactopia-py/blob/main/README.md): Full documentation with CLI help output for all commands
 - [CHANGELOG](https://github.com/bactopia/bactopia-py/blob/main/CHANGELOG.md): Version history
-- [Bactopia Documentation](https://bactopia.github.io/): Main Bactopia pipeline documentation
+- [Bactopia Documentation](https://bactopia.io/): Main Bactopia pipeline documentation
 
 ## Source Code
 

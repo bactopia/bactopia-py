@@ -335,7 +335,7 @@ class TestPathReferences:
         assert d108 == []
 
     def test_d108_skips_external_urls(self, repo):
-        _add_doc(repo, "ref.md", "See [docs](https://bactopia.github.io/) for more.\n")
+        _add_doc(repo, "ref.md", "See [docs](https://bactopia.io/) for more.\n")
         report = validate_docs(repo)
         d108 = [h for h in report["ground_truth_violations"] if h["rule_id"] == "D108"]
         assert d108 == []

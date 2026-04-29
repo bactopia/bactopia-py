@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "bactopia"
-version = "2.1.5"
+version = "2.1.6"
 description = "A Python package for working with Bactopia"
 authors = [
     "Robert A. Petit III <robbie.petit@gmail.com>",
 ]
 license = "MIT"
 readme = "README.md"
-homepage = "https://bactopia.github.io/"
+homepage = "https://bactopia.io/"
 repository = "https://github.com/bactopia/bactopia-py"
 keywords = ["bioinformatics", "bacteria", "bactopia", "SRA", "ENA"]
 

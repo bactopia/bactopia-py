@@ -28,18 +28,20 @@ def parse(path: str, name: str) -> dict:
         # Single end
         r1 = Path(path)
     else:
-        r1_path = None
-        r2_path = None
-        if "original" in path:
-            r1_path = path.replace("-original.json", "_R1-original.json")
-            r2_path = path.replace("-original.json", "_R2-original.json")
-        else:
-            r1_path = path.replace("-final.json", "_R1-final.json")
-            r2_path = path.replace("-final.json", "_R2-final.json")
+        suffix = "-original.json" if "original" in path else "-final.json"
+
+        r1_path = path.replace(suffix, f"_R1{suffix}")
+        r2_path = path.replace(suffix, f"_R2{suffix}")
 
         if Path(r1_path).exists() and Path(r2_path).exists():
             r1 = Path(r1_path)
             r2 = Path(r2_path)
+        else:
+            for tag in ("_SE", "_ONT"):
+                alt_path = path.replace(suffix, f"{tag}{suffix}")
+                if Path(alt_path).exists():
+                    r1 = Path(alt_path)
+                    break
 
     final_results = {"sample": name}
     if r1:

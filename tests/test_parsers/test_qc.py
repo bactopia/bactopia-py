@@ -17,6 +17,24 @@ class TestParse:
         assert result["sample"] == "sample1"
         assert result.get("qc_final_is_paired") is True
 
+    def test_se_suffix(self, parser_fixtures, tmp_path):
+        """_SE single-end variant is found when base path doesn't exist."""
+        import shutil
+
+        shutil.copy(parser_fixtures / "qc_single.json", tmp_path / "sample2_SE-final.json")
+        result = parse(str(tmp_path / "sample2-final.json"), "sample2")
+        assert result.get("qc_final_is_paired") is False
+        assert "qc_final_coverage" in result
+
+    def test_ont_suffix(self, parser_fixtures, tmp_path):
+        """_ONT variant is found when base path doesn't exist."""
+        import shutil
+
+        shutil.copy(parser_fixtures / "qc_single.json", tmp_path / "sample2_ONT-final.json")
+        result = parse(str(tmp_path / "sample2-final.json"), "sample2")
+        assert result.get("qc_final_is_paired") is False
+        assert "qc_final_coverage" in result
+
 
 class TestMergeQcStats:
     def test_coverage_summed(self):

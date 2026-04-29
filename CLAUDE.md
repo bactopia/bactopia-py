@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-bactopia-py is a Python CLI companion package for [Bactopia](https://bactopia.github.io/), a flexible Nextflow pipeline for complete analysis of bacterial genomes. It provides 27 command-line tools: 19 user-facing commands for input preparation, public data search, environment building, dataset management, result summarization, pipeline linting, testing, and database integration; plus 8 pipeline utility scripts called from Nextflow module shell blocks.
+bactopia-py is a Python CLI companion package for [Bactopia](https://bactopia.io/), a flexible Nextflow pipeline for complete analysis of bacterial genomes. It provides 27 command-line tools: 19 user-facing commands for input preparation, public data search, environment building, dataset management, result summarization, pipeline linting, testing, and database integration; plus 8 pipeline utility scripts called from Nextflow module shell blocks.
 
 - **Author:** Robert A. Petit III
 - **License:** MIT

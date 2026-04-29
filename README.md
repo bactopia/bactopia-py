@@ -1,7 +1,7 @@
 ![Bactopia Logo](https://raw.githubusercontent.com/bactopia/bactopia/master/data/bactopia-logo.png)
 
 # bactopia-py
-A Python package for working with [Bactopia](https://bactopia.github.io/)
+A Python package for working with [Bactopia](https://bactopia.io/)
 
 ## Bactopia Subcommands
 
@@ -280,7 +280,7 @@ of nearly 2,000,000 bacterial genomes. Using available FASTQ files from the Euro
 Archive (ENA) and Sequence Read Archive (SRA), the genomes were assembled using [Shovill] and made
 publicly available from the [Iqbal Lab](https://github.com/iqbal-lab-org/AllTheBacteria).
 
-To make it easy to utilize [Bactopia Tools](https://bactopia.github.io/latest/bactopia-tools/) with
+To make it easy to utilize [Bactopia Tools](https://bactopia.io/bactopia-tools/) with
 assemblies from AllTheBacteria, `bactopia-atb-formatter` was created. This tool will create a 
 directory structure that resembles output from an actual Bactopia run.
 
@@ -318,7 +318,7 @@ directory structure that resembles output from an actual Bactopia run.
 To demonstrate the usage of `bactopia-atb-formatter`, we will use assemblies for
 _Legionella pneumophila_. The following steps will download the assemblies, build the
 Bactopia directory structure, and then run [legsta](https://github.com/tseemann/legsta)
-via the [Bactopia Tool](https://bactopia.github.io/latest/bactopia-tools/legsta/).
+via the [Bactopia Tool](https://bactopia.io/bactopia-tools/legsta/).
 
 #### Download the Assemblies
 
@@ -362,7 +362,7 @@ created for 5,393 assemblies and is ready for use with Bactopia Tools.
 
 As mentioned above, we will use [legsta](https://github.com/tseemann/legsta) to analyze each
 of the _Legionella pneumophila_ assemblies. To do this, we will use the
-[legsta Bactopia Tool](https://bactopia.github.io/latest/bactopia-tools/legsta/).
+[legsta Bactopia Tool](https://bactopia.io/bactopia-tools/legsta/).
 
 ```{bash}
 # Run legsta (please utilize Docker or Singularity only for reproducibility)
@@ -399,7 +399,7 @@ CPU hours   : 5.2
 Succeeded   : 5'395
 ```
 
-That's it! Now you can take advantage of any of the [Bactopia Tools](https://bactopia.github.io/latest/bactopia-tools/)
+That's it! Now you can take advantage of any of the [Bactopia Tools](https://bactopia.io/bactopia-tools/)
 that utilize assemblies as inputs.
 
 # PubMLST DB Builds

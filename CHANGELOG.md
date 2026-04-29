@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.6
+
+- fix "bactopia-summary" for v4 outputs
+- change url from https://bactopia.github.io/ to https://bactopia.io/
+
 ## 2.1.5
 
 - fix `bactopia-prepare` to output v4 column headers
