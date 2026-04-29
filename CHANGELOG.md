@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.5
+
+- fix `bactopia-prepare` to output v4 column headers
+
 ## 2.1.4
 
 - changes to templates replated to Nextflow 26.04 updates
@@ -190,7 +194,7 @@ standalone CLI commands. These are called by the pipeline at runtime:
 
 - actually remove `--force` from `mamba|conda` commands
 
-## 1.4.0 
+## 1.4.0
 
 - added:
     - `bactopia-pubmlst-setup` to setup PubMLST REST API connections
@@ -199,7 +203,7 @@ standalone CLI commands. These are called by the pipeline at runtime:
 ## 1.3.0
 
 - replace conda/mamba `--force` with simple `rm -rf`
-  - latest version of mamba removed `--force`
+    - latest version of mamba removed `--force`
 
 ## 1.2.1
 

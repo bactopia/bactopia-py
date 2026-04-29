@@ -36,7 +36,9 @@ def teton_prepare(prefix, sizemeup, run_type, fastqs, outdir):
         "species": "UNKNOWN_SPECIES",
         "r1": "",
         "r2": "",
-        "extra": "",
+        "se": "",
+        "ont": "",
+        "assembly": "",
     }
 
     df = pd.read_csv(sizemeup, sep="\t")
@@ -52,15 +54,17 @@ def teton_prepare(prefix, sizemeup, run_type, fastqs, outdir):
     if run_type == "paired-end":
         sample_sheet["r1"] = f"{scrubber_outdir}/{fqs[0]}"
         sample_sheet["r2"] = f"{scrubber_outdir}/{fqs[1]}"
-    elif run_type in ("single-end", "ont"):
-        sample_sheet["r1"] = f"{scrubber_outdir}/{fqs[0]}"
-    elif run_type in ("hybrid", "short-polish"):
+    elif run_type == "single-end":
+        sample_sheet["se"] = f"{scrubber_outdir}/{fqs[0]}"
+    elif run_type == "ont":
+        sample_sheet["ont"] = f"{scrubber_outdir}/{fqs[0]}"
+    elif run_type in ("hybrid", "short_polish"):
         sample_sheet["r1"] = f"{scrubber_outdir}/{fqs[0]}"
         sample_sheet["r2"] = f"{scrubber_outdir}/{fqs[1]}"
-        sample_sheet["extra"] = f"{scrubber_outdir}/{fqs[2]}"
+        sample_sheet["ont"] = f"{scrubber_outdir}/{fqs[2]}"
 
     # Verify FASTQs exist if they are on local storage
-    for key in ["r1", "r2", "extra"]:
+    for key in ["r1", "r2", "se", "ont", "assembly"]:
         if sample_sheet[key]:
             if is_local(sample_sheet[key]):
                 if Path(sample_sheet[key]).exists():

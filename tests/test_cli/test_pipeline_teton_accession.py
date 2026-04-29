@@ -93,12 +93,21 @@ class TestTetonPrepare:
         lines = (tmp_path / "sample1.bacteria.tsv").read_text().split("\n")
         header_cols = lines[0].strip().split("\t")
         data_cols = lines[1].split("\t")
+        r1_idx = header_cols.index("r1")
         r2_idx = header_cols.index("r2")
-        extra_idx = header_cols.index("extra")
+        se_idx = header_cols.index("se")
+        ont_idx = header_cols.index("ont")
+        assembly_idx = header_cols.index("assembly")
+        r1_val = data_cols[r1_idx] if r1_idx < len(data_cols) else ""
         r2_val = data_cols[r2_idx] if r2_idx < len(data_cols) else ""
-        extra_val = data_cols[extra_idx] if extra_idx < len(data_cols) else ""
+        se_val = data_cols[se_idx] if se_idx < len(data_cols) else ""
+        ont_val = data_cols[ont_idx] if ont_idx < len(data_cols) else ""
+        assembly_val = data_cols[assembly_idx] if assembly_idx < len(data_cols) else ""
+        assert r1_val.strip() == ""
         assert r2_val.strip() == ""
-        assert extra_val.strip() == ""
+        assert se_val.strip() != ""
+        assert ont_val.strip() == ""
+        assert assembly_val.strip() == ""
 
     def test_cloud_path_skips_validation(
         self, tmp_path, pipeline_fixtures, monkeypatch

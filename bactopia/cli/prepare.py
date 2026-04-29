@@ -137,59 +137,59 @@ def print_examples():
             """
         # Example '*.fastq.gz' FASTQ files:
         bactopia prepare --path fastqs/
-        sample  runtype genome_size     species r1      r2      extra
-        sample01        paired-end      0       UNKNOWN_SPECIES fastqs/sample01_R1.fastq.gz fastqs/sample01_R2.fastq.gz
-        sample02        single-end      0       UNKNOWN_SPECIES fastqs/sample02.fastq.gz
-        sample03        paired-end      0       UNKNOWN_SPECIES fastqs/sample03_R1.fastq.gz fastqs/sample03_R2.fastq.gz
+        sample  runtype genome_size     species r1      r2      se      ont     assembly
+        sample01        paired-end      0       UNKNOWN_SPECIES fastqs/sample01_R1.fastq.gz     fastqs/sample01_R2.fastq.gz
+        sample02        single-end      0       UNKNOWN_SPECIES                 fastqs/sample02.fastq.gz
+        sample03        paired-end      0       UNKNOWN_SPECIES fastqs/sample03_R1.fastq.gz     fastqs/sample03_R2.fastq.gz
 
         # Example '*_001.fastq.gz' FASTQ files:
         bactopia prepare --path fastqs/ --fastq-ext '_001.fastq.gz'
-        sample  runtype genome_size     species r1      r2      extra
-        sample01        paired-end      0       UNKNOWN_SPECIES fastqs/sample01_R1_001.fastq.gz        fastqs/sample01_R2_001.fastq.gz
-        sample02        paired-end      0       UNKNOWN_SPECIES fastqs/sample02_R1_001.fastq.gz        fastqs/sample02_R2_001.fastq.gz
-        sample03        paired-end      0       UNKNOWN_SPECIES fastqs/sample03_R1_001.fastq.gz        fastqs/sample03_R2_001.fastq.gz
+        sample  runtype genome_size     species r1      r2      se      ont     assembly
+        sample01        paired-end      0       UNKNOWN_SPECIES fastqs/sample01_R1_001.fastq.gz fastqs/sample01_R2_001.fastq.gz
+        sample02        paired-end      0       UNKNOWN_SPECIES fastqs/sample02_R1_001.fastq.gz fastqs/sample02_R2_001.fastq.gz
+        sample03        paired-end      0       UNKNOWN_SPECIES fastqs/sample03_R1_001.fastq.gz fastqs/sample03_R2_001.fastq.gz
 
         # Example '*.fq.gz' FASTQ files:
         bactopia prepare --path fastqs --fastq-ext '.fq.gz'
-        sample  runtype genome_size     species r1      r2      extra
-        sample01       single-end      0       UNKNOWN_SPECIES fastqs/sample01.fq.gz
-        sample02       single-end      0       UNKNOWN_SPECIES fastqs/sample02.fq.gz
-        sample03       single-end      0       UNKNOWN_SPECIES fastqs/sample03.fq.gz
+        sample  runtype genome_size     species r1      r2      se      ont     assembly
+        sample01        single-end      0       UNKNOWN_SPECIES                 fastqs/sample01.fq.gz
+        sample02        single-end      0       UNKNOWN_SPECIES                 fastqs/sample02.fq.gz
+        sample03        single-end      0       UNKNOWN_SPECIES                 fastqs/sample03.fq.gz
 
         # Example '*.fna.gz' FASTA files:
         bactopia-prepare --path assembly/
-        sample  runtype genome_size     species r1      r2      extra
-        sample01        assembly        0       UNKNOWN_SPECIES                 assembly/sample01.fna.gz
-        sample02        assembly        0       UNKNOWN_SPECIES                 assembly/sample02.fna.gz
-        sample03        assembly        0       UNKNOWN_SPECIES                 assembly/sample03.fna.gz
+        sample  runtype genome_size     species r1      r2      se      ont     assembly
+        sample01        assembly        0       UNKNOWN_SPECIES                                         assembly/sample01.fna.gz
+        sample02        assembly        0       UNKNOWN_SPECIES                                         assembly/sample02.fna.gz
+        sample03        assembly        0       UNKNOWN_SPECIES                                         assembly/sample03.fna.gz
 
         # Example "*.fasta.gz" FASTA files:
         bactopia prepare --path assembly/ --assembly-ext .fasta.gz
-        sample  runtype genome_size     species r1      r2      extra
-        sample01        assembly        0       UNKNOWN_SPECIES                 assembly/sample01.fasta.gz
-        sample02        assembly        0       UNKNOWN_SPECIES                 assembly/sample02.fasta.gz
-        sample03        assembly        0       UNKNOWN_SPECIES                 assembly/sample03.fasta.gz
+        sample  runtype genome_size     species r1      r2      se      ont     assembly
+        sample01        assembly        0       UNKNOWN_SPECIES                                         assembly/sample01.fasta.gz
+        sample02        assembly        0       UNKNOWN_SPECIES                                         assembly/sample02.fasta.gz
+        sample03        assembly        0       UNKNOWN_SPECIES                                         assembly/sample03.fasta.gz
 
         # Example Nanopore FASTQ files:
         bactopia prepare --path fastqs/ --ont
-        sample  runtype genome_size     species r1      r2      extra
-        sample01        ont     0       UNKNOWN_SPECIES fastqs/sample01.fastq.gz
-        sample02        ont     0       UNKNOWN_SPECIES fastqs/sample02.fastq.gz
-        sample03        ont     0       UNKNOWN_SPECIES fastqs/sample03.fastq.gz
+        sample  runtype genome_size     species r1      r2      se      ont     assembly
+        sample01        ont     0       UNKNOWN_SPECIES                         fastqs/sample01.fastq.gz
+        sample02        ont     0       UNKNOWN_SPECIES                         fastqs/sample02.fastq.gz
+        sample03        ont     0       UNKNOWN_SPECIES                         fastqs/sample03.fastq.gz
 
         # Example Illumina and Nanopore FASTQ files:
         bactopia prepare --path illumina/ --ont --short-polish
-        sample  runtype genome_size     species r1      r2      extra
-        sample01        short_polish    0       UNKNOWN_SPECIES fastqs/sample01_R1.fastq.gz fastqs/sample01_R2.fastq.gz fastqs/sample01.fastq.gz
-        sample02        ont     0       UNKNOWN_SPECIES fastqs/sample02.fastq.gz
-        sample03        short_polish    0       UNKNOWN_SPECIES fastqs/sample03_R1.fastq.gz fastqs/sample03_R2.fastq.gz fastqs/sample03.fastq.gz
+        sample  runtype genome_size     species r1      r2      se      ont     assembly
+        sample01        short_polish    0       UNKNOWN_SPECIES fastqs/sample01_R1.fastq.gz     fastqs/sample01_R2.fastq.gz             fastqs/sample01.fastq.gz
+        sample02        ont     0       UNKNOWN_SPECIES                                         fastqs/sample02.fastq.gz
+        sample03        short_polish    0       UNKNOWN_SPECIES fastqs/sample03_R1.fastq.gz     fastqs/sample03_R2.fastq.gz             fastqs/sample03.fastq.gz
 
         # Example changing the separator:
         bactopia prepare --path ext/ --fastq-separator '.'
-        sample  runtype genome_size     species r1      r2      extra
-        sample_01       single-end      0       UNKNOWN_SPECIES fastqs/sample_01.fastq.gz
-        sample_02       single-end      0       UNKNOWN_SPECIES fastqs/sample_02.fastq.gz
-        sample_03       single-end      0       UNKNOWN_SPECIES fastqs/sample_03.fastq.gz
+        sample  runtype genome_size     species r1      r2      se      ont     assembly
+        sample_01       single-end      0       UNKNOWN_SPECIES                 fastqs/sample_01.fastq.gz
+        sample_02       single-end      0       UNKNOWN_SPECIES                 fastqs/sample_02.fastq.gz
+        sample_03       single-end      0       UNKNOWN_SPECIES                 fastqs/sample_03.fastq.gz
 
         # Example metadata file (--metadata):
         sample01     Staphylococcus aureus  0
@@ -442,19 +442,21 @@ def prepare(
             sample_species = species
             r1 = ""
             r2 = ""
-            extra = ""
+            se = ""
+            ont_col = ""
+            assembly_col = ""
 
             if assembly:
                 runtype = "assembly"
-                extra = assembly[0]
+                assembly_col = assembly[0]
 
             if pe_count:
                 if multiple_read_sets:
                     if ont:
                         if hybrid:
-                            runtype = "hybrid-merge-ont"
+                            runtype = "hybrid-merge-pe"
                         elif short_polish:
-                            runtype = "short_polish-merge-ont"
+                            runtype = "short_polish-merge-pe"
                     else:
                         runtype = "merge-pe"
                     r1 = ",".join(sorted(r1_reads))
@@ -470,17 +472,17 @@ def prepare(
                         runtype = "hybrid"
                     elif short_polish:
                         runtype = "short_polish"
-                    extra = se_reads[0]
+                    ont_col = se_reads[0]
                 elif ont and is_single_end:
                     runtype = "ont"
-                    r1 = se_reads[0]
+                    ont_col = se_reads[0]
                 else:
                     if multiple_read_sets:
                         runtype = "merge-se"
-                        r1 = ",".join(se_reads)
+                        se = ",".join(se_reads)
                     else:
                         runtype = "single-end"
-                        r1 = se_reads[0]
+                        se = se_reads[0]
 
             if metadata_info:
                 if sample in metadata_info:
@@ -499,11 +501,21 @@ def prepare(
                         SPECIES_TAXIDS[sample_species] = species_taxid
 
             FOFN.append(
-                [sample, runtype, str(sample_gsize), sample_species, r1, r2, extra]
+                [
+                    sample,
+                    runtype,
+                    str(sample_gsize),
+                    sample_species,
+                    r1,
+                    r2,
+                    se,
+                    ont_col,
+                    assembly_col,
+                ]
             )
 
     if FOFN:
-        print("sample\truntype\tgenome_size\tspecies\tr1\tr2\textra")
+        print("sample\truntype\tgenome_size\tspecies\tr1\tr2\tse\tont\tassembly")
         for line in FOFN:
             print("\t".join(line))
     else:
