@@ -93,7 +93,7 @@ class TestRenderModuleFiles:
         files = render_module_files(_make_config())
         main = files["modules/testtool/main.nf"]
         assert "process TESTTOOL {" in main
-        assert "nextflow.preview.types = true" in main
+        assert "nextflow.enable.types = true" in main
 
     def test_module_config_contains_params(self):
         files = render_module_files(_make_config())

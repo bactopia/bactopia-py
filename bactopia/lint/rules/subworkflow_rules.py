@@ -35,11 +35,11 @@ def rule_s001(component: str, ctx: dict) -> list[LintResult]:
 
 
 def rule_s002(component: str, ctx: dict) -> list[LintResult]:
-    """nextflow.preview.types = true present."""
+    """nextflow.enable.types = true present."""
     rid = "S002"
     if ctx["structure"]["has_types_preview"]:
-        return [_pass(rid, component, "nextflow.preview.types = true present")]
-    return [_fail(rid, component, "Missing 'nextflow.preview.types = true'")]
+        return [_pass(rid, component, "nextflow.enable.types = true present")]
+    return [_fail(rid, component, "Missing 'nextflow.enable.types = true'")]
 
 
 def rule_s003(component: str, ctx: dict) -> list[LintResult]:

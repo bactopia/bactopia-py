@@ -723,8 +723,8 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
 
     full_text = "".join(lines)
 
-    # Check for nextflow.preview.types = true
-    types_pattern = re.compile(r"nextflow\.preview\.types\s*=\s*true")
+    # Check for nextflow.enable.types = true (or legacy nextflow.preview.types)
+    types_pattern = re.compile(r"nextflow\.(?:enable|preview)\.types\s*=\s*true")
     result["has_types_preview"] = bool(types_pattern.search(full_text))
 
     # Extract process name (process UPPER_CASE {)
@@ -999,7 +999,7 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
     )
 
     # Check for meta initialization (M018).
-    # Modules using nextflow.preview.types use: meta = record(id: ..., name: ..., ...)
+    # Modules using nextflow.enable.types use: meta = record(id: ..., name: ..., ...)
     # Legacy modules use: meta = [:] followed by meta.X = ... assignments.
     # The `(?<!_)` guard prevents matching `special_meta = record(...)`.
     result["has_meta_init"] = False

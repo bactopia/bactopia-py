@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.4
+
+- changes to templates replated to Nextflow 26.04 updates
+
 ## 2.1.3
 
 ### Enhancements
