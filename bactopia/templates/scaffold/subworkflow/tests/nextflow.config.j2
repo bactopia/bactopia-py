@@ -9,7 +9,7 @@ params {
         description = "{{ description }}"
         ext = "fna"
     }
-    bactopia_version = '4.0.0'
+    bactopia_version = '4.0.1'
     bactopia_cache = System.getenv("BACTOPIA_CACHEDIR") ?: "${System.getenv('HOME')}/.bactopia"
     condadir = "${params.bactopia_cache}/conda"
     wf = params.workflow.name
@@ -38,5 +38,5 @@ includeConfig "../../../conf/profiles.config"
 
 // Plugin
 plugins {
-    id 'nf-bactopia@2.0.2'
+    id 'nf-bactopia@2.1.3'
 }
