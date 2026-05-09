@@ -173,7 +173,7 @@ class TestRenderWorkflowFiles:
         config = files["workflows/bactopia-tools/testtool/nextflow.config"]
         assert "manifest {" in config
         assert 'name = "testtool"' in config
-        assert "nf-bactopia@2.1.3" in config
+        assert "nf-bactopia@2.1.5" in config
 
 
 class TestRenderAllFiles:

@@ -1,5 +1,4 @@
 import logging
-import sys
 
 import requests
 
@@ -58,29 +57,62 @@ def get_ena_metadata(query: str, is_accession: bool, limit: int):
 
 
 def get_run_info(
-    sra_query: str, ena_query: str, is_accession: bool, limit: int = 1000000
+    sra_query: str,
+    ena_query: str,
+    is_accession: bool,
+    limit: int = 1000000,
+    provider: str = "ena",
+    only_provider: bool = False,
 ) -> tuple:
-    """Retrieve a list of samples available from ENA.
+    """Retrieve a list of samples available from ENA and/or SRA.
 
-    The first attempt will be against ENA, and if that fails, SRA will be queried. This should
-    capture those samples not yet synced between ENA and SRA.
+    By default, the provider is queried first and the other is used as fallback. When
+    only_provider is True, no fallback is attempted.
 
     Args:
-        sra_query (str): A formatted query for SRA searches.
-        ena_query (str): A formatted query for ENA searches.
-        is_accession (bool): If the query is an accession or not.
-        limit (int): The maximum number of records to return.
+        sra_query: A formatted query for SRA searches.
+        ena_query: A formatted query for ENA searches.
+        is_accession: If the query is an accession or not.
+        limit: The maximum number of records to return.
+        provider: Which provider to query first ("ena" or "sra").
+        only_provider: If True, skip fallback to the other provider.
 
     Returns:
-        tuple: Records associated with the accession.
+        tuple: (success, data, source) where source is "ena", "sra", or "none".
     """
+    from bactopia.databases.sra import get_sra_metadata
 
-    logging.debug("Querying ENA for metadata...")
-    success, ena_data = get_ena_metadata(ena_query, is_accession, limit=limit)
+    fallback = "sra" if provider == "ena" else "ena"
+
+    def _query_ena():
+        logging.debug("Querying ENA for metadata...")
+        success, data = get_ena_metadata(ena_query, is_accession, limit=limit)
+        if success and data:
+            return True, data
+        if not success:
+            logging.warning(f"ENA query failed (status {data[0]}).")
+        else:
+            logging.debug("ENA query returned no results.")
+        return False, []
+
+    def _query_sra():
+        logging.debug("Querying SRA for metadata...")
+        return get_sra_metadata(sra_query, is_accession, limit=limit)
+
+    query_fn = {"ena": _query_ena, "sra": _query_sra}
+
+    success, data = query_fn[provider]()
     if success:
-        return success, ena_data
-    else:
-        logging.error("There was an issue querying ENA, exiting...")
-        logging.error(f"STATUS: {ena_data[0]}")
-        logging.error(f"TEXT: {ena_data[1]}")
-        sys.exit(1)
+        return True, data, provider
+
+    if only_provider:
+        logging.error(f"{provider.upper()} returned no results (--only-provider).")
+        return False, [], "none"
+
+    logging.info(f"No results from {provider.upper()}, checking {fallback.upper()}...")
+    success, data = query_fn[fallback]()
+    if success:
+        return True, data, fallback
+
+    logging.error("Both ENA and SRA returned no results.")
+    return False, [], "none"

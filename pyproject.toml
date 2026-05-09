@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bactopia"
-version = "2.1.6"
+version = "2.2.0"
 description = "A Python package for working with Bactopia"
 authors = [
     "Robert A. Petit III <robbie.petit@gmail.com>",
@@ -57,6 +57,7 @@ pyyaml = ">=6.0"
 biopython = ">=1.80"
 openpyxl = ">=3.1.0"
 psutil = ">=5.9.0"
+pysradb = ">=2.2.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.9"

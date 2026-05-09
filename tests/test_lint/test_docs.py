@@ -55,7 +55,7 @@ def rule_W001():
 NEXTFLOW_CONFIG = """\
 manifest {
     name = "bactopia"
-    nextflowVersion = '>=25.04.6'
+    nextflowVersion = '>=26.04.0'
 }
 """
 
@@ -134,7 +134,7 @@ class TestValidateDocsShape:
         report = validate_docs(repo, skip_path_check=True)
         counts = report["ground_truth"]["counts"]
         assert counts == {"modules": 2, "subworkflows": 1, "workflows": 2}
-        assert report["ground_truth"]["nextflow_version"] == "25.04.6"
+        assert report["ground_truth"]["nextflow_version"] == "26.04.0"
         assert report["ground_truth"]["cli_commands_total"] == 3
         assert report["ground_truth"]["lint_rule_ids_total"] == 3
 
@@ -227,21 +227,21 @@ class TestCountClaims:
 
 class TestVersionClaims:
     def test_d104_mismatch(self, repo):
-        _add_doc(repo, "ref.md", "Bactopia uses Nextflow 26.01.0.\n")
+        _add_doc(repo, "ref.md", "Bactopia uses Nextflow 25.04.6.\n")
         report = validate_docs(repo, skip_path_check=True)
         d104 = [h for h in report["ground_truth_violations"] if h["rule_id"] == "D104"]
         assert len(d104) == 1
-        assert d104[0]["claim"] == "Nextflow 26.01.0"
-        assert d104[0]["actual"] == "Nextflow 25.04.6"
+        assert d104[0]["claim"] == "Nextflow 25.04.6"
+        assert d104[0]["actual"] == "Nextflow 26.04.0"
 
     def test_d104_match(self, repo):
-        _add_doc(repo, "ref.md", "Requires Nextflow 25.04.6 or later.\n")
+        _add_doc(repo, "ref.md", "Requires Nextflow 26.04.0 or later.\n")
         report = validate_docs(repo, skip_path_check=True)
         d104 = [h for h in report["ground_truth_violations"] if h["rule_id"] == "D104"]
         assert d104 == []
 
     def test_d104_major_minor_match_allowed(self, repo):
-        _add_doc(repo, "ref.md", "Requires Nextflow 25.04 or later.\n")
+        _add_doc(repo, "ref.md", "Requires Nextflow 26.04 or later.\n")
         report = validate_docs(repo, skip_path_check=True)
         d104 = [h for h in report["ground_truth_violations"] if h["rule_id"] == "D104"]
         assert d104 == []

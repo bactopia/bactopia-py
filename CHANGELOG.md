@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.2.0
+
+### New Features
+
+- `bactopia-search` now falls back to SRA (via `pysradb`) when ENA returns no results, addressing sync delays between the two databases
+    - Added `--provider [ena|sra]` flag to control which database is queried first (default: `ena`)
+    - Added `--only-provider` flag to disable fallback and query only the selected provider
+    - Search summary output now includes a `PROVIDER` line indicating which database returned results
+
+### New Dependencies
+
+- Added `pysradb` (>=2.2.0) for SRA metadata queries
+
+### Bug Fixes
+
+- Fixed docs lint tests to match updated Nextflow version (26.04.0)
+
+### Template Updates
+
+- Bumped `nf-bactopia` plugin version from 2.1.3 to 2.1.5 in all Nextflow config templates
+- Updated `nextflowVersion` requirement from `>=25.04.6` to `>=26.04.0` in scaffold templates
+
 ## 2.1.6
 
 - fix "bactopia-summary" for v4 outputs

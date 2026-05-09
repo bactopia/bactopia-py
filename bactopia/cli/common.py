@@ -26,7 +26,7 @@ def common_options(fn):
 def setup_logging(verbose: bool, silent: bool) -> None:
     """Configure root logger with RichHandler at the appropriate level."""
     logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s - %(message)s",
+        format="%(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         handlers=[
             RichHandler(rich_tracebacks=True, console=rich.console.Console(stderr=True))

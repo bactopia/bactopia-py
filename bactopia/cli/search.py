@@ -30,6 +30,8 @@ click.rich_click.OPTION_GROUPS = {
             "name": "Query Options",
             "options": [
                 "--exact-taxon",
+                "--provider",
+                "--only-provider",
                 "--limit",
                 "--accession-limit",
                 "--biosample-subset",
@@ -192,6 +194,9 @@ def parse_query(q, accession_limit, exact_taxon=False):
     run_accessions = []
 
     for query in queries:
+        query = query.strip()
+        if not query:
+            continue
         try:
             taxon_id = int(query)
             if exact_taxon:
@@ -244,6 +249,18 @@ def parse_query(q, accession_limit, exact_taxon=False):
     help="Taxon ID or Study, BioSample, or Run accession (can also be comma separated or a file of accessions)",
 )
 @click.option("--exact-taxon", is_flag=True, help="Exclude Taxon ID descendants")
+@click.option(
+    "--provider",
+    default="ena",
+    show_default=True,
+    type=click.Choice(["ena", "sra"], case_sensitive=False),
+    help="Provider to query first, falls back to the other",
+)
+@click.option(
+    "--only-provider",
+    is_flag=True,
+    help="Only query the given --provider, skip fallback",
+)
 @click.option(
     "--outdir", "-o", default="./", show_default=True, help="Directory to write output"
 )
@@ -316,6 +333,8 @@ def parse_query(q, accession_limit, exact_taxon=False):
 def search(
     query,
     exact_taxon,
+    provider,
+    only_provider,
     outdir,
     prefix,
     limit,
@@ -379,12 +398,31 @@ def search(
     accessions_file = f"{outdir}/{prefix}-accessions.txt".replace("//", "/")
     filtered_file = f"{outdir}/{prefix}-filtered.txt".replace("//", "/")
     summary_file = f"{outdir}/{prefix}-search.txt".replace("//", "/")
+
+    if not force:
+        existing = [
+            f
+            for f in [metadata_file, accessions_file, filtered_file, summary_file]
+            if Path(f).exists()
+        ]
+        if existing:
+            logging.error(
+                f"Output files already exist: {', '.join(existing)}. "
+                "Use --force to overwrite."
+            )
+            sys.exit(1)
+
     genome_sizes = get_ncbi_genome_size() if use_ncbi_genome_size else None
     for query_type, ena_query, sra_query in queries:
         logging.info(f"Submitting query (type - {query_type})")
         is_accession = True if query_type.endswith("accession") else False
-        success, query_results = get_run_info(
-            sra_query, ena_query, is_accession, limit=limit
+        success, query_results, source = get_run_info(
+            sra_query,
+            ena_query,
+            is_accession,
+            limit=limit,
+            provider=provider,
+            only_provider=only_provider,
         )
         results += query_results
         if success:
@@ -395,8 +433,35 @@ def search(
                 genome_size=genome_size,
                 genome_sizes=genome_sizes,
             )
+
+            # Fallback: provider returned results but none passed filtering
+            if not query_accessions and not only_provider:
+                fallback = "sra" if source == "ena" else "ena"
+                logging.info(
+                    f"Accession found on {source.upper()}, but missing "
+                    f"metadata, checking {fallback.upper()}..."
+                )
+                fb_success, fb_results, fb_source = get_run_info(
+                    sra_query,
+                    ena_query,
+                    is_accession,
+                    limit=limit,
+                    provider=fallback,
+                    only_provider=True,
+                )
+                if fb_success:
+                    results += fb_results
+                    source = fb_source
+                    query_accessions, query_filtered = parse_accessions(
+                        fb_results,
+                        min_read_length=min_read_length,
+                        min_base_count=min_base_count,
+                        genome_size=genome_size,
+                        genome_sizes=genome_sizes,
+                    )
+
+            WARNING_MESSAGE = None
             if len(query_accessions):
-                WARNING_MESSAGE = None
                 if query_type == "biosample" and biosample_subset > 0:
                     if len(query_accessions) > biosample_subset:
                         WARNING_MESSAGE = f"WARNING: Selected {biosample_subset} Experiment accession(s) from a total of {len(query_accessions)}"
@@ -404,20 +469,19 @@ def search(
                             query_accessions, biosample_subset
                         )
                 accessions = list(set(accessions + query_accessions))
-                filtered["min_base_count"] += query_filtered["min_base_count"]
-                filtered["min_read_length"] += query_filtered["min_read_length"]
-                filtered["technical"] += query_filtered["technical"]
-                for filtered_sample in query_filtered["filtered"]:
-                    filtered["filtered"][filtered_sample["accession"]] = (
-                        filtered_sample["reason"]
-                    )
             else:
                 if query_results:
-                    WARNING_MESSAGE = f"WARNING: {query} did not return any Illumina or Ont results from ENA."
+                    WARNING_MESSAGE = f"WARNING: {query} did not return any Illumina or Ont results from {source.upper()}."
                 else:
-                    WARNING_MESSAGE = (
-                        f"WARNING: {query} did not return any results from ENA."
-                    )
+                    WARNING_MESSAGE = f"WARNING: {query} did not return any results from {source.upper()}."
+
+            filtered["min_base_count"] += query_filtered["min_base_count"]
+            filtered["min_read_length"] += query_filtered["min_read_length"]
+            filtered["technical"] += query_filtered["technical"]
+            for filtered_sample in query_filtered["filtered"]:
+                filtered["filtered"][filtered_sample["accession"]] = filtered_sample[
+                    "reason"
+                ]
 
             # Create Summary
             query_string = query
@@ -435,6 +499,7 @@ def search(
             summary.append(
                 f"DATE: {datetime.datetime.now().replace(microsecond=0).isoformat()}"
             )
+            summary.append(f"PROVIDER: {source.upper()}")
             summary.append(f"LIMIT: {limit}")
             summary.append(f"RESULTS: {len(results)} ({metadata_file})")
             summary.append(
@@ -461,6 +526,10 @@ def search(
             summary.append("")
         else:
             logging.error(f"ERROR: Unable to retrieve metadata for query ({query})")
+
+    if not results:
+        logging.error("No results found, skipping output files.")
+        sys.exit(1)
 
     # Output the results
     logging.info(f"Writing results to {metadata_file}")

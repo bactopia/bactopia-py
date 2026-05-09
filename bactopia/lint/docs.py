@@ -61,7 +61,7 @@ _NEXTFLOW_INFORMATIONAL_RE = re.compile(
     re.IGNORECASE,
 )
 
-# nextflow.config: nextflowVersion = '>=25.04.6'
+# nextflow.config: nextflowVersion = '>=26.04.0'
 _NEXTFLOW_CONFIG_RE = re.compile(
     r"nextflowVersion\s*=\s*['\"][^\d]*(\d+\.\d+(?:\.\d+)?)"
 )
