@@ -49,17 +49,18 @@ def execute(
         else:
             return command.returncode
     except subprocess.CalledProcessError as e:
-        logging.debug(f"STDOUT: \n{command.stdout}")
-        logging.debug(f"STDERR:\n{command.stderr}")        
         if allow_fail:
-            logging.debug(f'"{cmd}" return exit code {e.returncode}')
-            logging.debug(e)
+            logger = logging.debug
+        else:
+            logger = logging.error
+        logger(f"STDOUT: \n{e.stdout}")
+        logger(f"STDERR:\n{e.stderr}")        
+        logger(f'"{cmd}" return exit code {e.returncode}')
+        logger(e)
+        if allow_fail:
             return None
         else:
-            logging.error(f'"{cmd}" return exit code {e.returncode}')
-            logging.error(e)
             sys.exit(e.returncode)
-
 
 def pgzip(files: list, cpus: int) -> list:
     """
