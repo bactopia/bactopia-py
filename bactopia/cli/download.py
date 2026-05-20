@@ -356,7 +356,7 @@ def build_singularity_image(
     "--envtype",
     default="conda",
     show_default=True,
-    type=click.Choice(["conda", "docker", "singularity", "all"], case_sensitive=False),
+    type=click.Choice(["conda", "docker", "singularity", "apptainer", "all"], case_sensitive=False),
     help="The type of environment to build",
 )
 @click.option(
