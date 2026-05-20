@@ -315,7 +315,7 @@ def build_singularity_image(
     singularity_exe="singularity",
 ):
     """Build Conda env, with chance to retry."""
-    force = "--force " if force else ""
+    force = "--force" if force else ""
     retry = 0
     allow_fail = False
     success = False
@@ -323,7 +323,7 @@ def build_singularity_image(
         result = None
         if use_build:
             result = execute(
-                f"{singularity_exe} build {force}{image} {pull}", allow_fail=allow_fail
+                f"{singularity_exe} build {force} {image} {pull}", allow_fail=allow_fail
             )
         else:
             # Download from Galaxy Project

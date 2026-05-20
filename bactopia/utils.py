@@ -1,4 +1,5 @@
 import logging
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -33,7 +34,7 @@ def execute(
     logging.debug(f"Working directory: {directory}")
     try:
         command = subprocess.run(
-            cmd.split(" "),  # Replace with your command and arguments
+            shlex.split(cmd),  # Replace with your command and arguments
             cwd=directory,
             capture_output=True,
             text=True,  # Decodes stdout/stderr as strings using default encoding
