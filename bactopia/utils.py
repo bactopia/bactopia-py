@@ -49,6 +49,8 @@ def execute(
         else:
             return command.returncode
     except subprocess.CalledProcessError as e:
+        logging.debug(f"STDOUT: \n{command.stdout}")
+        logging.debug(f"STDERR:\n{command.stderr}")        
         if allow_fail:
             logging.debug(f'"{cmd}" return exit code {e.returncode}')
             logging.debug(e)
