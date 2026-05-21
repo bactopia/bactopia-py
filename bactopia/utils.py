@@ -54,13 +54,14 @@ def execute(
         else:
             logger = logging.error
         logger(f"STDOUT: \n{e.stdout}")
-        logger(f"STDERR:\n{e.stderr}")        
+        logger(f"STDERR:\n{e.stderr}")
         logger(f'"{cmd}" return exit code {e.returncode}')
         logger(e)
         if allow_fail:
             return None
         else:
             sys.exit(e.returncode)
+
 
 def pgzip(files: list, cpus: int) -> list:
     """
