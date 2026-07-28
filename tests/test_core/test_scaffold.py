@@ -220,9 +220,19 @@ class TestScaffoldVersions:
         assert "params.bactopia_version = '9.9.9'" in config
         assert "id 'nf-bactopia@8.8.8'" in config
 
-    def test_subworkflow_config_uses_versions_yml(self, tmp_path):
-        (tmp_path / "versions.yml").write_text("bactopia: 9.9.9\nnf-bactopia: 8.8.8\n")
-        files = render_subworkflow_files(_make_config(), tmp_path)
+    def test_module_test_config_centralizes_version(self):
+        # Module test configs inherit version + plugin from conf/test_base.config;
+        # they must NOT hardcode either.
+        files = render_module_files(_make_config())
+        config = files["modules/testtool/tests/nextflow.config"]
+        assert 'includeConfig "../../../conf/test_base.config"' in config
+        assert "bactopia_version" not in config
+        assert "nf-bactopia@" not in config
+
+    def test_subworkflow_test_config_centralizes_version(self):
+        # Same contract for subworkflow test configs.
+        files = render_subworkflow_files(_make_config())
         config = files["subworkflows/testtool/tests/nextflow.config"]
-        assert "bactopia_version = '9.9.9'" in config
-        assert "id 'nf-bactopia@8.8.8'" in config
+        assert 'includeConfig "../../../conf/test_base.config"' in config
+        assert "bactopia_version" not in config
+        assert "nf-bactopia@" not in config

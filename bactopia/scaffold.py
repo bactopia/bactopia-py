@@ -257,20 +257,14 @@ def render_module_files(
 
     Args:
         config: Enriched design configuration.
-        bactopia_path: Repo root; read for versions.yml (falls back to None when omitted).
+        bactopia_path: Accepted for interface symmetry; unused (test configs
+            inherit versions from conf/test_base.config).
 
     Returns:
         Dict mapping relative file paths to rendered content.
     """
     env = get_template_env()
     ctx = _enrich_config(config)
-    versions = (
-        read_versions(bactopia_path)
-        if bactopia_path
-        else {"bactopia": None, "nf_bactopia": None}
-    )
-    ctx["bactopia_version"] = versions["bactopia"]
-    ctx["nf_bactopia_version"] = versions["nf_bactopia"]
     tool = config["tool"]
     base = f"modules/{tool}"
 
@@ -299,13 +293,6 @@ def render_subworkflow_files(
     """Render all subworkflow files from a design config."""
     env = get_template_env()
     ctx = _enrich_config(config)
-    versions = (
-        read_versions(bactopia_path)
-        if bactopia_path
-        else {"bactopia": None, "nf_bactopia": None}
-    )
-    ctx["bactopia_version"] = versions["bactopia"]
-    ctx["nf_bactopia_version"] = versions["nf_bactopia"]
     tool = config["tool"]
     base = f"subworkflows/{tool}"
 
