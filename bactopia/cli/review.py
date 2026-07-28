@@ -715,7 +715,7 @@ def print_rich(console: rich.console.Console, data: dict):
 @click.option(
     "--logs-dir",
     default=None,
-    help="Directory containing test run logs. Default: {bactopia-path}/logs",
+    help="Directory containing test run logs. Default: {bactopia-path}/logs/run-tests",
 )
 @click.option(
     "--baselines",
@@ -765,7 +765,7 @@ def review(
         sys.exit(1)
 
     # Resolve logs directory
-    logs = Path(logs_dir).absolute().resolve() if logs_dir else bp / "logs"
+    logs = Path(logs_dir).absolute().resolve() if logs_dir else bp / "logs" / "run-tests"
     if not logs.exists():
         logging.error(f"Logs directory {logs} does not exist.")
         sys.exit(1)

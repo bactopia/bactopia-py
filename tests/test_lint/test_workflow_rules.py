@@ -1,7 +1,7 @@
-"""Tests for W021 and S025 lint rules (reject Value<Path> wrapper)."""
+"""Tests for W021/S025 (reject Value<Path> wrapper) and W022 (repo-root anchor)."""
 
 from bactopia.lint.rules.subworkflow_rules import rule_s025
-from bactopia.lint.rules.workflow_rules import rule_w021
+from bactopia.lint.rules.workflow_rules import rule_w021, rule_w022
 
 
 def _wf_ctx(params):
@@ -176,3 +176,84 @@ class TestS025:
         results = rule_s025("test", ctx)
         assert len(results) == 1
         assert results[0].is_pass()
+
+
+# ── W022 tests ──────────────────────────────────────────────────────────
+
+
+_MODULE_INCLUDE = 'includeConfig "../../../modules/prokka/module.config"\n'
+
+
+def _write_wf_config(tmp_path, component, body):
+    """Materialise a workflow dir with a nextflow.config and return its ctx."""
+    component_dir = tmp_path / component
+    component_dir.mkdir(parents=True)
+    (component_dir / "nextflow.config").write_text(body)
+    return {"component_dir": component_dir}
+
+
+class TestW022:
+    def test_skipped_when_no_config(self, tmp_path):
+        component_dir = tmp_path / "workflows/bactopia-tools/prokka"
+        component_dir.mkdir(parents=True)
+        assert (
+            rule_w022(
+                "workflows/bactopia-tools/prokka", {"component_dir": component_dir}
+            )
+            == []
+        )
+
+    def test_pass_tool_depth(self, tmp_path):
+        ctx = _write_wf_config(
+            tmp_path,
+            "workflows/bactopia-tools/prokka",
+            'params.bactopia_dir = "${projectDir}/../../.."\n' + _MODULE_INCLUDE,
+        )
+        results = rule_w022("workflows/bactopia-tools/prokka", ctx)
+        assert len(results) == 1
+        assert results[0].is_pass()
+
+    def test_pass_named_workflow_depth(self, tmp_path):
+        ctx = _write_wf_config(
+            tmp_path,
+            "workflows/staphopia",
+            'params.bactopia_dir = "${projectDir}/../.."\n' + _MODULE_INCLUDE,
+        )
+        assert rule_w022("workflows/staphopia", ctx)[0].is_pass()
+
+    def test_fail_missing_anchor(self, tmp_path):
+        ctx = _write_wf_config(
+            tmp_path, "workflows/bactopia-tools/prokka", _MODULE_INCLUDE
+        )
+        results = rule_w022("workflows/bactopia-tools/prokka", ctx)
+        assert len(results) == 1
+        assert results[0].is_fail()
+        assert "bactopia_dir" in results[0].message
+
+    def test_fail_wrong_depth(self, tmp_path):
+        ctx = _write_wf_config(
+            tmp_path,
+            "workflows/bactopia-tools/prokka",
+            'params.bactopia_dir = "${projectDir}/.."\n' + _MODULE_INCLUDE,
+        )
+        results = rule_w022("workflows/bactopia-tools/prokka", ctx)
+        assert results[0].is_fail()
+        assert "${projectDir}/../../.." in results[0].message
+
+    def test_fail_declared_after_module_include(self, tmp_path):
+        ctx = _write_wf_config(
+            tmp_path,
+            "workflows/bactopia-tools/prokka",
+            _MODULE_INCLUDE + 'params.bactopia_dir = "${projectDir}/../../.."\n',
+        )
+        results = rule_w022("workflows/bactopia-tools/prokka", ctx)
+        assert results[0].is_fail()
+        assert "after the module includeConfig" in results[0].message
+
+    def test_pass_without_module_includes(self, tmp_path):
+        ctx = _write_wf_config(
+            tmp_path,
+            "workflows/bactopia-tools/prokka",
+            'params.bactopia_dir = "${projectDir}/../../.."\n',
+        )
+        assert rule_w022("workflows/bactopia-tools/prokka", ctx)[0].is_pass()

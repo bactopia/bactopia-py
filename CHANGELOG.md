@@ -1,5 +1,39 @@
 # Changelog
 
+## 2.3.0
+
+### New Lint Rules
+
+- `W022` - workflow `nextflow.config` must declare `params.bactopia_dir` before the module includes, with the depth-correct `${projectDir}`-relative value; module.config cannot locate repo-vendored data without it (FAIL)
+- `MC016` - module.config path-like params must be repo-anchored via `${params.bactopia_dir}` (relative paths resolve against launchDir, not the module), and anchored data files must exist under the Bactopia path (FAIL)
+- `V001` - all version-bearing files must match the pipeline repo's `versions.yml`: the pipeline version across `nextflow.config`, `catalog.json`, `bin/bactopia`, `data/conda/meta.yaml`, `CITATION.cff`, and every `bactopia_version` literal in `*.config` (including module/subworkflow test configs), plus the `nf-bactopia@` plugin pin across every `*.config` (FAIL)
+- `V002` - the pipeline version declared in `versions.yml` must equal the top-most `## vX.Y.Z` heading in `CHANGELOG.md`, so the repo agrees with itself about which version is being released (FAIL)
+- `V003` - the `nf-bactopia` pin in `versions.yml` should be the latest `nf-bactopia` release (read from the sibling `../nf-bactopia/build.gradle`); a lagging pin is a WARN, and the check PASS-skips when the sibling repo is not checked out (WARN)
+
+### Enhancements
+
+- `bactopia-merge-schemas` now emits a `params.bactopia_dir` anchor (`${projectDir}` walked up per workflow depth) so generated `nextflow.config` files can reference vendored `data/` reliably
+- Nextflow config parser (`nf.py`) now brace-matches `params { ... }` blocks and captures each param's raw value, so values containing `${...}` interpolations are parsed correctly
+- `bactopia-merge-schemas` and `bactopia-catalog` now source the pipeline version and `nf-bactopia` plugin pin from the pipeline repo's `versions.yml` (`bactopia:` / `nf-bactopia:` keys) via `bactopia.nf.read_versions`, so bumping the pipeline version no longer requires a `bactopia-py` release
+
+### Bug Fixes
+
+- `bactopia-summary` reported the literal strings `SCHEME` and `ST` for every sample's `mlst_scheme` / `mlst_st` ([bactopia#673](https://github.com/bactopia/bactopia/issues/673)). Bactopia v4 runs `mlst --full`, which emits a header row, but the parser read row `0` as data; it now parses the header and reads the `SCHEME` / `ST` columns by name
+- `bactopia-merge-schemas` no longer strips the trailing newline from the generated `nextflow.config`
+- `bactopia-download` `--envtype` now accepts `apptainer`
+- `bactopia.utils.execute` now splits commands with `shlex.split` (was naive `" "` split) and logs full STDOUT/STDERR on failure
+- `bactopia-test` and `bactopia-review-tests` now write and read run logs under `logs/run-tests` instead of `logs`
+
+### Template Updates
+
+- `nextflow/nextflow.config.j2` version and `nf-bactopia@` plugin literals are now `{{ bactopia_version }}` / `{{ nf_bactopia_version }}`, injected from the pipeline repo's `versions.yml` at render time (removes the hardcoded values)
+- Added `params.bactopia_dir` anchor to the `nextflow/` and scaffold workflow `nextflow.config.j2` templates so module.config can locate vendored `data/`
+- Scaffold `module`/`subworkflow`/`workflow` `nextflow.config.j2` templates now inject `bactopia_version` and the `nf-bactopia@` plugin pin from the target repo's `versions.yml` (via `bactopia-scaffold --bactopia-path`) instead of hardcoding them
+
+### Build
+
+- CI and `environment.yml`: install via `python -m pip` and add explicit `pip` dependency
+
 ## 2.2.0
 
 ### New Features

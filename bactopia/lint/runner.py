@@ -7,7 +7,12 @@ from pathlib import Path
 import yaml
 
 from bactopia.lint.models import LintResult
-from bactopia.lint.rules import MODULE_RULES, SUBWORKFLOW_RULES, WORKFLOW_RULES
+from bactopia.lint.rules import (
+    MODULE_RULES,
+    REPO_RULES,
+    SUBWORKFLOW_RULES,
+    WORKFLOW_RULES,
+)
 from bactopia.nf import (
     check_file_whitespace,
     find_main_nf,
@@ -197,6 +202,7 @@ def run_lint(
                     continue
 
             ctx = _build_module_context(main_nf, citation_keys=citation_keys)
+            ctx["bactopia_path"] = bactopia_path
             ignored = _collect_ignores(main_nf.parent)
             results = _run_rules(component_name, ctx, MODULE_RULES, ignored)
             all_results.extend(results)
@@ -284,6 +290,16 @@ def run_lint(
             )
 
         components_by_tier[tier_name] = tier_results
+
+    # Repo-level checks: invariants spanning the whole repo (only need bactopia_path)
+    repo_results = _run_rules("repo", {"bactopia_path": bactopia_path}, REPO_RULES)
+    all_results.extend(repo_results)
+    repo_has_fail = any(r.is_fail() for r in repo_results)
+    repo_has_warn = any(r.is_warn() for r in repo_results)
+    repo_status = "FAIL" if repo_has_fail else "WARN" if repo_has_warn else "PASS"
+    components_by_tier["repo"] = [
+        {"component": "repo", "status": repo_status, "results": repo_results}
+    ]
 
     # Summary
     summary = {

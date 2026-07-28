@@ -173,7 +173,7 @@ class TestRenderWorkflowFiles:
         config = files["workflows/bactopia-tools/testtool/nextflow.config"]
         assert "manifest {" in config
         assert 'name = "testtool"' in config
-        assert "nf-bactopia@2.1.5" in config
+        assert "id 'nf-bactopia@" in config
 
 
 class TestRenderAllFiles:
@@ -209,3 +209,20 @@ class TestInputTypeMap:
             assert "channel" in info, f"{itype} missing 'channel'"
             assert "ext" in info, f"{itype} missing 'ext'"
             assert "record_fields" in info, f"{itype} missing 'record_fields'"
+
+
+class TestScaffoldVersions:
+    def test_workflow_config_uses_versions_yml(self, tmp_path):
+        (tmp_path / "versions.yml").write_text("bactopia: 9.9.9\nnf-bactopia: 8.8.8\n")
+        files = render_workflow_files(_make_config(), tmp_path)
+        config = files["workflows/bactopia-tools/testtool/nextflow.config"]
+        assert "version = '9.9.9'" in config
+        assert "params.bactopia_version = '9.9.9'" in config
+        assert "id 'nf-bactopia@8.8.8'" in config
+
+    def test_subworkflow_config_uses_versions_yml(self, tmp_path):
+        (tmp_path / "versions.yml").write_text("bactopia: 9.9.9\nnf-bactopia: 8.8.8\n")
+        files = render_subworkflow_files(_make_config(), tmp_path)
+        config = files["subworkflows/testtool/tests/nextflow.config"]
+        assert "bactopia_version = '9.9.9'" in config
+        assert "id 'nf-bactopia@8.8.8'" in config

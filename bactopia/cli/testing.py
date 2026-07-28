@@ -817,7 +817,7 @@ def testing(
     timeout_seconds = timeout * 60
 
     # Create log directory upfront so per-test logs are written as they complete
-    logs_dir = Path(outdir).absolute().resolve() / "logs"
+    logs_dir = Path(outdir).absolute().resolve() / "logs" / "run-tests"
     run_dir = create_log_dir(logs_dir)
 
     with ProcessPoolExecutor(max_workers=jobs) as executor:

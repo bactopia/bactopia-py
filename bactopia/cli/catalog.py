@@ -16,12 +16,12 @@ import bactopia
 from bactopia.cli.common import common_options, setup_logging
 from bactopia.nf import (
     find_main_nf,
-    get_bactopia_version,
     parse_groovydoc_full,
     parse_includes,
     parse_main_nf_structure,
     parse_module_config_full,
     parse_workflow_config,
+    read_versions,
 )
 
 # Set up Rich
@@ -330,15 +330,12 @@ def generate_catalog(bactopia_path: Path) -> dict:
     Returns:
         The catalog dict ready for JSON serialization.
     """
-    # Extract versions from nextflow.config
-    bactopia_version = get_bactopia_version(bactopia_path)
-    plugin_version = "unknown"
-    nf_config = bactopia_path / "nextflow.config"
-    if nf_config.exists():
-        for line in nf_config.read_text().splitlines():
-            m = re.match(r"\s*id\s+['\"]nf-bactopia@([^'\"]+)['\"]", line)
-            if m:
-                plugin_version = m.group(1)
+    # Versions come from the declared versions.yml (source of truth), not
+    # from the generated nextflow.config, so catalog.json is correct even
+    # before configs are regenerated.
+    versions = read_versions(bactopia_path)
+    bactopia_version = versions["bactopia"]
+    plugin_version = versions["nf_bactopia"]
 
     catalog = {
         "version": "1.0",

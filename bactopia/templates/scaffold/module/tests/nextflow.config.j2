@@ -10,7 +10,7 @@ params {
         ext = "fna"
     }
 
-    bactopia_version = '4.0.1'
+    bactopia_version = '{{ bactopia_version }}'
     bactopia_cache = System.getenv("BACTOPIA_CACHEDIR") ?: "${System.getenv('HOME')}/.bactopia"
     condadir = "${params.bactopia_cache}/conda"
     wf = params.workflow.name

@@ -5,7 +5,7 @@ manifest {
     homePage = 'https://github.com/bactopia/bactopia'
     description = 'An extensive workflow for processing sequencing of bacterial genomes.'
     mainScript = 'main.nf'
-    version = '4.0.1'
+    version = '{{ bactopia_version }}'
     nextflowVersion = '>=26.04.0'
 }
 
@@ -21,11 +21,14 @@ params {
 }
 
 // Version
-params.bactopia_version = '4.0.1'
+params.bactopia_version = '{{ bactopia_version }}'
 manifest.version = "${params.bactopia_version}"
 
 // Includes
 params.bactopia_cache = env("BACTOPIA_CACHEDIR") ? "${env('BACTOPIA_CACHEDIR')}" : "${env('HOME')}/.bactopia"
+// Absolute anchor to the Bactopia repo root, used by module.config to locate
+// vendored data under data/ (a relative path would resolve against launchDir)
+params.bactopia_dir = "{{ bactopia_dir }}"
 {%- for config in generic_params %}
 includeConfig "{{ config }}"
 {%- endfor %}
@@ -93,7 +96,7 @@ dag {
 
 // Plugins
 plugins {
-    id 'nf-bactopia@2.1.5'
+    id 'nf-bactopia@{{ nf_bactopia_version }}'
 }
 
 bactopia {

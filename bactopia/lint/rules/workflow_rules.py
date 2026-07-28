@@ -1,4 +1,4 @@
-"""Lint rules for Bactopia workflows (W001-W021)."""
+"""Lint rules for Bactopia workflows (W001-W022)."""
 
 import re
 
@@ -495,6 +495,61 @@ def rule_w021(component: str, ctx: dict) -> list[LintResult]:
     return violations
 
 
+def rule_w022(component: str, ctx: dict) -> list[LintResult]:
+    """nextflow.config anchors params.bactopia_dir before the module includes."""
+    rid = "W022"
+    config_path = ctx["component_dir"] / "nextflow.config"
+    if not config_path.exists():
+        return []
+
+    depth = len([p for p in component.split("/") if p and p != "."])
+    expected = (
+        "${projectDir}" if depth == 0 else "${projectDir}/" + "/".join([".."] * depth)
+    )
+
+    lines = config_path.read_text().splitlines()
+    anchor_line = None
+    anchor_value = None
+    for i, line in enumerate(lines):
+        m = re.match(r'\s*params\.bactopia_dir\s*=\s*"([^"]*)"\s*$', line)
+        if m:
+            anchor_line, anchor_value = i, m.group(1)
+            break
+
+    if anchor_line is None:
+        return [
+            _fail(
+                rid,
+                component,
+                "nextflow.config does not declare params.bactopia_dir; module.config "
+                "cannot locate repo-vendored data without it",
+            )
+        ]
+
+    issues = []
+    if anchor_value != expected:
+        issues.append(
+            f'params.bactopia_dir is "{anchor_value}", expected "{expected}" '
+            f"for a workflow {depth} level(s) below the repo root"
+        )
+    first_module_include = next(
+        (
+            i
+            for i, line in enumerate(lines)
+            if re.search(r'includeConfig\s+"[^"]*module\.config"', line)
+        ),
+        None,
+    )
+    if first_module_include is not None and anchor_line > first_module_include:
+        issues.append(
+            "params.bactopia_dir is declared after the module includeConfig lines, "
+            "so module.config sees an unset anchor"
+        )
+    if issues:
+        return [_fail(rid, component, "; ".join(issues))]
+    return [_pass(rid, component, "params.bactopia_dir is correctly anchored")]
+
+
 WORKFLOW_RULES = [
     rule_w001,
     rule_w002,
@@ -517,4 +572,5 @@ WORKFLOW_RULES = [
     rule_w019,
     rule_w020,
     rule_w021,
+    rule_w022,
 ]

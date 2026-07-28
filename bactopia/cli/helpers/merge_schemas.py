@@ -12,6 +12,7 @@ from jinja2 import Environment, FileSystemLoader
 import bactopia
 import bactopia.parsers.nextflow as nf_parsers
 from bactopia.cli.common import common_options, setup_logging
+from bactopia.nf import read_versions
 from bactopia.parsers.generic import parse_json
 from bactopia.parsers.workflows import get_modules_by_workflow
 
@@ -109,6 +110,7 @@ def merge_schemas(
 
     # bactopia paths
     bactopia_path = str(Path(bactopia_path).absolute())
+    versions = read_versions(bactopia_path)
 
     # Set up output directory and files
     outdir_path = Path(outdir)
@@ -218,6 +220,11 @@ def merge_schemas(
     wf_path = catalog["workflows"][wf]["path"].rstrip("/")
     depth = len(wf_path.split("/"))
     include_prefix = "./" if depth == 1 else "../" * depth
+    # Absolute anchor to the Bactopia repo root, used by module.config files to
+    # reference vendored data under data/ (relative paths would resolve to launchDir).
+    bactopia_dir = (
+        "${projectDir}" if depth == 1 else "${projectDir}/" + "/".join([".."] * depth)
+    )
     logging.debug(f"Include prefix: {include_prefix} ({depth})")
     for module in modules:
         module_meta = catalog["modules"].get(module)
@@ -255,7 +262,7 @@ def merge_schemas(
     # Generate Nextflow config file
     # Set up Jinja2 environment
     template_dir = Path(__file__).parent.parent.parent / "templates"
-    env = Environment(loader=FileSystemLoader(template_dir))
+    env = Environment(loader=FileSystemLoader(template_dir), keep_trailing_newline=True)
     nf_template = env.get_template("nextflow/nextflow.config.j2")
 
     # nextflow.config
@@ -270,6 +277,9 @@ def merge_schemas(
         base=base,
         profiles=profiles,
         extra_wf=extra_wf,
+        bactopia_dir=bactopia_dir,
+        bactopia_version=versions["bactopia"],
+        nf_bactopia_version=versions["nf_bactopia"],
     )
 
     # Write the config to file

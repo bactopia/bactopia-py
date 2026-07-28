@@ -1,4 +1,4 @@
-"""Lint rules for Bactopia modules (M001-M030, MC001-MC015, JS001-JS005, FMT001-FMT002)."""
+"""Lint rules for Bactopia modules (M001-M030, MC001-MC016, JS001-JS005, FMT001-FMT002)."""
 
 import re
 from pathlib import Path
@@ -728,6 +728,76 @@ def rule_mc015(component: str, ctx: dict) -> list[LintResult]:
     ]
 
 
+# Anchor that module.config must use to reach repo-vendored data under data/.
+# Emitted into every generated workflow nextflow.config before the module includes.
+BACTOPIA_DIR_ANCHOR = "${params.bactopia_dir}"
+
+_URL_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*://")
+
+
+def _string_literal(value: str) -> str | None:
+    """Return the body of a quoted string literal, or None if not quoted."""
+    if len(value) >= 2 and value[0] in "\"'" and value[-1] == value[0]:
+        return value[1:-1]
+    return None
+
+
+def rule_mc016(component: str, ctx: dict) -> list[LintResult]:
+    """Path-like params are repo-anchored and bundled data files exist."""
+    rid = "MC016"
+    if not ctx["config"]["exists"]:
+        return []
+    ignored = _ignored_param_names(ctx, rid)
+    bactopia_path = ctx.get("bactopia_path")
+
+    unanchored = []
+    missing = []
+    checked = 0
+    for param in ctx["config"]["params"]:
+        if param["name"] in ignored:
+            continue
+        literal = _string_literal(param.get("value", ""))
+        # Only string literals that look like filesystem paths are in scope
+        if literal is None or "/" not in literal or _URL_SCHEME.match(literal):
+            continue
+        if literal.startswith(BACTOPIA_DIR_ANCHOR):
+            checked += 1
+            if bactopia_path is not None:
+                rel = literal[len(BACTOPIA_DIR_ANCHOR) :].lstrip("/")
+                if not (bactopia_path / rel).exists():
+                    missing.append(f"{param['name']} -> {rel}")
+        elif literal.startswith("${") or literal.startswith("/"):
+            # Anchored on another param/projectDir, or already absolute
+            checked += 1
+        else:
+            unanchored.append(f'{param["name"]} = "{literal}"')
+
+    results = []
+    if unanchored:
+        results.append(
+            _fail(
+                rid,
+                component,
+                "Relative path params resolve against launchDir, not the module; "
+                f"anchor with {BACTOPIA_DIR_ANCHOR}: {', '.join(unanchored)}",
+            )
+        )
+    if missing:
+        results.append(
+            _fail(
+                rid,
+                component,
+                f"{BACTOPIA_DIR_ANCHOR} paths do not exist in the repo: "
+                f"{', '.join(missing)}",
+            )
+        )
+    if results:
+        return results
+    if checked:
+        return [_pass(rid, component, "Path params are anchored and resolve")]
+    return []
+
+
 # ---------------------------------------------------------------------------
 # schema.json rules (JS001-JS004)
 # ---------------------------------------------------------------------------
@@ -1239,6 +1309,7 @@ MODULE_RULES = [
     rule_mc013,
     rule_mc014,
     rule_mc015,
+    rule_mc016,
     # schema.json
     rule_js001,
     rule_js002,

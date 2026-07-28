@@ -8,6 +8,8 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
+from bactopia.nf import read_versions
+
 TEMPLATES_DIR = Path(__file__).parent / "templates" / "scaffold"
 
 ICON_MAP = {
@@ -255,13 +257,20 @@ def render_module_files(
 
     Args:
         config: Enriched design configuration.
-        bactopia_path: Optional repo root (unused in rendering, but available for path resolution).
+        bactopia_path: Repo root; read for versions.yml (falls back to None when omitted).
 
     Returns:
         Dict mapping relative file paths to rendered content.
     """
     env = get_template_env()
     ctx = _enrich_config(config)
+    versions = (
+        read_versions(bactopia_path)
+        if bactopia_path
+        else {"bactopia": None, "nf_bactopia": None}
+    )
+    ctx["bactopia_version"] = versions["bactopia"]
+    ctx["nf_bactopia_version"] = versions["nf_bactopia"]
     tool = config["tool"]
     base = f"modules/{tool}"
 
@@ -290,6 +299,13 @@ def render_subworkflow_files(
     """Render all subworkflow files from a design config."""
     env = get_template_env()
     ctx = _enrich_config(config)
+    versions = (
+        read_versions(bactopia_path)
+        if bactopia_path
+        else {"bactopia": None, "nf_bactopia": None}
+    )
+    ctx["bactopia_version"] = versions["bactopia"]
+    ctx["nf_bactopia_version"] = versions["nf_bactopia"]
     tool = config["tool"]
     base = f"subworkflows/{tool}"
 
@@ -317,6 +333,13 @@ def render_workflow_files(
     """Render all workflow files from a design config."""
     env = get_template_env()
     ctx = _enrich_config(config)
+    versions = (
+        read_versions(bactopia_path)
+        if bactopia_path
+        else {"bactopia": None, "nf_bactopia": None}
+    )
+    ctx["bactopia_version"] = versions["bactopia"]
+    ctx["nf_bactopia_version"] = versions["nf_bactopia"]
     tool = config["tool"]
     base = f"workflows/bactopia-tools/{tool}"
 

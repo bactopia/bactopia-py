@@ -6,6 +6,8 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+
 
 def find_main_nf(directory: Path) -> list:
     """Find all main.nf files under a directory, sorted.
@@ -383,6 +385,25 @@ def get_bactopia_version(bactopia_path: Path) -> str:
             if m:
                 return m.group(1)
     return "unknown"
+
+
+def read_versions(bactopia_path: Path) -> dict[str, str]:
+    """Read declared pipeline + plugin versions from <bactopia_path>/versions.yml.
+
+    Returns a dict with keys 'bactopia' and 'nf_bactopia' (the file key
+    'nf-bactopia' is normalized to an underscore for Python ergonomics).
+    """
+    path = Path(bactopia_path) / "versions.yml"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"versions.yml not found at {path}; expected declared Bactopia "
+            "pipeline versions (keys 'bactopia' and 'nf-bactopia')"
+        )
+    data = yaml.safe_load(path.read_text()) or {}
+    missing = [k for k in ("bactopia", "nf-bactopia") if k not in data]
+    if missing:
+        raise KeyError(f"versions.yml missing required key(s): {', '.join(missing)}")
+    return {"bactopia": str(data["bactopia"]), "nf_bactopia": str(data["nf-bactopia"])}
 
 
 def parse_dataset_urls(bactopia_path, datasets_path):
@@ -1374,6 +1395,35 @@ def parse_main_nf_structure(main_nf: Path) -> dict:
     return result
 
 
+def _extract_brace_block(text: str, keyword: str) -> str | None:
+    """Return the contents of the first ``keyword { ... }`` block.
+
+    Brace-matched rather than regex-delimited so that values containing braces
+    (e.g. GString interpolations like ``${params.bactopia_dir}``) do not
+    truncate the block early.
+
+    Args:
+        text: File contents to scan.
+        keyword: Block name to find (e.g. ``params``).
+
+    Returns:
+        The block body without the enclosing braces, or None if not found.
+    """
+    match = re.search(rf"\b{re.escape(keyword)}\s*\{{", text)
+    if not match:
+        return None
+    start = match.end() - 1
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start + 1 : i]
+    return None
+
+
 def parse_module_config_full(config_path: Path) -> dict:
     """Parse a module.config file for all ext.* properties and params.
 
@@ -1442,9 +1492,8 @@ def parse_module_config_full(config_path: Path) -> dict:
 
     # Extract params from the params {} block, tracking per-line ignores
     ignore_pattern = re.compile(r"//\s*bactopia-lint:\s*ignore\s+([\w, ]+)")
-    params_block = re.search(r"params\s*\{([^}]*)\}", text, re.DOTALL)
-    if params_block:
-        params_content = params_block.group(1)
+    params_content = _extract_brace_block(text, "params")
+    if params_content is not None:
         param_names_ordered = []
 
         # Extract params comment (first // comment line in block)
@@ -1455,7 +1504,7 @@ def parse_module_config_full(config_path: Path) -> dict:
                 break
 
         for line in params_content.splitlines():
-            param_match = re.match(r"^\s*(\w+)\s*=", line)
+            param_match = re.match(r"^\s*(\w+)\s*=\s*(.*?)\s*$", line)
             if not param_match:
                 continue
             name = param_match.group(1)
@@ -1470,7 +1519,11 @@ def parse_module_config_full(config_path: Path) -> dict:
                     rule_id = rule_id.strip()
                     if rule_id:
                         inline_ignores.add(rule_id)
-            result["params"].append({"name": name, "ignores": inline_ignores})
+            # Raw value with any trailing inline comment removed
+            value = re.sub(r"\s*//.*$", "", param_match.group(2)).strip()
+            result["params"].append(
+                {"name": name, "value": value, "ignores": inline_ignores}
+            )
 
         # Check alphabetical order
         if param_names_ordered:

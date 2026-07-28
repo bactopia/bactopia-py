@@ -9,11 +9,8 @@ def parse(path: str, name: str) -> dict:
     """
     Parse the results of an MLST analysis.
 
-    Columns
-        0 - the filename
-        1 - the matching PubMLST scheme name
-        2 - the ST (sequence type)
-        3-N - the allele IDs
+    Bactopia runs `mlst --full`, which emits a header row followed by a single
+    row of results: FILE, SCHEME, ST, STATUS, SCORE, ALLELES.
 
     Args:
         path (str): input file to be parsed
@@ -22,9 +19,9 @@ def parse(path: str, name: str) -> dict:
     Returns:
         dict: parsed results
     """
-    result = parse_table(path, has_header=False)[0]
+    result = parse_table(path)[0]
     return {
         "sample": name,
-        "mlst_scheme": result[1],
-        "mlst_st": result[2],
+        "mlst_scheme": result["SCHEME"],
+        "mlst_st": result["ST"],
     }
