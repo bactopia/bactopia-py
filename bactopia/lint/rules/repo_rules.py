@@ -162,7 +162,9 @@ def rule_v002(component: str, ctx: dict) -> list[LintResult]:
         return [_fail(rid, component, "CHANGELOG.md not found")]
     m = _CHANGELOG_RE.search(changelog.read_text())
     if not m:
-        return [_fail(rid, component, "no versioned '## vX.Y.Z' heading in CHANGELOG.md")]
+        return [
+            _fail(rid, component, "no versioned '## vX.Y.Z' heading in CHANGELOG.md")
+        ]
     if m.group(1) != declared:
         return [
             _fail(
@@ -190,7 +192,11 @@ def rule_v003(component: str, ctx: dict) -> list[LintResult]:
         return [_fail(rid, component, f"versions.yml unreadable: {e}")]
     gradle = bp.parent / "nf-bactopia" / "build.gradle"
     if not gradle.exists():
-        return [_pass(rid, component, "nf-bactopia repo not found; cannot verify pin currency")]
+        return [
+            _pass(
+                rid, component, "nf-bactopia repo not found; cannot verify pin currency"
+            )
+        ]
     m = _GRADLE_VERSION_RE.search(gradle.read_text())
     if not m:
         return [_pass(rid, component, "no version in nf-bactopia build.gradle")]

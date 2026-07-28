@@ -765,7 +765,9 @@ def review(
         sys.exit(1)
 
     # Resolve logs directory
-    logs = Path(logs_dir).absolute().resolve() if logs_dir else bp / "logs" / "run-tests"
+    logs = (
+        Path(logs_dir).absolute().resolve() if logs_dir else bp / "logs" / "run-tests"
+    )
     if not logs.exists():
         logging.error(f"Logs directory {logs} does not exist.")
         sys.exit(1)
