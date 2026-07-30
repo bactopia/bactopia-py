@@ -85,6 +85,92 @@ RE_NF_LOG_PATH = re.compile(r"Check '(.+?)' file for details")
 RE_ASSERTION_FAILED = re.compile(r"(\d+) of (\d+) assertions? failed")
 RE_HAS_NF_ERROR = re.compile(r"ERROR ~")
 
+# Matrix profiles (fallback if summary.json omits the list)
+PROFILES_DEFAULT = ["docker", "conda", "singularity_galaxy", "singularity_pull"]
+
+# Cell statuses that are not failures worth grouping.
+PASS_LIKE = {"passed", "n/a", "skipped"}
+
+# Statuses assigned directly by bactopia-test (not inferred from stdout).
+DIRECT_PATTERNS = {
+    "version_drift": "Runtime resolved a different tool version than the docker-pinned container -- update the version pin",
+    "output_drift": "Output content differs from the docker snapshot (non-reproducible file or a genuine change to review)",
+    "version+output_drift": "Both tool version and output differ from the docker snapshot",
+    "snapshot_mismatch": "Snapshot did not match the docker ground truth (drift not subclassified)",
+    "snapshot_stale": "Committed snapshot is stale (docker itself no longer matches) -- run --generate",
+    "non_reproducible": "Docker snapshot generation was not reproducible across two runs",
+    "build_failed": "Environment/image failed to build during the build phase",
+    "no_ground_truth": "No docker snapshot was available to validate against",
+    "no_snapshot": "nf-test reported a missing snapshot",
+    "timeout": "Test exceeded the per-run timeout",
+}
+
+PATTERN_LABELS = {
+    "version_drift": "Version drift (update pin)",
+    "output_drift": "Output drift",
+    "version+output_drift": "Version + output drift",
+    "snapshot_mismatch": "Snapshot mismatch",
+    "snapshot_stale": "Stale snapshot (run --generate)",
+    "non_reproducible": "Non-reproducible snapshot",
+    "build_failed": "Environment build failures",
+    "no_ground_truth": "No ground-truth snapshot",
+    "no_snapshot": "Missing snapshot",
+    "timeout": "Timed out",
+    "undeclared_outputs": "Undeclared output files",
+    "undeclared_parameter": "Undeclared parameter errors",
+    "missing_config": "Missing config/include errors",
+    "process_failure": "Process execution failures",
+    "null_container": "Null container errors",
+    "abort_error": "Execution aborted unexpectedly",
+    "assertion_failure": "Test assertion failures (workflow completed)",
+    "syntax_error": "Compilation/syntax errors",
+    "unclassified": "Unclassified failures",
+}
+
+PATTERN_DETAILS = {
+    "version_drift": "The tool version resolved by Conda/Singularity differs from the container pin",
+    "output_drift": "Output files differ from the docker-generated snapshot",
+    "version+output_drift": "Both the tool version and its output differ from docker",
+    "snapshot_mismatch": "Snapshot did not match and could not be subclassified",
+    "snapshot_stale": "The reference runtime (docker) no longer matches the committed snapshot; regenerate it",
+    "non_reproducible": "Two docker runs produced different snapshots",
+    "build_failed": "Could not build the Conda env or Singularity image before testing",
+    "no_ground_truth": "Docker did not establish a snapshot for the non-docker profiles to validate",
+    "no_snapshot": "No snapshot file was found for the test",
+    "timeout": "The nf-test subprocess was killed after the timeout",
+    "undeclared_outputs": "Files produced but not in results/logs/versions/nf_logs (add to results or .outputs-ignore)",
+    "undeclared_parameter": "Parameter specified but not declared in script or config",
+    "missing_config": "Config file referenced by includeConfig does not exist",
+    "process_failure": "A Nextflow process terminated with a non-zero exit status",
+    "null_container": "Container image is quay.io/null (missing or unconfigured module.config)",
+    "abort_error": "Nextflow execution aborted due to an unexpected error",
+    "assertion_failure": "Workflow ran successfully but test assertions did not match",
+    "syntax_error": "Nextflow script failed to compile",
+    "unclassified": "Failures that did not match any known error pattern",
+}
+
+PATTERN_ORDER = [
+    "version_drift",
+    "output_drift",
+    "version+output_drift",
+    "snapshot_mismatch",
+    "snapshot_stale",
+    "non_reproducible",
+    "build_failed",
+    "no_ground_truth",
+    "no_snapshot",
+    "timeout",
+    "undeclared_outputs",
+    "undeclared_parameter",
+    "missing_config",
+    "process_failure",
+    "null_container",
+    "abort_error",
+    "assertion_failure",
+    "syntax_error",
+    "unclassified",
+]
+
 
 def strip_ansi(text: str) -> str:
     """Remove ANSI escape codes from text."""
@@ -354,8 +440,29 @@ def update_baselines(results: list, baselines_path: Path):
     logging.info(f"Baselines updated: {baselines_path} ({len(components)} components)")
 
 
+def _docker_results(results: list) -> list:
+    """Flatten matrix results to docker-cell pseudo-results.
+
+    Timing stats and baselines key on the docker profile since it is the
+    canonical, container-pinned runtime.
+    """
+    flat = []
+    for r in results:
+        cell = r.get("cells", {}).get("docker")
+        if cell is None:
+            continue
+        flat.append(
+            {
+                "component": r["component"],
+                "tier": r["tier"],
+                "duration": cell.get("duration", 0),
+            }
+        )
+    return flat
+
+
 def analyze_run(run_dir: Path, baselines_path: Path | None, tolerance: float) -> dict:
-    """Analyze a test run and produce a structured report.
+    """Analyze a matrix test run and produce a structured report.
 
     Args:
         run_dir: Path to the test run directory.
@@ -366,154 +473,108 @@ def analyze_run(run_dir: Path, baselines_path: Path | None, tolerance: float) ->
         Complete analysis dict suitable for JSON output.
     """
     summary = parse_summary(run_dir)
-    results = summary["results"]
-    status_counts = summary["summary"]
+    results = summary.get("results", [])
+    profiles = summary.get("profiles", PROFILES_DEFAULT)
+    per_profile_counts = summary.get("summary", {})
     params = summary.get("params", {})
 
-    # Format timestamp from directory name
-    dirname = run_dir.name  # e.g. "20260325_084014"
+    dirname = run_dir.name
     try:
         ts = datetime.strptime(dirname, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
         timestamp = ts.strftime("%Y-%m-%d %H:%M:%S UTC")
     except ValueError:
         timestamp = dirname
 
-    # Tiers present
     tiers_tested = sorted(set(r["tier"] for r in results))
-
-    # Duration stats
-    duration = compute_duration_stats(results)
-
-    # Passed stats
-    passed_count = status_counts.get("passed", 0)
+    docker_res = _docker_results(results)
+    duration = compute_duration_stats(docker_res)
     total = len(results)
-    passed_pct = round(passed_count / total * 100, 1) if total > 0 else 0
 
-    # Classify failures and fix status for assertion failures from older runs
-    # that were incorrectly labeled as tool_error
-    failed_results = [r for r in results if r["status"] != "passed"]
+    # Per-profile passed stats
+    passed = {}
+    for p in profiles:
+        counts = per_profile_counts.get(p, {})
+        pc = counts.get("passed", 0)
+        tot = sum(counts.values())
+        passed[p] = {
+            "count": pc,
+            "percentage": round(pc / tot * 100, 1) if tot else 0,
+        }
+
+    # Collect every non-passing cell across all profiles.
     failure_details = []
-
-    for r in failed_results:
-        # Undeclared outputs are classified by bactopia-test directly, not
-        # from stdout analysis.  Read the .outputs.txt file for details.
-        if r["status"] == "undeclared_outputs":
-            outputs_path = run_dir / r["tier"] / f"{r['component']}.outputs.txt"
-            undeclared = r.get("undeclared_outputs", [])
-            if not undeclared and outputs_path.exists():
-                undeclared = [
-                    line
-                    for line in outputs_path.read_text().splitlines()
-                    if line and not line.startswith("#")
-                ]
-            message = ", ".join(undeclared) if undeclared else "see .outputs.txt"
-            failure_details.append(
-                {
-                    "component": r["component"],
-                    "tier": r["tier"],
-                    "status": r["status"],
-                    "duration": r["duration"],
-                    "pattern": "undeclared_outputs",
-                    "message": message,
-                }
-            )
-            continue
-
-        stdout_path = run_dir / r["tier"] / f"{r['component']}.stdout.txt"
-        if stdout_path.exists():
-            raw = stdout_path.read_text(errors="replace")
-            clean = strip_ansi(raw)
-            classification = classify_failure(clean)
-        else:
-            classification = {
-                "pattern": "unclassified",
-                "message": f"stdout file not found: {stdout_path.name}",
-            }
-
-        # Reconcile status with pattern analysis -- the pattern classification
-        # from stdout is more accurate than the original status from testing.py
-        status = r["status"]
-        pattern = classification["pattern"]
-        if pattern == "assertion_failure" and status != "assertion_failed":
-            status_counts[status] = status_counts.get(status, 1) - 1
-            status_counts["assertion_failed"] = (
-                status_counts.get("assertion_failed", 0) + 1
-            )
-            status = "assertion_failed"
-        elif pattern != "assertion_failure" and status == "assertion_failed":
-            status_counts["assertion_failed"] = (
-                status_counts.get("assertion_failed", 1) - 1
-            )
-            status_counts["tool_error"] = status_counts.get("tool_error", 0) + 1
-            status = "tool_error"
-
-        failure_details.append(
-            {
+    for r in results:
+        for profile in profiles:
+            cell = r.get("cells", {}).get(profile)
+            if cell is None:
+                continue
+            status = cell["status"]
+            if status in PASS_LIKE:
+                continue
+            base = {
                 "component": r["component"],
                 "tier": r["tier"],
+                "profile": profile,
                 "status": status,
-                "duration": r["duration"],
-                **classification,
+                "duration": cell.get("duration", 0),
             }
-        )
+            if status == "undeclared_outputs":
+                outputs_path = (
+                    run_dir / r["tier"] / r["component"] / profile / "outputs.txt"
+                )
+                undeclared = cell.get("undeclared_outputs", [])
+                if not undeclared and outputs_path.exists():
+                    undeclared = [
+                        line
+                        for line in outputs_path.read_text().splitlines()
+                        if line and not line.startswith("#")
+                    ]
+                message = ", ".join(undeclared) if undeclared else "see outputs.txt"
+                failure_details.append(
+                    {**base, "pattern": "undeclared_outputs", "message": message}
+                )
+            elif status in DIRECT_PATTERNS:
+                failure_details.append(
+                    {
+                        **base,
+                        "pattern": status,
+                        "message": cell.get("reason") or DIRECT_PATTERNS[status],
+                    }
+                )
+            else:
+                stdout_path = (
+                    run_dir / r["tier"] / r["component"] / profile / "stdout.txt"
+                )
+                if stdout_path.exists():
+                    classification = classify_failure(
+                        strip_ansi(stdout_path.read_text(errors="replace"))
+                    )
+                else:
+                    classification = {
+                        "pattern": "unclassified",
+                        "message": f"stdout not found: {stdout_path}",
+                    }
+                if cell.get("reason"):
+                    classification = {**classification, "message": cell["reason"]}
+                failure_details.append({**base, **classification})
 
-    # Group by pattern
     groups = defaultdict(list)
     for fd in failure_details:
         groups[fd["pattern"]].append(fd)
 
-    # Labels for each pattern
-    labels = {
-        "null_container": "Null container errors",
-        "missing_config": "Missing config/include errors",
-        "syntax_error": "Compilation/syntax errors",
-        "undeclared_parameter": "Undeclared parameter errors",
-        "undeclared_outputs": "Undeclared output files",
-        "process_failure": "Process execution failures",
-        "abort_error": "Execution aborted unexpectedly",
-        "assertion_failure": "Test assertion failures (workflow completed)",
-        "unclassified": "Unclassified failures",
-    }
-
-    details = {
-        "null_container": "Container image is quay.io/null (missing or unconfigured module.config)",
-        "missing_config": "Config file referenced by includeConfig does not exist",
-        "syntax_error": "Nextflow script failed to compile",
-        "undeclared_parameter": "Parameter specified but not declared in script or config",
-        "undeclared_outputs": "Files produced by the tool but not in results/logs/versions/nf_logs (add to results or .outputs-ignore)",
-        "process_failure": "A Nextflow process terminated with a non-zero exit status",
-        "abort_error": "Nextflow execution aborted due to an unexpected error",
-        "assertion_failure": "Workflow ran successfully but test assertions did not match",
-        "unclassified": "Failures that did not match any known error pattern",
-    }
-
-    # Build ordered failure groups
-    pattern_order = [
-        "undeclared_outputs",
-        "undeclared_parameter",
-        "missing_config",
-        "process_failure",
-        "null_container",
-        "abort_error",
-        "assertion_failure",
-        "syntax_error",
-        "unclassified",
-    ]
-
     failure_groups = []
-    for pattern in pattern_order:
-        components = groups.get(pattern, [])
+    for pattern in PATTERN_ORDER:
+        comps = groups.get(pattern, [])
         group = {
             "pattern": pattern,
-            "label": labels[pattern],
-            "count": len(components),
-            "detail": details[pattern],
-            "components": components,
+            "label": PATTERN_LABELS.get(pattern, pattern),
+            "count": len(comps),
+            "detail": PATTERN_DETAILS.get(pattern, ""),
+            "components": comps,
         }
-        # Add parameter summary for undeclared_parameter group
-        if pattern == "undeclared_parameter" and components:
+        if pattern == "undeclared_parameter" and comps:
             param_counts = defaultdict(int)
-            for c in components:
+            for c in comps:
                 for p in c.get("parameters", []):
                     param_counts[p] += 1
             group["parameters"] = dict(
@@ -521,7 +582,6 @@ def analyze_run(run_dir: Path, baselines_path: Path | None, tolerance: float) ->
             )
         failure_groups.append(group)
 
-    # Timing anomalies
     timing = {
         "baselines_file": str(baselines_path) if baselines_path else None,
         "baselines_available": False,
@@ -532,171 +592,172 @@ def analyze_run(run_dir: Path, baselines_path: Path | None, tolerance: float) ->
         with open(baselines_path) as f:
             baselines = json.load(f)
         timing["baselines_available"] = True
-        anomalies = check_timing_anomalies(results, baselines, tolerance)
+        anomalies = check_timing_anomalies(docker_res, baselines, tolerance)
         timing["slow_tests"] = anomalies["slow_tests"]
         timing["fast_tests"] = anomalies["fast_tests"]
 
     return {
         "timestamp": timestamp,
         "run_dir": str(run_dir),
-        "total_tests": total,
+        "total_components": total,
         "tiers_tested": tiers_tested,
+        "profiles": profiles,
         "params": params,
         "duration": duration,
-        "status_counts": {k: v for k, v in status_counts.items() if v > 0},
-        "passed": {"count": passed_count, "percentage": passed_pct},
+        "status_counts": per_profile_counts,
+        "passed": passed,
         "failure_groups": failure_groups,
         "timing_anomalies": timing,
     }
 
 
 def print_rich(console: rich.console.Console, data: dict):
-    """Render test review data as Rich tables.
-
-    Args:
-        console: Rich console for output.
-        data: Analysis dict from analyze_run().
-    """
+    """Render matrix test-review data as Rich tables."""
     console.print(f"[bold]Test Run Review[/bold]  ({data['timestamp']})")
     console.print(f"Run: {data['run_dir']}\n")
 
-    # Header stats
+    profiles = data.get("profiles", PROFILES_DEFAULT)
+
     header = rich.table.Table(title="Overview", show_header=False, box=None)
-    header.add_row("Total tests:", str(data["total_tests"]))
+    header.add_row("Components:", str(data["total_components"]))
     header.add_row("Tiers:", ", ".join(data["tiers_tested"]))
     dur = data["duration"]
-    header.add_row("Total duration:", f"{dur['total_seconds']:.0f}s")
-    header.add_row("Average:", f"{dur['average_seconds']:.1f}s")
-    header.add_row("Median:", f"{dur['median_seconds']:.1f}s")
+    header.add_row(
+        "Docker duration:",
+        f"{dur['total_seconds']:.0f}s total, {dur['average_seconds']:.1f}s avg",
+    )
     if dur["longest"]:
         header.add_row(
             "Longest:",
             f"{dur['longest']['component']} ({dur['longest']['duration']:.1f}s)",
         )
-    if dur["shortest"]:
-        header.add_row(
-            "Shortest:",
-            f"{dur['shortest']['component']} ({dur['shortest']['duration']:.1f}s)",
-        )
     console.print(header)
     console.print()
 
-    # Run parameters
     params = data.get("params", {})
     if params:
-        params_table = rich.table.Table(
-            title="Run Parameters", show_header=False, box=None
-        )
-        params_table.add_row("Generate:", str(params.get("generate", False)))
-        params_table.add_row("Profile:", str(params.get("profile", "unknown")))
-        params_table.add_row("Tier:", str(params.get("tier", "all")))
-        params_table.add_row("Jobs:", str(params.get("jobs", "unknown")))
-        params_table.add_row("Fail fast:", str(params.get("fail_fast", False)))
-        params_table.add_row("Cleanup:", str(params.get("cleanup", False)))
+        pt = rich.table.Table(title="Run Parameters", show_header=False, box=None)
+        pt.add_row("Generate:", str(params.get("generate", False)))
+        pt.add_row("Tier:", str(params.get("tier", "all")))
+        pt.add_row("Jobs:", str(params.get("jobs", "unknown")))
+        pt.add_row("Fail fast:", str(params.get("fail_fast", False)))
+        pt.add_row("Cache dir:", str(params.get("cachedir", "unknown")))
         if params.get("include"):
-            params_table.add_row("Include:", str(params["include"]))
+            pt.add_row("Include:", str(params["include"]))
         if params.get("exclude"):
-            params_table.add_row("Exclude:", str(params["exclude"]))
-        console.print(params_table)
+            pt.add_row("Exclude:", str(params["exclude"]))
+        console.print(pt)
         console.print()
 
-    # Status counts
-    status_table = rich.table.Table(title="Status Breakdown", box=None)
-    status_table.add_column("Status", style="bold")
-    status_table.add_column("Count", justify="right")
-    for status, count in data["status_counts"].items():
-        style = "green" if status == "passed" else "red"
-        status_table.add_row(f"[{style}]{status}[/{style}]", str(count))
-    console.print(status_table)
+    # Status breakdown: one column per profile.
+    counts = data.get("status_counts", {})
+    seen = []
+    for p in profiles:
+        for s in counts.get(p, {}):
+            if s not in seen:
+                seen.append(s)
+    order = [
+        "passed",
+        "n/a",
+        "version_drift",
+        "output_drift",
+        "version+output_drift",
+        "snapshot_mismatch",
+        "snapshot_stale",
+        "non_reproducible",
+        "build_failed",
+        "no_ground_truth",
+        "no_snapshot",
+        "timeout",
+        "tool_error",
+        "assertion_failed",
+        "syntax_error",
+        "undeclared_outputs",
+    ]
+    ordered = [s for s in order if s in seen] + [s for s in seen if s not in order]
+    st = rich.table.Table(title="Status Breakdown by Profile", box=None)
+    st.add_column("Status", style="bold")
+    for p in profiles:
+        st.add_column(p, justify="right")
+    for s in ordered:
+        style = (
+            "green" if s == "passed" else ("dim" if s in ("n/a", "skipped") else "red")
+        )
+        row = [f"[{style}]{s}[/{style}]"]
+        for p in profiles:
+            row.append(str(counts.get(p, {}).get(s, 0)))
+        st.add_row(*row)
+    console.print(st)
 
-    passed = data["passed"]
-    console.print(
-        f"\n[green]{passed['count']} passed[/green] ({passed['percentage']}% of {data['total_tests']} total)\n"
-    )
+    passed = data.get("passed", {})
+    parts = [
+        f"{p}: {passed.get(p, {}).get('count', 0)} ({passed.get(p, {}).get('percentage', 0)}%)"
+        for p in profiles
+    ]
+    console.print("\n[green]Passed[/green] -> " + " | ".join(parts) + "\n")
 
-    # Failure groups
     for group in data["failure_groups"]:
         if group["count"] == 0:
             continue
-
         console.print(f"[bold red]{group['label']}[/bold red] ({group['count']})")
         console.print(f"  {group['detail']}")
-
-        # Show parameter summary for undeclared_parameter
         if group["pattern"] == "undeclared_parameter" and "parameters" in group:
             for param, cnt in group["parameters"].items():
                 console.print(f"  - [yellow]{param}[/yellow]: {cnt} tests")
-
-        # List affected components
-        comp_table = rich.table.Table(box=None, show_header=True, padding=(0, 1))
-        comp_table.add_column("Component", style="bold")
-        comp_table.add_column("Tier")
-        comp_table.add_column("Duration", justify="right")
-        comp_table.add_column("Detail")
-
-        for c in sorted(group["components"], key=lambda x: x["component"]):
+        ct = rich.table.Table(box=None, show_header=True, padding=(0, 1))
+        ct.add_column("Component", style="bold")
+        ct.add_column("Tier")
+        ct.add_column("Profile")
+        ct.add_column("Duration", justify="right")
+        ct.add_column("Detail")
+        for c in sorted(
+            group["components"], key=lambda x: (x["component"], x.get("profile", ""))
+        ):
             detail = c.get("message", "")
-            # Truncate long details
             if len(detail) > 80:
                 detail = detail[:77] + "..."
-            comp_table.add_row(
-                c["component"], c["tier"], f"{c['duration']:.1f}s", detail
+            ct.add_row(
+                c["component"],
+                c["tier"],
+                c.get("profile", ""),
+                f"{c['duration']:.1f}s",
+                detail,
             )
-
-        console.print(comp_table)
+        console.print(ct)
         console.print()
 
-    # Timing anomalies
     timing = data["timing_anomalies"]
     if not timing["baselines_available"]:
         console.print(
             "[dim]No timing baselines available. Use --update-baselines to create them.[/dim]\n"
         )
-    else:
-        if timing["slow_tests"]:
-            console.print(
-                f"[bold yellow]Slow Tests[/bold yellow] ({len(timing['slow_tests'])})"
+        return
+    for label, key, color in (
+        ("Slow Tests", "slow_tests", "bold yellow"),
+        ("Suspiciously Fast Tests", "fast_tests", "bold cyan"),
+    ):
+        rows = timing[key]
+        if not rows:
+            continue
+        console.print(f"[{color}]{label}[/{color}] ({len(rows)})")
+        tbl = rich.table.Table(box=None, show_header=True, padding=(0, 1))
+        tbl.add_column("Component", style="bold")
+        tbl.add_column("Tier")
+        tbl.add_column("Actual", justify="right")
+        tbl.add_column("Expected", justify="right")
+        tbl.add_column("Ratio", justify="right")
+        for tt in rows:
+            tbl.add_row(
+                tt["component"],
+                tt["tier"],
+                f"{tt['actual_seconds']:.1f}s",
+                f"{tt['expected_seconds']:.1f}s",
+                f"{tt['ratio']:.1f}x",
             )
-            slow_table = rich.table.Table(box=None, show_header=True, padding=(0, 1))
-            slow_table.add_column("Component", style="bold")
-            slow_table.add_column("Tier")
-            slow_table.add_column("Actual", justify="right")
-            slow_table.add_column("Expected", justify="right")
-            slow_table.add_column("Ratio", justify="right")
-            for t in timing["slow_tests"]:
-                slow_table.add_row(
-                    t["component"],
-                    t["tier"],
-                    f"{t['actual_seconds']:.1f}s",
-                    f"{t['expected_seconds']:.1f}s",
-                    f"{t['ratio']:.1f}x",
-                )
-            console.print(slow_table)
-            console.print()
-
-        if timing["fast_tests"]:
-            console.print(
-                f"[bold cyan]Suspiciously Fast Tests[/bold cyan] ({len(timing['fast_tests'])})"
-            )
-            fast_table = rich.table.Table(box=None, show_header=True, padding=(0, 1))
-            fast_table.add_column("Component", style="bold")
-            fast_table.add_column("Tier")
-            fast_table.add_column("Actual", justify="right")
-            fast_table.add_column("Expected", justify="right")
-            fast_table.add_column("Ratio", justify="right")
-            for t in timing["fast_tests"]:
-                fast_table.add_row(
-                    t["component"],
-                    t["tier"],
-                    f"{t['actual_seconds']:.1f}s",
-                    f"{t['expected_seconds']:.1f}s",
-                    f"{t['ratio']:.1f}x",
-                )
-            console.print(fast_table)
-            console.print()
-
-        if not timing["slow_tests"] and not timing["fast_tests"]:
-            console.print("[green]All test durations within expected range.[/green]\n")
+        console.print(tbl)
+        console.print()
+    if not timing["slow_tests"] and not timing["fast_tests"]:
+        console.print("[green]All test durations within expected range.[/green]\n")
 
 
 @click.command()
@@ -806,7 +867,7 @@ def review(
     # Update baselines if requested
     if do_update_baselines:
         summary = parse_summary(run_dir)
-        update_baselines(summary["results"], baselines_path)
+        update_baselines(_docker_results(summary["results"]), baselines_path)
 
     # Output
     if use_json or pretty:

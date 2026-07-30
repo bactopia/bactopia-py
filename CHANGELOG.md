@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.4.0
+
+### New Features
+
+- `bactopia-test` runs each component across `docker`, `conda`, `singularity_galaxy`, `singularity_pull` profiles
+    - Snapshots are based on `docker` results
+    - `bactopia-test` will now build unbuilt envs at startup
+    - `summary.json` has been expanded to include better debugging and error class messages
+- `bactopia-review-tests` updated to support expanded `summary.json`
+
+### Changed
+
+- **Breaking:** `bactopia-test` changed multiple parameters
+    - `--keep` is now the default behavior
+    - `--condadir`, `--singularity_cache` are now `--cachedir` (`conda/` and `singularity/` subdirs)
+    - Added `--force-rebuild` and `--max-retry`
+    - running tests now requires docker, conda/mamba, and singularity/apptainer
+        - `--profile` is no longer needed due to this
+- Both Galaxy images and singularity pull images are now tested
+
 ## 2.3.0
 
 ### New Lint Rules
