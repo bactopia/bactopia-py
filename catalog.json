@@ -1,6 +1,6 @@
 {
   "name": "bactopia-py",
-  "version": "2.1.2",
+  "version": "2.4.2",
   "description": "Python CLI tools for working with Bactopia",
   "repository": "https://github.com/bactopia/bactopia-py",
   "license": "MIT",

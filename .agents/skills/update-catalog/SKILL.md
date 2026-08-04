@@ -19,7 +19,7 @@ Both files drift when commands are added, removed, or renamed. This skill intros
 Check for uncommitted edits before overwriting:
 
 ```
-git -C /home/rpetit3/repos/bactopia/bactopia-py status --porcelain catalog.json llms.txt
+git status --porcelain catalog.json llms.txt
 ```
 
 If either file is dirty, show the diff and confirm with the user before proceeding. These files are overwritten in place -- uncommitted changes would be lost.
@@ -63,20 +63,20 @@ For top-level CLI modules, use these category assignments based on what the comm
 - `analysis` -- summary
 - `maintenance` -- update
 - `development` -- lint, catalog, testing, review, docs, scaffold
-- `utility` -- merge-schemas, sysinfo, jsonify
+- `utility` -- merge-schemas, sysinfo
 
 Generate 3-6 tags per command based on key concepts from the description and the command's domain. Tags should be lowercase and use hyphens for multi-word tags. Look at the existing `catalog.json` for tag style reference.
 
 ### 5. Write catalog.json
 
-Write the file to the repo root at `/home/rpetit3/repos/bactopia/bactopia-py/catalog.json`.
+Write `catalog.json` to the bactopia-py repo root.
 
 Follow this exact schema (match the existing structure):
 
 ```json
 {
   "name": "bactopia-py",
-  "version": "<from bactopia/__init__.py __version__>",
+  "version": "<from pyproject.toml [tool.poetry] version>",
   "description": "Python CLI tools for working with Bactopia",
   "repository": "https://github.com/bactopia/bactopia-py",
   "license": "MIT",
@@ -95,7 +95,7 @@ Follow this exact schema (match the existing structure):
 ```
 
 Important details:
-- Read `bactopia/__init__.py` to get the current `__version__` value
+- Read `pyproject.toml` `[tool.poetry] version` for the version value. Do NOT use `bactopia/__init__.py` -- its `__version__` is `metadata.version("bactopia")`, which resolves the *installed* distribution and silently returns a stale version in any environment with a non-editable install
 - Read `pyproject.toml` for the `python_requires` value (under `[tool.poetry.dependencies]` as `python = "^3.10.0"` -- normalize to `>=3.10`)
 - Use 2-space indentation (pretty-printed) so diffs are clean
 - Order commands: user-facing commands first (alphabetically by name within each group), then pipeline utilities (alphabetically), matching the grouping in `pyproject.toml`
@@ -103,7 +103,7 @@ Important details:
 
 ### 6. Write llms.txt
 
-Write the file to the repo root at `/home/rpetit3/repos/bactopia/bactopia-py/llms.txt`.
+Write `llms.txt` to the bactopia-py repo root.
 
 Use this structure, updating counts and details to match the current state:
 
@@ -145,8 +145,8 @@ Use this structure, updating counts and details to match the current state:
 
 To fill in the dynamic counts:
 - Count user-facing commands vs pipeline utilities from the `pyproject.toml` grouping (pipeline utilities are under the `# Pipeline utility scripts` comment)
-- Count lint rules by running: `grep -c "def check_" bactopia/lint/rules/*.py` or by counting rule classes/functions
-- Count test modules by running: `ls tests/test_*.py | wc -l`
+- Count lint rules by running: `grep -c "def rule_" bactopia/lint/rules/*.py | awk -F: '{s+=$2} END {print s}'` (per-file counts must be summed; rule functions are named `rule_*`, not `check_*`)
+- Count test modules by running: `find tests -name 'test_*.py' | wc -l` (tests live in subdirectories; `ls tests/test_*.py` misses them)
 
 ### 7. Show the result
 

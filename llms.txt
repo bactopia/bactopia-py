@@ -19,7 +19,7 @@ Built with Python 3.10+, Poetry, and rich-click for CLI. Integrates with ENA, NC
 - [Database Clients](https://github.com/bactopia/bactopia-py/tree/main/bactopia/databases): ENA, NCBI, PubMLST API clients
 - [Parsers](https://github.com/bactopia/bactopia-py/tree/main/bactopia/parsers): Output parsers for 20+ bioinformatics tools
 - [Lint System](https://github.com/bactopia/bactopia-py/tree/main/bactopia/lint): 100+ lint rules for modules, subworkflows, and workflows
-- [Tests](https://github.com/bactopia/bactopia-py/tree/main/tests): pytest test suite with 34 test modules
+- [Tests](https://github.com/bactopia/bactopia-py/tree/main/tests): pytest test suite with 40 test modules
 - [pyproject.toml](https://github.com/bactopia/bactopia-py/blob/main/pyproject.toml): Build configuration and entry points
 - [catalog.json](https://github.com/bactopia/bactopia-py/blob/main/catalog.json): Machine-readable command catalog
 
