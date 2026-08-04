@@ -21,7 +21,7 @@ from pathlib import Path
 
 import yaml
 
-DEFAULT_DOCS_PATH = ".claude/docs"
+DEFAULT_DOCS_PATH = ".agents/docs"
 DEFAULT_PATTERNS_FILE = "data/docs-patterns.yml"
 
 # Inline suppression: <!-- bactopia-docs: ignore D001, D002 -->
@@ -66,7 +66,7 @@ _NEXTFLOW_CONFIG_RE = re.compile(
     r"nextflowVersion\s*=\s*['\"][^\d]*(\d+\.\d+(?:\.\d+)?)"
 )
 
-# Skill table row in .claude/docs/reference/06-skills.md. Anchors on the
+# Skill table row in .agents/docs/reference/06-skills.md. Anchors on the
 # first column being a markdown link whose target ends with "skills/<name>"
 # where <name> matches the link text — keeps the rule scoped to the
 # intended table and ignores unrelated tables in the same doc.
@@ -272,14 +272,14 @@ def _normalize(text: str) -> str:
 
 
 def _compute_skills(bactopia_path: Path) -> dict[str, dict]:
-    """Scan ``.claude/skills/*/SKILL.md`` and extract frontmatter descriptions.
+    """Scan ``.agents/skills/*/SKILL.md`` and extract frontmatter descriptions.
 
     Returns a mapping of ``skill_name -> {description, first_sentence}``.
     Skills without frontmatter or without a ``description`` field still
     appear (inventory symmetry is checkable regardless); ``first_sentence``
     is empty in that case and description-drift checks are skipped for them.
     """
-    skills_dir = bactopia_path / ".claude" / "skills"
+    skills_dir = bactopia_path / ".agents" / "skills"
     if not skills_dir.is_dir():
         return {}
     skills: dict[str, dict] = {}
@@ -314,10 +314,10 @@ def _check_skill_inventory(
     doc_path: Path,
     skills: dict[str, dict],
 ) -> list[dict]:
-    """D107: cross-check ``06-skills.md`` against ``.claude/skills/*/SKILL.md``.
+    """D107: cross-check ``06-skills.md`` against ``.agents/skills/*/SKILL.md``.
 
     Three failure modes:
-    - Skill exists under ``.claude/skills/`` but isn't listed in the table.
+    - Skill exists under ``.agents/skills/`` but isn't listed in the table.
     - Skill listed in the table has no matching directory.
     - Purpose cell drifted from the ``description:`` first sentence.
 
@@ -371,7 +371,7 @@ def _check_skill_inventory(
                 "match": "",
                 "reference": name,
                 "hint": (
-                    f"Skill '{name}' exists under .claude/skills/ but is not "
+                    f"Skill '{name}' exists under .agents/skills/ but is not "
                     "listed in the table."
                 ),
             }
@@ -389,7 +389,7 @@ def _check_skill_inventory(
                 "reference": name,
                 "hint": (
                     f"Skill '{name}' listed in table but no "
-                    f".claude/skills/{name}/ directory exists."
+                    f".agents/skills/{name}/ directory exists."
                 ),
             }
         )

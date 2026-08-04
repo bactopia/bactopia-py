@@ -93,12 +93,12 @@ def repo(tmp_path: Path) -> Path:
     )
 
     # Empty docs dir; tests add files as needed.
-    (bactopia / ".claude" / "docs").mkdir(parents=True)
+    (bactopia / ".agents" / "docs").mkdir(parents=True)
     return bactopia
 
 
 def _add_doc(repo: Path, rel: str, content: str) -> None:
-    _write(repo / ".claude" / "docs" / rel, content)
+    _write(repo / ".agents" / "docs" / rel, content)
 
 
 class TestValidateDocsShape:
@@ -358,9 +358,9 @@ class TestPathReferences:
 
 
 def _add_skill(repo: Path, name: str, description: str) -> None:
-    """Write a minimal SKILL.md under .claude/skills/<name>/."""
+    """Write a minimal SKILL.md under .agents/skills/<name>/."""
     frontmatter = f"---\nname: {name}\ndescription: {description}\n---\n\n# {name}\n"
-    _write(repo / ".claude" / "skills" / name / "SKILL.md", frontmatter)
+    _write(repo / ".agents" / "skills" / name / "SKILL.md", frontmatter)
 
 
 def _skills_doc(rows: list[tuple[str, str, str]]) -> str:
@@ -426,7 +426,7 @@ class TestSkillInventory:
         d107 = [h for h in report["ground_truth_violations"] if h["rule_id"] == "D107"]
         assert len(d107) == 1
         assert d107[0]["reference"] == "ghost"
-        assert "no .claude/skills/ghost" in d107[0]["hint"]
+        assert "no .agents/skills/ghost" in d107[0]["hint"]
 
     def test_d107_description_drift(self, repo):
         _add_skill(repo, "foo", "Do foo things with tool X. Extra detail.")
@@ -503,7 +503,7 @@ class TestSkillInventory:
         # Skill with no frontmatter is included in inventory but not
         # subject to description drift (empty first_sentence).
         _write(
-            repo / ".claude" / "skills" / "nofm" / "SKILL.md",
+            repo / ".agents" / "skills" / "nofm" / "SKILL.md",
             "# No frontmatter here\n",
         )
         _add_doc(

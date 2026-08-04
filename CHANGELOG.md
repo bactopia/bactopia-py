@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.2
+
+- `bactopia-docs` defaults to `.agents/docs` and `.agents/skills` (agents.md layout migration)
+- `llms.txt` template: link `AGENTS.md`, full docs index, fixed module layout description
+
 ## 2.4.1
 
 - fixed lint errors
