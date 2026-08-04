@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.1
+
+- fixed lint errors
+
 ## 2.4.0
 
 ### New Features

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bactopia"
-version = "2.4.0"
+version = "2.4.1"
 description = "A Python package for working with Bactopia"
 authors = [
     "Robert A. Petit III <robbie.petit@gmail.com>",
