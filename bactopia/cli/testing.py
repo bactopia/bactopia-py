@@ -24,7 +24,6 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from multiprocessing import cpu_count
 from pathlib import Path
 
 import rich
@@ -73,6 +72,8 @@ click.rich_click.OPTION_GROUPS = {
                 "--jobs",
                 "--fail-fast",
                 "--timeout",
+                "--times",
+                "--timeout-multiplier",
             ],
         },
         {
@@ -416,7 +417,11 @@ def _cleanup_test_dir(test_dir: Path):
 
 
 def cleanup_all(bactopia_path: Path, dry_run: bool = False):
-    """Find and remove all .nf-test/ directories and .nf-test.log files.
+    """Find and remove .nf-test/ directories and .nf-test.log files.
+
+    Only scans the component tier roots (modules, subworkflows, workflows) and
+    the root pipeline test dir (tests/). Artifacts elsewhere -- notably the
+    relocated work dirs under logs/ -- are left untouched.
 
     Args:
         bactopia_path: Path to the Bactopia repository.
@@ -424,18 +429,22 @@ def cleanup_all(bactopia_path: Path, dry_run: bool = False):
     """
     action = "Would remove" if dry_run else "Removing"
     count = 0
-    for nf_test_dir in sorted(bactopia_path.rglob(".nf-test")):
-        if nf_test_dir.is_dir():
-            logging.info(f"{action} {nf_test_dir}")
-            if not dry_run:
-                shutil.rmtree(nf_test_dir, ignore_errors=True)
-            count += 1
-    for nf_test_log in sorted(bactopia_path.rglob(".nf-test.log")):
-        if nf_test_log.is_file():
-            logging.info(f"{action} {nf_test_log}")
-            if not dry_run:
-                nf_test_log.unlink(missing_ok=True)
-            count += 1
+    roots = [bactopia_path / name for name in (*TIERS, "tests")]
+    for root in roots:
+        if not root.exists():
+            continue
+        for nf_test_dir in sorted(root.rglob(".nf-test")):
+            if nf_test_dir.is_dir():
+                logging.info(f"{action} {nf_test_dir}")
+                if not dry_run:
+                    shutil.rmtree(nf_test_dir, ignore_errors=True)
+                count += 1
+        for nf_test_log in sorted(root.rglob(".nf-test.log")):
+            if nf_test_log.is_file():
+                logging.info(f"{action} {nf_test_log}")
+                if not dry_run:
+                    nf_test_log.unlink(missing_ok=True)
+                count += 1
     if dry_run:
         logging.info(f"Found {count} nf-test artifact(s) to clean up")
     else:
@@ -506,6 +515,65 @@ def _load_catalog(bactopia_path: Path) -> dict | None:
     except (json.JSONDecodeError, OSError) as e:
         logging.warning(f"Could not read {catalog_path}: {e}")
         return None
+
+
+def _load_test_times(path: Path) -> dict:
+    """Load per-component test-time baselines, or {} if unavailable.
+
+    Returns the "components" sub-dict mapping "<tier>/<component>" to
+    {"expected_seconds": float, ...}. Missing file or parse error -> {}.
+    """
+    try:
+        with open(path) as fh:
+            return json.load(fh).get("components", {})
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+LONG_JOB_SECONDS = 600
+
+
+def _component_timeout(tier, component, baselines, multiplier, ceiling):
+    """Per-component timeout in seconds, or None if disabled.
+
+    ceiling is None when --timeout 0 (disabled) -> no timeout at all.
+    No baseline entry / expected<=0 / empty baselines -> ceiling.
+    Otherwise min(int(expected_seconds * multiplier), ceiling). No floor.
+    """
+    if ceiling is None:
+        return None
+    entry = baselines.get(f"{tier}/{component}")
+    if not entry or entry.get("expected_seconds", 0) <= 0:
+        return ceiling
+    return min(int(entry["expected_seconds"] * multiplier), ceiling)
+
+
+def _ordered_tests(tests, baselines):
+    """Longest-first by baseline expected_seconds. Unknown (no entry) sorts
+    first (inf). Empty baselines -> original order preserved (stable sort)."""
+    if not baselines:
+        return tests
+    return sorted(
+        tests,
+        key=lambda t: baselines.get(
+            f"{t['tier']}/{t['component']}", {}
+        ).get("expected_seconds", float("inf")),
+        reverse=True,
+    )
+
+
+def _long_jobs(tests, baselines):
+    """(expected_seconds, component) for tests whose baseline exceeds
+    LONG_JOB_SECONDS, longest first."""
+    out = [
+        (baselines[f"{t['tier']}/{t['component']}"]["expected_seconds"], t["component"])
+        for t in tests
+        if baselines.get(f"{t['tier']}/{t['component']}", {}).get(
+            "expected_seconds", 0
+        )
+        > LONG_JOB_SECONDS
+    ]
+    return sorted(out, reverse=True)
 
 
 def _modules_for(name: str, catalog: dict) -> list | None:
@@ -616,6 +684,21 @@ def _image_ok(path: Path | None) -> bool:
     return bool(path) and path.exists() and path.stat().st_size > 0
 
 
+def _needs_build(info: dict, art: dict, force: bool) -> bool:
+    """True if any of a module's expected env artifacts is missing (or force)."""
+    if force:
+        return True
+    if not art["conda_marker"].exists():
+        return True
+    if needs_docker_pull(info["docker"]):
+        return True
+    if not _image_ok(art["pull_img"]):
+        return True
+    if info.get("singularity") and not _image_ok(art["galaxy_img"]):
+        return True
+    return False
+
+
 def run_build_phase(
     configs: list,
     conda_path: str,
@@ -644,7 +727,8 @@ def run_build_phase(
 
     status = {}
     total = len(configs)
-    for i, config in enumerate(configs, start=1):
+    built = 0
+    for config in configs:
         info = parse_module_config(str(config), registry="quay.io")
         if not info or "docker" not in info:
             logging.warning(f"Could not parse envs from {config}, skipping build")
@@ -652,7 +736,12 @@ def run_build_phase(
             continue
 
         name = config.parent.name
-        logging.info(f"({i} of {total}) building environments for {name}")
+        art = _env_artifacts(info, conda_path, singularity_path)
+        if _needs_build(info, art, force):
+            built += 1
+            logging.info(f"Building environments for {name}")
+        else:
+            logging.debug(f"Environments for {name} already present")
 
         # Conda + Docker + Galaxy singularity (or docker-converted fallback
         # when no Galaxy URL exists).
@@ -692,7 +781,6 @@ def run_build_phase(
             except Exception as e:  # pragma: no cover - defensive
                 logging.error(f"build_env(singularity_pull) failed for {name}: {e}")
 
-        art = _env_artifacts(info, conda_path, singularity_path)
         status[str(config)] = {
             "docker": not needs_docker_pull(info["docker"]),
             "conda": art["conda_marker"].exists(),
@@ -700,6 +788,12 @@ def run_build_phase(
             "singularity_pull": _image_ok(art["pull_img"]),
         }
 
+    if built:
+        logging.info(
+            f"Build phase complete: built {built} of {total} environment set(s)"
+        )
+    else:
+        logging.info(f"All {total} environment set(s) already present")
     return status
 
 
@@ -1222,7 +1316,7 @@ def run_component(
         conda_path: Conda cache directory.
         singularity_path: Singularity cache directory.
         generate: Force docker snapshot regeneration.
-        timeout: Per-run timeout in seconds (0 = none).
+        timeout: Per-run timeout in seconds (None = none).
         build_status: Per-config build results.
 
     Returns:
@@ -1233,7 +1327,7 @@ def run_component(
     tier = test["tier"]
     galaxy_available = test.get("galaxy", False)
     snap_file = test_dir / "main.nf.test.snap"
-    effective_timeout = timeout if timeout > 0 else None
+    effective_timeout = timeout if timeout else None
     build_ok = _aggregate_build(test, build_status)
 
     base_env = os.environ.copy()
@@ -1609,10 +1703,10 @@ def _run_failed(results: list) -> bool:
 )
 @click.option(
     "--jobs",
-    default=max(1, cpu_count() // 4),
+    default=32,
     type=int,
     show_default=True,
-    help="Number of components tested in parallel (profiles within a component run sequentially)",
+    help="Number of components tested in parallel (profiles within a component run sequentially). Tune to the test host; the default 32 suits a large box",
 )
 @click.option(
     "--fail-fast",
@@ -1627,9 +1721,27 @@ def _run_failed(results: list) -> bool:
     help="Per-run timeout in minutes. Each nf-test subprocess is killed after this duration. Set to 0 to disable",
 )
 @click.option(
+    "--times",
+    "times",
+    default=None,
+    help="Path to test-times baseline JSON (expected_seconds per component). "
+    "Default: {bactopia-path}/conf/test-times.json. Enables per-component "
+    "timeouts and longest-first ordering.",
+)
+@click.option(
+    "-tm",
+    "--timeout-multiplier",
+    "timeout_multiplier",
+    default=4,
+    type=click.IntRange(min=1),
+    show_default=True,
+    help="Per-component timeout = min(expected_seconds * this, --timeout). "
+    "Only applied when a test-times file is available.",
+)
+@click.option(
     "--cleanup",
     is_flag=True,
-    help="Find and remove all .nf-test/ temp files, then exit (no tests run)",
+    help="Remove .nf-test/ temp files under modules/subworkflows/workflows/tests, then exit (no tests run)",
 )
 @click.option(
     "--dry-run",
@@ -1656,6 +1768,8 @@ def testing(
     jobs,
     fail_fast,
     timeout,
+    times,
+    timeout_multiplier,
     cleanup,
     dry_run,
     outdir,
@@ -1675,7 +1789,7 @@ def testing(
 
     bp = Path(bactopia_path).absolute().resolve()
 
-    # Cleanup mode: remove all .nf-test artifacts and exit
+    # Cleanup mode: remove .nf-test artifacts under tier roots + tests/, then exit
     if cleanup:
         if not bp.exists():
             logging.error(f"Bactopia path does not exist: {bp}")
@@ -1708,6 +1822,19 @@ def testing(
         logging.warning(
             "catalog.json not found; falling back to per-module.config resolution"
         )
+
+    times_path = Path(times).absolute() if times else bp / "conf" / "test-times.json"
+    baselines = _load_test_times(times_path)
+    if baselines:
+        logging.info(
+            f"Found test-times ({len(baselines)} baselines) at {times_path}; "
+            f"running jobs longest-to-shortest with per-component timeouts"
+        )
+    else:
+        logging.warning(
+            f"test-times not found at {times_path}; "
+            f"using flat --timeout and discovery order"
+        )
     all_configs = []
     seen_configs = set()
     for t in tests:
@@ -1726,9 +1853,21 @@ def testing(
                 seen_configs.add(str(c))
                 all_configs.append(c)
 
+    # Dispatch longest/unknown-first and warn when long jobs starve --jobs.
+    tests = _ordered_tests(tests, baselines)
+    if baselines:
+        long = _long_jobs(tests, baselines)
+        if long and len(long) > jobs:
+            logging.warning(
+                f"{len(long)} component(s) exceed {LONG_JOB_SECONDS // 60} min "
+                f"(longest {long[0][1]} ~{long[0][0] / 60:.0f} min); --jobs={jobs} "
+                f"is below that, so long jobs run back-to-back and dominate wall "
+                f"time. Raise --jobs to overlap them."
+            )
+
     # Build phase (serial): pre-build every environment/image the tests need.
     logging.info(
-        f"Build phase: {len(all_configs)} unique environment set(s) "
+        f"Checking {len(all_configs)} environment set(s) "
         f"[conda={conda_method}, singularity={singularity_exe}]"
     )
     build_status = run_build_phase(
@@ -1748,11 +1887,18 @@ def testing(
     # Test phase (parallel across components)
     results = []
     failed = False
-    timeout_seconds = timeout * 60
+    ceiling_seconds = timeout * 60 if timeout > 0 else None
 
     with ProcessPoolExecutor(max_workers=jobs) as executor:
         future_to_test = {}
         for t in tests:
+            comp_timeout = _component_timeout(
+                t["tier"],
+                t["component"],
+                baselines,
+                timeout_multiplier,
+                ceiling_seconds,
+            )
             future = executor.submit(
                 run_component,
                 t,
@@ -1760,7 +1906,7 @@ def testing(
                 conda_path,
                 singularity_path,
                 generate,
-                timeout_seconds,
+                comp_timeout,
                 build_status,
             )
             future_to_test[future] = t
@@ -1816,6 +1962,8 @@ def testing(
         "jobs": jobs,
         "fail_fast": fail_fast,
         "timeout": timeout,
+        "times": str(times_path),
+        "timeout_multiplier": timeout_multiplier,
         "cleanup": cleanup,
         "dry_run": dry_run,
         "outdir": str(Path(outdir).absolute()),

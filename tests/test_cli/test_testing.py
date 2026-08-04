@@ -456,3 +456,183 @@ def test_modules_for_workflow_walks_nested():
 
 def test_modules_for_unknown_returns_none():
     assert bt._modules_for("nope", _CATALOG) is None
+
+
+# ---------------------------------------------------------------------------
+# _needs_build
+# ---------------------------------------------------------------------------
+
+_GALAXY_INFO = {
+    "conda": "foo=1.0",
+    "docker": "quay.io/foo:1.0",
+    "singularity": "https://depot.galaxyproject.org/singularity/foo:1.0",
+}
+_NONGALAXY_INFO = {"conda": "foo=1.0", "docker": "quay.io/foo:1.0"}
+
+
+def _make_art(info, tmp_path, *, conda=True, pull=True, galaxy=True):
+    """Build an artifact map via _env_artifacts and create the requested files."""
+    conda_path = tmp_path / "conda"
+    sing_path = tmp_path / "singularity"
+    art = bt._env_artifacts(info, str(conda_path), str(sing_path))
+    if conda:
+        art["conda_marker"].parent.mkdir(parents=True, exist_ok=True)
+        art["conda_marker"].write_text("built\n")
+    if pull:
+        art["pull_img"].parent.mkdir(parents=True, exist_ok=True)
+        art["pull_img"].write_bytes(b"img")
+    if galaxy and art["galaxy_img"] is not None:
+        art["galaxy_img"].parent.mkdir(parents=True, exist_ok=True)
+        art["galaxy_img"].write_bytes(b"img")
+    return art
+
+
+def test_needs_build_all_present(tmp_path, monkeypatch):
+    monkeypatch.setattr(bt, "needs_docker_pull", lambda *_: False)
+    art = _make_art(_GALAXY_INFO, tmp_path)
+    assert bt._needs_build(_GALAXY_INFO, art, False) is False
+
+
+def test_needs_build_missing_conda_marker(tmp_path, monkeypatch):
+    monkeypatch.setattr(bt, "needs_docker_pull", lambda *_: False)
+    art = _make_art(_GALAXY_INFO, tmp_path, conda=False)
+    assert bt._needs_build(_GALAXY_INFO, art, False) is True
+
+
+def test_needs_build_docker_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(bt, "needs_docker_pull", lambda *_: True)
+    art = _make_art(_GALAXY_INFO, tmp_path)
+    assert bt._needs_build(_GALAXY_INFO, art, False) is True
+
+
+def test_needs_build_missing_galaxy_image(tmp_path, monkeypatch):
+    monkeypatch.setattr(bt, "needs_docker_pull", lambda *_: False)
+    art = _make_art(_GALAXY_INFO, tmp_path, galaxy=False)
+    assert bt._needs_build(_GALAXY_INFO, art, False) is True
+
+
+def test_needs_build_force_always_true(tmp_path, monkeypatch):
+    monkeypatch.setattr(bt, "needs_docker_pull", lambda *_: False)
+    art = _make_art(_GALAXY_INFO, tmp_path)
+    assert bt._needs_build(_GALAXY_INFO, art, True) is True
+
+
+def test_needs_build_nongalaxy_present(tmp_path, monkeypatch):
+    monkeypatch.setattr(bt, "needs_docker_pull", lambda *_: False)
+    art = _make_art(_NONGALAXY_INFO, tmp_path)
+    assert art["galaxy_img"] is None
+    assert bt._needs_build(_NONGALAXY_INFO, art, False) is False
+
+
+def test_needs_build_nongalaxy_missing_pull(tmp_path, monkeypatch):
+    monkeypatch.setattr(bt, "needs_docker_pull", lambda *_: False)
+    art = _make_art(_NONGALAXY_INFO, tmp_path, pull=False)
+    assert bt._needs_build(_NONGALAXY_INFO, art, False) is True
+
+
+# ---------------------------------------------------------------------------
+# _load_test_times
+# ---------------------------------------------------------------------------
+
+
+def test_load_test_times_valid(tmp_path):
+    p = tmp_path / "times.json"
+    p.write_text(json.dumps({"components": {"modules/x": {"expected_seconds": 30}}}))
+    assert bt._load_test_times(p) == {"modules/x": {"expected_seconds": 30}}
+
+
+def test_load_test_times_missing_file(tmp_path):
+    assert bt._load_test_times(tmp_path / "nope.json") == {}
+
+
+def test_load_test_times_malformed(tmp_path):
+    p = tmp_path / "bad.json"
+    p.write_text("{bad")
+    assert bt._load_test_times(p) == {}
+
+
+# ---------------------------------------------------------------------------
+# _component_timeout
+# ---------------------------------------------------------------------------
+
+
+def test_component_timeout_below_ceiling():
+    b = {"modules/x": {"expected_seconds": 30}}
+    assert bt._component_timeout("modules", "x", b, 4, 5400) == 120
+
+
+def test_component_timeout_clamped_to_ceiling():
+    b = {"modules/x": {"expected_seconds": 2000}}
+    assert bt._component_timeout("modules", "x", b, 4, 5400) == 5400
+
+
+def test_component_timeout_missing_entry_uses_ceiling():
+    b = {"modules/x": {"expected_seconds": 30}}
+    assert bt._component_timeout("modules", "z", b, 4, 5400) == 5400
+
+
+def test_component_timeout_nonpositive_expected_uses_ceiling():
+    b = {"modules/x": {"expected_seconds": 0}}
+    assert bt._component_timeout("modules", "x", b, 4, 5400) == 5400
+
+
+def test_component_timeout_disabled_ceiling_is_none():
+    b = {"modules/x": {"expected_seconds": 30}}
+    assert bt._component_timeout("modules", "x", b, 4, None) is None
+
+
+# ---------------------------------------------------------------------------
+# _ordered_tests
+# ---------------------------------------------------------------------------
+
+
+def test_ordered_tests_longest_first():
+    a = {"tier": "modules", "component": "a"}
+    b = {"tier": "modules", "component": "b"}
+    baselines = {
+        "modules/a": {"expected_seconds": 10},
+        "modules/b": {"expected_seconds": 100},
+    }
+    assert bt._ordered_tests([a, b], baselines) == [b, a]
+
+
+def test_ordered_tests_unknown_sorts_first():
+    known = {"tier": "modules", "component": "a"}
+    unknown = {"tier": "modules", "component": "u"}
+    baselines = {"modules/a": {"expected_seconds": 10}}
+    assert bt._ordered_tests([known, unknown], baselines) == [unknown, known]
+
+
+def test_ordered_tests_empty_baselines_preserves_order():
+    a = {"tier": "modules", "component": "a"}
+    b = {"tier": "modules", "component": "b"}
+    tests = [a, b]
+    assert bt._ordered_tests(tests, {}) is tests
+
+
+# ---------------------------------------------------------------------------
+# _long_jobs
+# ---------------------------------------------------------------------------
+
+
+def test_long_jobs_over_threshold_longest_first():
+    tests = [
+        {"tier": "modules", "component": "a"},
+        {"tier": "modules", "component": "b"},
+        {"tier": "modules", "component": "c"},
+    ]
+    baselines = {
+        "modules/a": {"expected_seconds": 700},
+        "modules/b": {"expected_seconds": 300},
+        "modules/c": {"expected_seconds": 900},
+    }
+    assert bt._long_jobs(tests, baselines) == [(900, "c"), (700, "a")]
+
+
+def test_long_jobs_none_over_threshold():
+    tests = [{"tier": "modules", "component": "b"}]
+    assert bt._long_jobs(tests, {"modules/b": {"expected_seconds": 300}}) == []
+
+
+def test_long_jobs_empty_baselines():
+    assert bt._long_jobs([{"tier": "modules", "component": "a"}], {}) == []

@@ -19,6 +19,8 @@
     - running tests now requires docker, conda/mamba, and singularity/apptainer
         - `--profile` is no longer needed due to this
 - Both Galaxy images and singularity pull images are now tested
+- `bactopia-test` build phase now logs "Building environments for X" only when an env is actually built; already-present envs are silent (reports "All N environment set(s) already present")
+- `bactopia-test --cleanup` now only removes `.nf-test/` artifacts under `modules/`, `subworkflows/`, `workflows/`, and `tests/`; `logs/` work dirs are left alone
 
 ## 2.3.0
 
