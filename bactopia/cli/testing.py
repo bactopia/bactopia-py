@@ -555,9 +555,9 @@ def _ordered_tests(tests, baselines):
         return tests
     return sorted(
         tests,
-        key=lambda t: baselines.get(
-            f"{t['tier']}/{t['component']}", {}
-        ).get("expected_seconds", float("inf")),
+        key=lambda t: baselines.get(f"{t['tier']}/{t['component']}", {}).get(
+            "expected_seconds", float("inf")
+        ),
         reverse=True,
     )
 
@@ -568,9 +568,7 @@ def _long_jobs(tests, baselines):
     out = [
         (baselines[f"{t['tier']}/{t['component']}"]["expected_seconds"], t["component"])
         for t in tests
-        if baselines.get(f"{t['tier']}/{t['component']}", {}).get(
-            "expected_seconds", 0
-        )
+        if baselines.get(f"{t['tier']}/{t['component']}", {}).get("expected_seconds", 0)
         > LONG_JOB_SECONDS
     ]
     return sorted(out, reverse=True)
